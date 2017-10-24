@@ -1,3 +1,1 @@
-int dummy_forward(
-    THFloatTensor *data,
-    const long nsize);
+int dummy_forward(THFloatTensor *data, THFloatTensor* output);
