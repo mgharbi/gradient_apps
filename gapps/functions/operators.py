@@ -33,3 +33,17 @@ class Dummy(Function):
   #   grad_data = Variable(grad_data)
 
     return grad_data
+
+
+class BilateralSlice(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, grid, guide):
+    # ctx.save_for_backward(g)
+
+    output = grid.new()
+    ops.bilateral_slice_forward_(grid, guide, output)
+
+    return output
+
