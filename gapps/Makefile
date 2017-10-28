@@ -3,9 +3,9 @@ HALIDE_DIR ?=
 HL_TARGET ?= host
 
 CXX ?= g++
-CXXFLAGS += -g -std=c++11 -fno-rtti -I$(HALIDE_DIR)/include/
+CXXFLAGS += -O3 -g -std=c++11 -fno-rtti -I$(HALIDE_DIR)/include/
 LDFLAGS ?=
-LDFLAGS += -L$(HALIDE_DIR)/bin -lHalide -lpthread -ldl 
+LDFLAGS += $(HALIDE_DIR)/lib/libHalide.a -lpthread -ldl -lcurses -lz
 ifeq ($(UNAME), Darwin)
 CXXFLAGS += -fvisibility=hidden
 endif
@@ -15,8 +15,6 @@ DYLD_LIBRARY_PATH=$(DYLD_LIBRARY_PATH):$(HALIDE_DIR)/bin
 else
 endif
 
-LIB_HALIDE = $(HALIDE_DIR)/lib/libHalide.a
-
 # Cuda config
 NVCC = nvcc -std c++11 -g #-G  -pg
 NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
@@ -25,7 +23,7 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = dummy bilateral_slice_forward
+OPS = dummy bilateral_slice_forward bilateral_layer_forward bilateral_layer_backward
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
 all: cffi

@@ -47,3 +47,27 @@ class BilateralSlice(Function):
 
     return output
 
+class BilateralLayer(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, guide, filter, bias):
+    ctx.save_for_backward(input, guide, filter, bias)
+
+    output = input.new()
+    ops.bilateral_layer_forward(input, guide, filter, bias, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, grad_output):
+    input, guide, filter, bias = ctx.saved_variables
+
+    d_input = input.new()
+    d_guide = guide.new()
+    d_filter = filter.new()
+    d_bias = bias.new()
+    ops.bilateral_layer_backward(input, guide, filter, bias,
+                                 d_input, d_guide, d_filter, d_bias)
+
+    return d_input, d_guide, d_filter, d_bias
