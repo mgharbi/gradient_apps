@@ -11,4 +11,9 @@ int bilateral_layer_forward(THFloatTensor *input,
 int bilateral_layer_backward(THFloatTensor *input,
                              THFloatTensor *guide,
                              THFloatTensor *filter,
-                             THFloatTensor *bias);
+                             THFloatTensor *bias,
+                             THFloatTensor *adjoint,
+                             THFloatTensor *d_input,
+                             THFloatTensor *d_guide,
+                             THFloatTensor *d_filter,
+                             THFloatTensor *d_bias);
