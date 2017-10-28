@@ -67,7 +67,7 @@ class BilateralLayer(Function):
     d_guide = guide.new()
     d_filter = filter.new()
     d_bias = bias.new()
-    ops.bilateral_layer_backward(input, guide, filter, bias,
+    ops.bilateral_layer_backward(input, guide, filter, bias, grad_output,
                                  d_input, d_guide, d_filter, d_bias)
 
     return d_input, d_guide, d_filter, d_bias
