@@ -23,7 +23,7 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = dummy bilateral_slice_forward bilateral_layer_forward bilateral_layer_backward
+OPS = dummy bilateral_slice_forward bilateral_layer_forward #bilateral_layer_backward
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
 all: cffi
@@ -38,7 +38,7 @@ cffi: $(OPS_LIBS)
 # 	ar rvs $@ $^
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
-	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin ./$< -g $(basename $(@F)) -o $(BUILD_DIR) target=$(HL_TARGET)
+	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin ./$< -g $(basename $(@F)) -e static_library,h,html -o $(BUILD_DIR) target=$(HL_TARGET)
 
 # Generators
 $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx build

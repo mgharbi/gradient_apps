@@ -15,8 +15,6 @@ std::map<std::string, Func> bilateral_layer(
 	    const Input &guide,
 	    const Input &filter,
   	    const Input &bias) {
-    // TODO: should we downsample the input here?
-
     // Offsets the input by different biases and applies ReLU
     // Do this for each channel
     Func f_input("input");
@@ -28,20 +26,30 @@ std::map<std::string, Func> bilateral_layer(
     Func f_offset("offset");
     // x, y, z offset, input channel, batch size
     f_offset(x, y, z, ci, n) = max(0.f, f_input(x, y, ci, n) + f_bias(z, ci));
+    // TODO: input channels should be splatted at the guide location?
+    
+    int sigma_x = 8;
+    int sigma_y = 8;
+    
+    // TODO: should we downsample the input here? yes!
+
     // Perform 3D filtering in the offseted space
     // Again, do this for each channel
-    // We assume the z offset part is fully-connected 
-    // (i.e. filter.dim(2).extent() == bias.dim(1).extent())
-    RDom r(filter.dim(0).min(), filter.dim(0).extent(),  // x
-           filter.dim(1).min(), filter.dim(1).extent(),  // y
-           filter.dim(2).min(), filter.dim(2).extent(),  // z offset
-           filter.dim(3).min(), filter.dim(3).extent()); // input channel
+    // We assume the z offset part is fully-connected TODO: change that
+    // (i.e. filter.dim(2).extent() == bias.dim(0).extent())
+    Expr kw = filter.dim(0).extent();
+    Expr kh = filter.dim(1).extent();
+    Expr kd = filter.dim(2).extent();
+    Expr in_chans = filter.dim(3).extent();
+    RDom r(0, kw, 0, kh, 0, kd, 0, in_chans);
     Func f_filter("filter");
     f_filter(x, y, z, ci, co) = filter(x, y, z, ci, co);
     Func f_conv("conv");
     f_conv(x, y, z, co, n)  = 0.f;
+    // TODO: centered kernel
     f_conv(x, y, z, co, n) += f_filter(r[0], r[1], r[2], r[3], co) *
                               f_offset(x + r[0], y + r[1], r[2], r[3], n);
+
     // Slice the result back to 2D
     // Find the coordinate in z
     Expr gz = clamp(f_guide(x, y, n), 0.0f, 1.0f) * (filter.dim(2).extent() - 1);
@@ -51,7 +59,8 @@ std::map<std::string, Func> bilateral_layer(
     Expr cz = fz + 1;
     // Weight
     Expr wz = gz - fz;
-    // Linear interpolation
+
+    // Linear interpolation: TODO: should be trilinear in a downsampled grid
     Func f_output("output");
     f_output(x, y, co, n) = f_conv(x, y, fz, co, n) * (1.f - wz) +
                             f_conv(x, y, cz, co, n) * wz;
