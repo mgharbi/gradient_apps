@@ -14,24 +14,28 @@ std::map<std::string, Func> bilateral_layer(
 		const Input &input,
 	    const Input &guide,
 	    const Input &filter,
-  	    const Input &bias) {
-    // Offsets the input by different biases and applies ReLU
+      const Expr &sigma_x,
+      const Expr &sigma_y,
+      const Expr sigma_z) {
     // Do this for each channel
-    Func f_input("input");
-    f_input(x, y, ci, n) = input(x, y, ci, n);
-    Func f_guide("guide");
-    f_guide(x, y, n) = guide(x, y, n);
-    Func f_bias("bias");
-    f_bias(z, ci) = bias(z, ci);
-    Func f_offset("offset");
-    // x, y, z offset, input channel, batch size
-    f_offset(x, y, z, ci, n) = max(0.f, f_input(x, y, ci, n) + f_bias(z, ci));
-    // TODO: input channels should be splatted at the guide location?
-    
-    int sigma_x = 8;
-    int sigma_y = 8;
-    
-    // TODO: should we downsample the input here? yes!
+    Func f_input("input"); f_input = Halide::BoundaryConditions::repeat_edge(input);
+    Func f_guide("guide"); f_guide = Halide::BoundaryConditions::repeat_edge(guide);
+
+    Expr guide_pos = clamp(f_guide(x, y, n)*sigma_z, 0, cast<float>(sigma_z));
+    Expr lower_bin = cast<int>(floor(guide_pos));
+    Expr upper_bin = cast<int>(ceil(guide_pos));
+    Expr w = guide_pos - lower_bin;
+    Func f_splatz("splat_z");
+    f_splatz(x, y, z, ci, n) = 0.0f;
+    f_splatz(x, y, lower_bin, ci, n) += (1-w)*f_input(x, y, ci, n);
+    f_splatz(x, y, upper_bin, ci, n) += w*f_input(x, y, ci, n);
+
+    // Downsample grid
+    Expr normalization = 1.0f/(cast<float>(sigma_x)*cast<float>(sigma_y));
+    Func f_grid("bilateral_grid");
+    f_grid(x, y, z, ci, n) = 0.f;
+    RDom rgrid(0, sigma_x, 0, sigma_y);
+    f_grid(x, y, z, ci, n) += normalization*f_splatz(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y, clamp(z, 0, sigma_z) , ci, n);
 
     // Perform 3D filtering in the offseted space
     // Again, do this for each channel
@@ -48,28 +52,38 @@ std::map<std::string, Func> bilateral_layer(
     f_conv(x, y, z, co, n)  = 0.f;
     // TODO: centered kernel
     f_conv(x, y, z, co, n) += f_filter(r[0], r[1], r[2], r[3], co) *
-                              f_offset(x + r[0], y + r[1], r[2], r[3], n);
+                              f_grid(x + r[0], y + r[1], z + r[2], r[3], n);
 
-    // Slice the result back to 2D
-    // Find the coordinate in z
-    Expr gz = clamp(f_guide(x, y, n), 0.0f, 1.0f) * (filter.dim(2).extent() - 1);
-    // Floor voxel
-    Expr fz = cast<int>(floor(gz) - 0.5f);
-    // Ceil voxel
-    Expr cz = fz + 1;
-    // Weight
+    // Enclosing voxel
+    Expr gx = (x+0.5f)/(1.0f*sigma_x);
+    Expr gy = (y+0.5f)/(1.0f*sigma_y);
+    Expr gz = guide_pos;
+    Expr fx = cast<int>(floor(gx-0.5f));
+    Expr fy = cast<int>(floor(gy-0.5f));
+    Expr fz = cast<int>(floor(gz));
+    Expr cx = fx+1;
+    Expr cy = fy+1;
+    Expr cz = cast<int>(ceil(gz));
+    Expr wx = gx-0.5f - fx;
+    Expr wy = gy-0.5f - fy;
     Expr wz = gz - fz;
 
-    // Linear interpolation: TODO: should be trilinear in a downsampled grid
+    // trilerp
     Func f_output("output");
-    f_output(x, y, co, n) = f_conv(x, y, fz, co, n) * (1.f - wz) +
-                            f_conv(x, y, cz, co, n) * wz;
+    f_output(x, y, co, n) = 
+        f_conv(fx, fy, fz, co, n)*(1.f - wx)*(1.f - wy)*(1.f - wz)
+      + f_conv(fx, fy, cz, co, n)*(1.f - wx)*(1.f - wy)*(      wz)
+      + f_conv(fx, cy, fz, co, n)*(1.f - wx)*(      wy)*(1.f - wz)
+      + f_conv(fx, cy, cz, co, n)*(1.f - wx)*(      wy)*(      wz)
+      + f_conv(cx, fy, fz, co, n)*(      wx)*(1.f - wy)*(1.f - wz)
+      + f_conv(cx, fy, cz, co, n)*(      wx)*(1.f - wy)*(      wz)
+      + f_conv(cx, cy, fz, co, n)*(      wx)*(      wy)*(1.f - wz)
+      + f_conv(cx, cy, cz, co, n)*(      wx)*(      wy)*(      wz);
 
     std::map<std::string, Func> func_map;
     func_map["input"]  = f_input;
     func_map["guide"]  = f_guide;
-    func_map["bias"]   = f_bias;
-    func_map["offset"] = f_offset;
+    func_map["grid"] = f_grid;
     func_map["filter"] = f_filter;
     func_map["conv"]   = f_conv;
     func_map["output"] = f_output;
