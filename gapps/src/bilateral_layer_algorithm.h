@@ -18,9 +18,12 @@ std::map<std::string, Func> bilateral_layer(
       const Expr &sigma_y,
       const Expr sigma_z) {
     // Do this for each channel
-    Func f_input("input"); f_input = Halide::BoundaryConditions::repeat_edge(input);
-    Func f_guide("guide"); f_guide = Halide::BoundaryConditions::repeat_edge(guide);
+    Func f_input("input"); f_input = input;
+    Func f_guide("guide"); f_guide = guide;
+    // Func f_input("input"); f_input = Halide::BoundaryConditions::repeat_edge(input);
+    // Func f_guide("guide"); f_guide = Halide::BoundaryConditions::repeat_edge(guide);
 
+    // Splat in z
     Expr guide_pos = clamp(f_guide(x, y, n)*sigma_z, 0, cast<float>(sigma_z));
     Expr lower_bin = cast<int>(floor(guide_pos));
     Expr upper_bin = cast<int>(ceil(guide_pos));
@@ -32,15 +35,12 @@ std::map<std::string, Func> bilateral_layer(
 
     // Downsample grid
     Expr normalization = 1.0f/(cast<float>(sigma_x)*cast<float>(sigma_y));
+    RDom rgrid(0, sigma_x, 0, sigma_y);
     Func f_grid("bilateral_grid");
     f_grid(x, y, z, ci, n) = 0.f;
-    RDom rgrid(0, sigma_x, 0, sigma_y);
     f_grid(x, y, z, ci, n) += normalization*f_splatz(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y, clamp(z, 0, sigma_z) , ci, n);
 
-    // Perform 3D filtering in the offseted space
-    // Again, do this for each channel
-    // We assume the z offset part is fully-connected TODO: change that
-    // (i.e. filter.dim(2).extent() == bias.dim(0).extent())
+    // Perform 3D filtering in the grid
     Expr kw = filter.dim(0).extent();
     Expr kh = filter.dim(1).extent();
     Expr kd = filter.dim(2).extent();
@@ -50,7 +50,7 @@ std::map<std::string, Func> bilateral_layer(
     f_filter(x, y, z, ci, co) = filter(x, y, z, ci, co);
     Func f_conv("conv");
     f_conv(x, y, z, co, n)  = 0.f;
-    // TODO: centered kernel
+    // TODO: center kernel
     f_conv(x, y, z, co, n) += f_filter(r[0], r[1], r[2], r[3], co) *
                               f_grid(x + r[0], y + r[1], z + r[2], r[3], n);
 
@@ -70,15 +70,15 @@ std::map<std::string, Func> bilateral_layer(
 
     // trilerp
     Func f_output("output");
-    f_output(x, y, co, n) = 
-        f_conv(fx, fy, fz, co, n)*(1.f - wx)*(1.f - wy)*(1.f - wz)
-      + f_conv(fx, fy, cz, co, n)*(1.f - wx)*(1.f - wy)*(      wz)
-      + f_conv(fx, cy, fz, co, n)*(1.f - wx)*(      wy)*(1.f - wz)
-      + f_conv(fx, cy, cz, co, n)*(1.f - wx)*(      wy)*(      wz)
-      + f_conv(cx, fy, fz, co, n)*(      wx)*(1.f - wy)*(1.f - wz)
-      + f_conv(cx, fy, cz, co, n)*(      wx)*(1.f - wy)*(      wz)
-      + f_conv(cx, cy, fz, co, n)*(      wx)*(      wy)*(1.f - wz)
-      + f_conv(cx, cy, cz, co, n)*(      wx)*(      wy)*(      wz);
+    f_output(x, y, co, n) = f_conv(fx, fy, fz, co, n) + f_conv(fx, fy, cz, co, n);
+        // f_conv(fx, fy, fz, co, n)*(1.f - wx)*(1.f - wy)*(1.f - wz);
+      // + f_conv(fx, fy, cz, co, n)*(1.f - wx)*(1.f - wy)*(      wz)
+      // + f_conv(fx, cy, fz, co, n)*(1.f - wx)*(      wy)*(1.f - wz)
+      // + f_conv(fx, cy, cz, co, n)*(1.f - wx)*(      wy)*(      wz)
+      // + f_conv(cx, fy, fz, co, n)*(      wx)*(1.f - wy)*(1.f - wz)
+      // + f_conv(cx, fy, cz, co, n)*(      wx)*(1.f - wy)*(      wz)
+      // + f_conv(cx, cy, fz, co, n)*(      wx)*(      wy)*(1.f - wz)
+      // + f_conv(cx, cy, cz, co, n)*(      wx)*(      wy)*(      wz);
 
     std::map<std::string, Func> func_map;
     func_map["input"]  = f_input;

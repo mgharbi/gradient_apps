@@ -23,7 +23,7 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = bilateral_layer_forward #bilateral_layer_backward
+OPS = bilateral_layer_backward #bilateral_layer_forward
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
 all: cffi
