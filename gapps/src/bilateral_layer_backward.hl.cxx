@@ -33,9 +33,14 @@ public:
                                            {d_output.dim(2).min(), d_output.dim(2).max()},
                                            {d_output.dim(3).min(), d_output.dim(3).max()}});
         std::map<FuncKey, Func> adjoints = d.adjoints;
-        Func f_d_input = adjoints[FuncKey{f_input.name(), -1}];
-        Func f_d_guide = adjoints[FuncKey{f_guide.name(), -1}];
+        assert(adjoints.find(FuncKey{f_input.name(), -1}) != adjoints.end());
+        assert(adjoints.find(FuncKey{f_guide.name(), -1}) != adjoints.end());
+        assert(adjoints.find(FuncKey{f_filter.name(), -1}) != adjoints.end());
+        Func f_d_input  = adjoints[FuncKey{f_input.name(), -1}];
+        Func f_d_guide  = adjoints[FuncKey{f_guide.name(), -1}];
         Func f_d_filter = adjoints[FuncKey{f_filter.name(), -1}];
+
+        print_func(f_d_input);
 
         d_input(x, y, ci, n) = f_d_input(x, y, ci, n);
         d_guide(x, y, n) = f_d_guide(x, y, n);
