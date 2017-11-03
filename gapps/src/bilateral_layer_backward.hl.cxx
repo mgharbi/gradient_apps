@@ -2,6 +2,16 @@
 
 namespace gradient_apps {
 
+void apply_compute_root(Func F) {
+    std::map<std::string, Internal::Function> flist =
+        Internal::find_transitive_calls(F.function());
+    flist.insert(std::make_pair(F.name(), F.function()));
+    for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
+        Func f(fit->second);
+        f.compute_root();
+    }
+}
+
 class BilateralLayerBackwardGenerator : public Generator<BilateralLayerBackwardGenerator> {
 public:
     Input<int> sigma_x{"sigma_x"}; // block_size in x
@@ -40,7 +50,9 @@ public:
         Func f_d_guide  = adjoints[FuncKey{f_guide.name(), -1}];
         Func f_d_filter = adjoints[FuncKey{f_filter.name(), -1}];
 
-        print_func(f_d_input);
+        apply_compute_root(f_d_input);
+        apply_compute_root(f_d_guide);
+        apply_compute_root(f_d_filter);
 
         d_input(x, y, ci, n) = f_d_input(x, y, ci, n);
         d_guide(x, y, n) = f_d_guide(x, y, n);

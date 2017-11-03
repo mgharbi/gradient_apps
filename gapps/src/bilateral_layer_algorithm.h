@@ -18,9 +18,9 @@ std::map<std::string, Func> bilateral_layer(
         const Expr &sigma_y,
         const Expr sigma_z) {
     // Do this for each channel
-    Func f_input("input");
+    Func f_input("f_input");
     f_input(x, y, z, n) = input(x, y, z, n);
-    Func f_guide("guide");
+    Func f_guide("f_guide");
     f_guide(x, y, n) = guide(x, y, n);
     // Func f_input("input"); f_input = Halide::BoundaryConditions::repeat_edge(input);
     // Func f_guide("guide"); f_guide = Halide::BoundaryConditions::repeat_edge(guide);
@@ -49,7 +49,7 @@ std::map<std::string, Func> bilateral_layer(
     Expr kd = filter.dim(2).extent();
     Expr in_chans = filter.dim(3).extent();
     RDom r(0, kw, 0, kh, 0, kd, 0, in_chans);
-    Func f_filter("filter");
+    Func f_filter("f_filter");
     f_filter(x, y, z, ci, co) = filter(x, y, z, ci, co);
     Func f_conv("conv");
     f_conv(x, y, z, co, n)  = 0.f;
@@ -72,8 +72,8 @@ std::map<std::string, Func> bilateral_layer(
     Expr wz = gz - fz;
 
     // trilerp
-    Func f_output("output");
-    f_output(x, y, co, n) = // f_conv(fx, fy, fz, co, n) + f_conv(fx, fy, cz, co, n);
+    Func f_output("f_output");
+    f_output(x, y, co, n) =
          f_conv(fx, fy, fz, co, n)*(1.f - wx)*(1.f - wy)*(1.f - wz)
        + f_conv(fx, fy, cz, co, n)*(1.f - wx)*(1.f - wy)*(      wz)
        + f_conv(fx, cy, fz, co, n)*(1.f - wx)*(      wy)*(1.f - wz)
