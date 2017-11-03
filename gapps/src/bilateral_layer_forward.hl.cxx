@@ -14,7 +14,6 @@ public:
 
     Output<Buffer<float>> output{"output", 4};     // x, y, channel, batch size
 
-
     void generate() {
         std::map<std::string, Func> func_map = bilateral_layer(
             input, guide, filter, sigma_x, sigma_y, sigma_z);

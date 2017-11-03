@@ -23,19 +23,13 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = bilateral_layer_backward #bilateral_layer_forward
+OPS = ahd_demosaick_forward playground_forward playground_backward #bilateral_layer_backward bilateral_layer_forward
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
 all: cffi
 
 cffi: $(OPS_LIBS)
 	python build.py
-
-# build/kernels.so: src/sample_weighting_kernel.cu src/sample_weighting_kernel.h build
-# 	$(NVCC) -c  $< -o $@ $(NVFLAGS) $(TORCH_INC) 
-#
-# $(OPS_LIB): $(OPS_LIBS)
-# 	ar rvs $@ $^
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin ./$< -g $(basename $(@F)) -e static_library,h,html -o $(BUILD_DIR) target=$(HL_TARGET)

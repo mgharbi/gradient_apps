@@ -4,50 +4,6 @@ from torch.autograd import Variable
 from .._ext import operators as ops
 
 
-# class Dummy(Function):
-#   """"""
-#
-#   @staticmethod
-#   def forward(ctx, data):
-#     ctx.save_for_backward(data)
-#
-#     output = data.new()
-#     ops.dummy_forward(data, output)
-#
-#     return output
-#
-#   @staticmethod
-#   def backward(ctx, grad_output):
-#     data = ctx.saved_variables
-#
-#     # not gradient for this op
-#     grad_data = None
-#
-#   #   grad_data = data.data.new()
-#   #
-#   #   backend(data.data).sample_weighting_backward(
-#   #       data.data, coords.data, params.data, kernels.data,
-#   #       grad_output.data, grad_output_w.data,
-#   #       grad_data, grad_coords, grad_params, grad_kernels, nsize)
-#   #
-#   #   grad_data = Variable(grad_data)
-#
-#     return grad_data
-#
-#
-# class BilateralSlice(Function):
-#   """"""
-#
-#   @staticmethod
-#   def forward(ctx, grid, guide):
-#     # ctx.save_for_backward(g)
-#
-#     output = grid.new()
-#     ops.bilateral_slice_forward_(grid, guide, output)
-#
-#     return output
-
-
 class BilateralLayer(Function):
   """"""
 
@@ -66,14 +22,80 @@ class BilateralLayer(Function):
     return output
 
   @staticmethod
-  def backward(ctx, grad_output):
-    input, guide, filter, bias = ctx.saved_variables
+  def backward(ctx, d_output):
+    input, guide, filter = ctx.saved_variables
 
-    d_input = input.new()
-    d_guide = guide.new()
-    d_filter = filter.new()
-    d_bias = bias.new()
-    # ops.bilateral_layer_backward_(input, guide, filter, bias, grad_output,
-    #                              d_input, d_guide, d_filter, d_bias)
+    sigma_x = ctx.sigma_x
+    sigma_y = ctx.sigma_y
+    sigma_z = ctx.sigma_z
 
-    return d_input, d_guide, d_filter, d_bias, None, None, None
+    d_input = input.data.new()
+    d_guide = guide.data.new()
+    d_filter = filter.data.new()
+    ops.bilateral_layer_backward_(
+        input.data, guide.data, filter.data, d_output.data,
+        d_input, d_guide, d_filter,
+        sigma_x, sigma_y, sigma_z)
+
+    d_input = Variable(d_input)
+    d_guide = Variable(d_guide)
+    d_filter = Variable(d_filter)
+
+    return d_input, d_guide, d_filter, None, None, None
+
+
+class Playground(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input1, input2):
+    ctx.save_for_backward(input1, input2)
+
+    output = input1.new()
+    ops.playground_forward_(
+        input1, input2, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    input1, input2 = ctx.saved_variables
+
+    d_input1 = input1.data.new()
+    d_input2 = input2.data.new()
+    ops.playground_backward_(
+        input1.data, input2.data, d_output.data,
+        d_input1, d_input2)
+
+    d_input1 = Variable(d_input1)
+    d_input2 = Variable(d_input2)
+
+    return d_input1, d_input2
+
+class AHDDemosaick(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, mosaick):
+    ctx.save_for_backward(mosaick)
+
+    output = mosaick.new()
+    ops.ahd_demosaick_forward_(
+        mosaick, output)
+
+    return output
+
+  # @staticmethod
+  # def backward(ctx, d_output):
+  #   mosaick = ctx.saved_variables
+  #
+  #   d_mosaick = mosaick.data.new()
+  #   d_input2 = input2.data.new()
+  #   ops.playground_backward_(
+  #       input1.data, input2.data, d_output.data,
+  #       d_input1, d_input2)
+  #
+  #   d_input1 = Variable(d_input1)
+  #   d_input2 = Variable(d_input2)
+  #
+  #   return d_input1, d_input2

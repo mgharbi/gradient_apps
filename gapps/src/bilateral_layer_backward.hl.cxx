@@ -1,4 +1,8 @@
 #include "bilateral_layer_algorithm.h"
+#include <iostream>
+
+using std::cout;
+using std::endl;
 
 namespace gradient_apps {
 
@@ -7,6 +11,7 @@ void apply_compute_root(Func F) {
         Internal::find_transitive_calls(F.function());
     flist.insert(std::make_pair(F.name(), F.function()));
     for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
+        cout << "computing root " << fit->first << endl;
         Func f(fit->second);
         f.compute_root();
     }

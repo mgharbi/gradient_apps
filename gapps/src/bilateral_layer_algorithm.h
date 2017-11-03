@@ -17,13 +17,10 @@ std::map<std::string, Func> bilateral_layer(
         const Expr &sigma_x,
         const Expr &sigma_y,
         const Expr sigma_z) {
-    // Do this for each channel
     Func f_input("f_input");
-    f_input(x, y, z, n) = input(x, y, z, n);
+    f_input(x, y, ci, n) = Halide::BoundaryConditions::repeat_edge(input)(x, y, ci, n);
     Func f_guide("f_guide");
-    f_guide(x, y, n) = guide(x, y, n);
-    // Func f_input("input"); f_input = Halide::BoundaryConditions::repeat_edge(input);
-    // Func f_guide("guide"); f_guide = Halide::BoundaryConditions::repeat_edge(guide);
+    f_guide(x, y, n) = Halide::BoundaryConditions::repeat_edge(guide)(x, y, n);
 
     // Splat in z
     Expr guide_pos = clamp(f_guide(x, y, n)*sigma_z, 0, cast<float>(sigma_z));
@@ -40,8 +37,9 @@ std::map<std::string, Func> bilateral_layer(
     RDom rgrid(0, sigma_x, 0, sigma_y);
     Func f_grid("bilateral_grid");
     f_grid(x, y, z, ci, n) = 0.f;
-    f_grid(x, y, z, ci, n) += normalization*
-        f_splatz(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y, clamp(z, 0, sigma_z) , ci, n);
+    f_grid(x, y, z, ci, n) += 
+      normalization*f_splatz(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y,
+                             clamp(z, 0, sigma_z) , ci, n);
 
     // Perform 3D filtering in the grid
     Expr kw = filter.dim(0).extent();
