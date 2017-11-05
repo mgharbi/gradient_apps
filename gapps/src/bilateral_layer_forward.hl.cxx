@@ -1,4 +1,4 @@
-#include "bilateral_layer_algorithm.h"
+#include "algorithms/bilateral_layer.h"
 
 namespace gradient_apps {
 
@@ -20,10 +20,43 @@ public:
         Func f_output = func_map["output"];
         output(x, y, co, n) = f_output(x, y, co, n);
 
-        func_map["grid"].compute_root();
-        func_map["conv"].compute_root();
+        if(auto_schedule) {
+          printf("Autoscheduling bilateral_layer forward\n");
+
+          int est_bsize = 1;
+          int est_h = 128;
+          int est_w = 128;
+          int est_ci = 3;
+          int est_co = 3;
+          int est_kh = 3;
+          int est_kw = 3;
+          int est_kd = 3;
+          input.dim(0).set_bounds_estimate(0, est_w);
+          input.dim(1).set_bounds_estimate(0, est_h);
+          input.dim(2).set_bounds_estimate(0, est_ci);
+          input.dim(3).set_bounds_estimate(0, est_bsize);
+
+          guide.dim(0).set_bounds_estimate(0, est_w);
+          guide.dim(1).set_bounds_estimate(0, est_h);
+          guide.dim(2).set_bounds_estimate(0, est_bsize);
+
+          filter.dim(0).set_bounds_estimate(0, est_kw);
+          filter.dim(1).set_bounds_estimate(0, est_kh);
+          filter.dim(2).set_bounds_estimate(0, est_kd);
+          filter.dim(3).set_bounds_estimate(0, est_ci);
+          filter.dim(4).set_bounds_estimate(0, est_co);
+
+          output
+            .estimate(x, 0, est_w)
+            .estimate(y, 0, est_h)
+            .estimate(co, 0, est_co)
+            .estimate(n, 0, est_bsize)
+            ;
+        } else {
+          func_map["grid"].compute_root();
+          func_map["conv"].compute_root();
+        }
     }
-        
 };
 
 }  // end namespace gradient_apps

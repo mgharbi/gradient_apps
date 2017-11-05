@@ -14,6 +14,26 @@ public:
             input1, input2);
         Func f_output = func_map["output"];
         output(x, y, co, n) = f_output(x, y, co, n);
+
+        if(auto_schedule) {
+          printf("Autoscheduling AHD demosaicking forward\n");
+          int est_h = 512;
+          int est_w = 512;
+          input1.dim(0).set_bounds_estimate(0, est_w);
+          input1.dim(1).set_bounds_estimate(0, est_h);
+          input1.dim(2).set_bounds_estimate(0, 3);
+          input1.dim(3).set_bounds_estimate(0, 16);
+
+          input2.dim(0).set_bounds_estimate(0, est_w);
+          input2.dim(1).set_bounds_estimate(0, est_h);
+          input2.dim(2).set_bounds_estimate(0, 3);
+          input2.dim(3).set_bounds_estimate(0, 16);
+
+          output.dim(0).set_bounds_estimate(0, est_w);
+          output.dim(1).set_bounds_estimate(0, est_h);
+          output.dim(2).set_bounds_estimate(0, 3);
+          output.dim(3).set_bounds_estimate(0, 16);
+        }
     }
         
 };

@@ -140,7 +140,7 @@ int bilateral_layer_forward_(THFloatTensor *input,
   guide  = THFloatTensor_newContiguous(guide);
   filter = THFloatTensor_newContiguous(filter);
 
-  THFloatTensor_resize4d(output, batch_size, filt_co, height-filt_height, width-filt_width); 
+  THFloatTensor_resize4d(output, batch_size, filt_co, height, width); 
   // TODO: 0-padding on/off
 
   // Wrap in Halide buffers
@@ -221,12 +221,12 @@ int bilateral_layer_backward_(THFloatTensor *input,
       "adjoint (%d) and filter (%d) should have same output channel size",
       adjoint_channels, filt_co);
   THArgCheck(
-      adjoint_height == height - filt_height, 0,
+      adjoint_height == height, 0,
       "adjoint (%d) and output (%d) should have same height", 
-      adjoint_height, height - filt_height);
+      adjoint_height, height);
   THArgCheck(
-      adjoint_width == width - filt_width, 0,
-      "adjoint (%d) and output (%d) should have same height",
+      adjoint_width == width, 0,
+      "adjoint (%d) and output (%d) should have same width",
       adjoint_width, width - filt_width);
 
   // grab references with contiguous memory

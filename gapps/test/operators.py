@@ -21,22 +21,19 @@ if not os.path.exists(out_dir):
 
 def test_bilateral_layer():
   bs = 1;
-  # gh = 16
-  # gw = 16
-  # gd = 8
   ci = 3
   co = 3
-  kh = 3
-  kw = 3
-  kd = 3
+  kh = 8
+  kw = 8
+  kd = 8
 
-  sx, sy, sz = 8, 8, 8
+  sx, sy, sz = 8, 8, 2
 
-  # image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
-  # guide = skimage.io.imread(os.path.join(data_dir, "gray.png"))
+  image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
+  guide = skimage.io.imread(os.path.join(data_dir, "gray.png"))
 
-  image = np.random.uniform(size=(16, 16, 3))
-  guide = np.random.uniform(size=(16, 16))
+  # image = np.random.uniform(size=(16, 16, 3))
+  # guide = np.random.uniform(size=(16, 16))
 
   h, w = guide.shape
   image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
@@ -45,30 +42,36 @@ def test_bilateral_layer():
   image = Variable(th.from_numpy(image), requires_grad=False)
   guide = Variable(th.from_numpy(guide), requires_grad=False)
   kernels = Variable(th.randn(co, ci, kd, kh, kw), requires_grad=True)
-  output = ops.BilateralLayer.apply(image, guide, kernels, sx, sy, sz)
 
+  print "profiling"
+  with profiler.profile() as prof:
+    output = ops.BilateralLayer.apply(image, guide, kernels, sx, sy, sz)
+    loss = output.sum()
+    loss.backward()
+
+    print prof
+
+  print "testing dimensions"
   assert output.shape[0] == bs
   assert output.shape[1] == co
-  assert output.shape[2] == h - kh
-  assert output.shape[3] == w - kw
+  assert output.shape[2] == h
+  assert output.shape[3] == w
 
-  loss = output.sum()
-  loss.backward()
-  # import ipdb; ipdb.set_trace()
-
-  gradcheck(ops.BilateralLayer.apply,
-      (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
-       raise_exception=True)
-
+  print "testing forward"
   mini, maxi = output.min(), output.max()
   output -= mini
   output /= (maxi-mini)
-
 
   output = output.data[0].numpy()
   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
   output = np.squeeze(output)
   skimage.io.imsave(os.path.join(out_dir, "bilateral_layer.png"), output)
+
+  print "testing gradient"
+  gradcheck(ops.BilateralLayer.apply,
+      (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
+       raise_exception=True)
+
 
 
 def test_playground():

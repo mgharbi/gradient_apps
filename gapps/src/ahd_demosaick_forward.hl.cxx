@@ -12,6 +12,17 @@ public:
         std::map<std::string, Func> func_map = ahd_demosaick(mosaick);
         Func f_output = func_map["output"];
         output(x, y, c) = f_output(x, y, c);
+
+        if(auto_schedule) {
+          printf("Autoscheduling AHD demosaicking forward\n");
+          int est_h = 512;
+          int est_w = 512;
+          mosaick.dim(0).set_bounds_estimate(0, est_w);
+          mosaick.dim(1).set_bounds_estimate(0, est_h);
+          output.dim(0).set_bounds_estimate(0, est_w);
+          output.dim(1).set_bounds_estimate(0, est_h);
+          output.dim(2).set_bounds_estimate(0, 3);
+        }
     }
         
 };

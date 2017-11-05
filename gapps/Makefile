@@ -23,7 +23,7 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = ahd_demosaick_forward playground_forward playground_backward #bilateral_layer_backward bilateral_layer_forward
+OPS = bilateral_layer_backward bilateral_layer_forward ahd_demosaick_forward playground_forward playground_backward 
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
 all: cffi
@@ -31,16 +31,11 @@ all: cffi
 cffi: $(OPS_LIBS)
 	python build.py
 
-$(BUILD_DIR)/%.a: $(BUILD_DIR)/%
-	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin ./$< -g $(basename $(@F)) -e static_library,h,html -o $(BUILD_DIR) target=$(HL_TARGET)
-
 # Generators
-$(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx build
-	echo $(HALIDE_DIR)
-	$(CXX) $< $(HALIDE_DIR)/tools/GenGen.cpp  $(CXXFLAGS) $(LDFLAGS) -o $@
-
-build:
-	mkdir -p $@
+$(BUILD_DIR)/%.a: $(SRC_DIR)/%.hl.cxx build
+	mkdir -p $(BUILD_DIR)
+	$(CXX) $< $(HALIDE_DIR)/tools/GenGen.cpp  $(CXXFLAGS) $(LDFLAGS) -o $(basename $@)
+	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin ./$(basename $@) -g $(basename $(@F)) -e static_library,h,html -o $(BUILD_DIR) target=$(HL_TARGET) auto_schedule=true
 
 clean:
 	rm -rf $(BUILD_DIR) $(EXT_DIR)

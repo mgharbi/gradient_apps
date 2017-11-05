@@ -49,11 +49,42 @@ public:
         print_func(f_d_input1);
         print_func(f_d_input2);
 
-        apply_compute_root(f_d_input1);
-        apply_compute_root(f_d_input2);
 
         d_input1(x, y, ci, n) = f_d_input1(x, y, ci, n);
         d_input2(x, y, ci, n) = f_d_input2(x, y, ci, n);
+
+        if(auto_schedule) {
+          printf("Autoscheduling AHD demosaicking forward\n");
+          int est_h = 512;
+          int est_w = 512;
+          input1.dim(0).set_bounds_estimate(0, est_w);
+          input1.dim(1).set_bounds_estimate(0, est_h);
+          input1.dim(2).set_bounds_estimate(0, 3);
+          input1.dim(3).set_bounds_estimate(0, 16);
+
+          input2.dim(0).set_bounds_estimate(0, est_w);
+          input2.dim(1).set_bounds_estimate(0, est_h);
+          input2.dim(2).set_bounds_estimate(0, 3);
+          input2.dim(3).set_bounds_estimate(0, 16);
+
+          d_output.dim(0).set_bounds_estimate(0, est_w);
+          d_output.dim(1).set_bounds_estimate(0, est_h);
+          d_output.dim(2).set_bounds_estimate(0, 3);
+          d_output.dim(3).set_bounds_estimate(0, 16);
+
+          d_input1.dim(0).set_bounds_estimate(0, est_w);
+          d_input1.dim(1).set_bounds_estimate(0, est_h);
+          d_input1.dim(2).set_bounds_estimate(0, 3);
+          d_input1.dim(3).set_bounds_estimate(0, 16);
+
+          d_input2.dim(0).set_bounds_estimate(0, est_w);
+          d_input2.dim(1).set_bounds_estimate(0, est_h);
+          d_input2.dim(2).set_bounds_estimate(0, 3);
+          d_input2.dim(3).set_bounds_estimate(0, 16);
+        } else {
+          apply_compute_root(f_d_input1);
+          apply_compute_root(f_d_input2);
+        }
     }
 };
 
