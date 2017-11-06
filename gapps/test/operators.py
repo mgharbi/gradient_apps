@@ -34,6 +34,8 @@ def test_bilateral_layer():
 
   # image = np.random.uniform(size=(16, 16, 3))
   # guide = np.random.uniform(size=(16, 16))
+  image = image[:128, :128, :]
+  guide = guide[:128, :128]
 
   h, w = guide.shape
   image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
@@ -49,7 +51,7 @@ def test_bilateral_layer():
     loss = output.sum()
     loss.backward()
 
-    print prof
+  print prof
 
   print "testing dimensions"
   assert output.shape[0] == bs
@@ -57,20 +59,20 @@ def test_bilateral_layer():
   assert output.shape[2] == h
   assert output.shape[3] == w
 
-  print "testing forward"
-  mini, maxi = output.min(), output.max()
-  output -= mini
-  output /= (maxi-mini)
-
-  output = output.data[0].numpy()
-  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
-  output = np.squeeze(output)
-  skimage.io.imsave(os.path.join(out_dir, "bilateral_layer.png"), output)
-
-  print "testing gradient"
-  gradcheck(ops.BilateralLayer.apply,
-      (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
-       raise_exception=True)
+  # print "testing forward"
+  # mini, maxi = output.min(), output.max()
+  # output -= mini
+  # output /= (maxi-mini)
+  #
+  # output = output.data[0].numpy()
+  # output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  # output = np.squeeze(output)
+  # skimage.io.imsave(os.path.join(out_dir, "bilateral_layer.png"), output)
+  #
+  # print "testing gradient"
+  # gradcheck(ops.BilateralLayer.apply,
+  #     (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
+  #      raise_exception=True)
 
 
 

@@ -6,15 +6,17 @@ using std::endl;
 
 namespace gradient_apps {
 
-void apply_compute_root(Func F) {
+std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
     std::map<std::string, Internal::Function> flist =
         Internal::find_transitive_calls(F.function());
     flist.insert(std::make_pair(F.name(), F.function()));
+    cout << "Dependencies for " << F.name() << " " << endl;
     for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
-        cout << "computing root " << fit->first << " " << endl;
-        Func f(fit->second);
+        cout << "  .Func " << fit->first << " " << endl;
+        // Func f(fit->second);
         // f.compute_root();
     }
+    return flist;
 }
 
 class BilateralLayerBackwardGenerator : public Generator<BilateralLayerBackwardGenerator> {
@@ -52,6 +54,7 @@ public:
         assert(adjoints.find(FuncKey{f_input.name(), -1}) != adjoints.end());
         assert(adjoints.find(FuncKey{f_guide.name(), -1}) != adjoints.end());
         assert(adjoints.find(FuncKey{f_filter.name(), -1}) != adjoints.end());
+
         Func f_d_input  = adjoints[FuncKey{f_input.name(), -1}];
         Func f_d_guide  = adjoints[FuncKey{f_guide.name(), -1}];
         Func f_d_filter = adjoints[FuncKey{f_filter.name(), -1}];
@@ -111,9 +114,154 @@ public:
 
           printf("Autoscheduling bilateral_layer backward\n");
         } else {
-          apply_compute_root(f_d_input);
-          apply_compute_root(f_d_guide);
-          apply_compute_root(f_d_filter);
+          func_map["grid"]
+            .compute_root()
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+          func_map["grid"]
+            .update(0)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+          func_map["conv"]
+            .compute_root()
+            .parallel(co)
+            .vectorize(x, 8)
+            ;
+          func_map["conv"]
+            .update(0)
+            .parallel(co)
+            .vectorize(x, 8)
+            ;
+          func_map["output"]
+            .compute_root()
+            .parallel(co)
+            .vectorize(x, 8)
+            ;
+
+          for(auto it=adjoints.begin(); it != adjoints.end(); ++it) {
+            cout << "func " << it->first.first << " " << it->first.second << endl;
+          }
+
+          // auto flist_input = get_deps(f_d_input);
+          // print_deps(f_d_filter);
+          // apply_compute_root(f_d_guide);
+          // apply_compute_root(f_d_filter);
+
+        Func d_conv_init  = adjoints[FuncKey{func_map["conv"].name(), -1}];
+        Func d_conv0  = adjoints[FuncKey{func_map["conv"].name(), 0}];
+
+        Func d_grid_init  = adjoints[FuncKey{func_map["grid"].name(), -1}];
+        Func d_grid0  = adjoints[FuncKey{func_map["grid"].name(), 0}];
+
+        Func d_splatz_init  = adjoints[FuncKey{func_map["splatz"].name(), -1}];
+        Func d_splatz0  = adjoints[FuncKey{func_map["splatz"].name(), 0}];
+        Func d_splatz1  = adjoints[FuncKey{func_map["splatz"].name(), 1}];
+
+        Func d_guide_init  = adjoints[FuncKey{func_map["guide"].name(), -1}];
+        Func d_input_init  = adjoints[FuncKey{func_map["input"].name(), -1}];
+
+        // TODO: 
+        // - produce graph structure of the derivative computation
+        // - give out handles to various wrapper locations to schedule the drv
+        auto flist_guide = get_deps(d_guide);
+        assert(flist_guide.find("repeat_edge$9") != flist_guide.end());
+        Func guide_dep = Func(flist_guide["repeat_edge$9"]);
+        assert(flist_guide.find("f_guide_0_d_def__") != flist_guide.end());
+        Func guide_dep2 = Func(flist_guide["f_guide_0_d_def__"]);
+
+        auto flist_input = get_deps(d_input);
+        assert(flist_input.find("repeat_edge$8") != flist_guide.end());
+        Func input_dep = Func(flist_input["repeat_edge$8"]);
+        assert(flist_input.find("f_input_0_d_def__") != flist_guide.end());
+        Func input_dep2 = Func(flist_input["f_input_0_d_def__"]);
+
+        d_conv_init
+            .compute_root()
+            .parallel(co)
+            .vectorize(x, 8)
+            ;
+        d_conv0
+            .compute_root()
+            .parallel(co)
+            .vectorize(x, 8)
+            ;
+
+        d_grid_init
+            .compute_root()
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+        d_grid0
+            .compute_root()
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+
+        d_splatz_init
+            .in(guide_dep)
+            .compute_at(d_guide, x)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+        d_splatz0
+            .in(guide_dep2)
+            .compute_at(d_guide, x)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+        d_splatz1
+            .in(guide_dep2)
+            .compute_at(d_guide, x)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+
+        d_splatz_init
+            .in(input_dep)
+            .compute_at(d_input, x)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+        d_splatz0
+            .in(input_dep2)
+            .compute_at(d_input, x)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+        d_splatz1
+            .in(input_dep2)
+            .compute_at(d_input, x)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+
+        d_input
+            .compute_root()
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+
+        d_guide
+            .compute_root()
+            .parallel(n)
+            .vectorize(x, 8)
+            ;
+
+        d_filter
+            .compute_root()
+            .parallel(co)
+            .vectorize(x, 8)
+            ;
+
+
+        // Func f_d_guide  = adjoints[FuncKey{f_guide.name(), -1}];
+        // Func f_d_filter = adjoints[FuncKey{f_filter.name(), -1}];
+
+        // d_input(x, y, ci, n) = f_d_input(x, y, ci, n);
+        // d_guide(x, y, n) = f_d_guide(x, y, n);
+        // d_filter(x, y, z, ci, co) = f_d_filter(x, y, z, ci, co);
         }
     }
 };

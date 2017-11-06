@@ -53,8 +53,26 @@ public:
             .estimate(n, 0, est_bsize)
             ;
         } else {
-          func_map["grid"].compute_root();
-          func_map["conv"].compute_root();
+          func_map["grid"]
+            .compute_root()
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+          func_map["grid"]
+            .update(0)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+          func_map["conv"]
+            .compute_root()
+            .parallel(co)
+            .vectorize(x, 8)
+            ;
+          func_map["conv"]
+            .update(0)
+            .parallel(co)
+            .vectorize(x, 8)
+            ;
         }
     }
 };
