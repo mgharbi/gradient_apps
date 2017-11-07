@@ -42,6 +42,7 @@ public:
         Func f_output = func_map["output"];
         Func f_input = func_map["input"];
         Func f_guide = func_map["guide"];
+        Func f_grid = func_map["grid"];
         Func f_filter = func_map["filter"];
         
         Derivative d = propagate_adjoints(
@@ -114,12 +115,92 @@ public:
 
           printf("Autoscheduling bilateral_layer backward\n");
         } else {
+          for(auto it=adjoints.begin(); it != adjoints.end(); ++it) {
+            cout << "func " << it->first.first << " " << it->first.second << endl;
+          }
+
+          // auto flist_input = get_deps(f_d_input);
+          // print_deps(f_d_filter);
+          // apply_compute_root(f_d_guide);
+          // apply_compute_root(f_d_filter);
+
+          Func d_conv_init  = adjoints[FuncKey{func_map["conv"].name(), -1}];
+          Func d_conv0  = adjoints[FuncKey{func_map["conv"].name(), 0}];
+
+          Func d_grid_init  = adjoints[FuncKey{func_map["grid"].name(), -1}];
+          Func d_grid0  = adjoints[FuncKey{func_map["grid"].name(), 0}];
+
+          Func d_splatz_init  = adjoints[FuncKey{func_map["splatz"].name(), -1}];
+          Func d_splatz0  = adjoints[FuncKey{func_map["splatz"].name(), 0}];
+          Func d_splatz1  = adjoints[FuncKey{func_map["splatz"].name(), 1}];
+
+          Func d_guide_init  = adjoints[FuncKey{func_map["guide"].name(), -1}];
+          Func d_input_init  = adjoints[FuncKey{func_map["input"].name(), -1}];
+
+          // TODO: 
+          // - produce graph structure of the derivative computation
+          // - give out handles to various wrapper locations to schedule the drv
+          auto flist_guide = get_deps(d_guide);
+          Func ce_(flist_guide["constant_exterior"]);
+          Func ce1_(flist_guide["constant_exterior$1"]);
+          Func ce2_(flist_guide["constant_exterior$2"]);
+          Func ce3_(flist_guide["constant_exterior$3"]);
+          Func ce4_(flist_guide["constant_exterior$4"]);
+          Func ce7_(flist_guide["constant_exterior$7"]);
+
+          Func conv_(flist_guide["conv"]);
+          Func conv_1_d_(flist_guide["conv_1_d__"]);
+          Func conv_1_d_def_(flist_guide["conv_1_d_def__"]);
+          // d_guide
+          Func d_output_im_(flist_guide["d_output_im"]);
+          // f_filter
+          // f_grid
+          Func f_grid_1_d_(flist_guide["f_grid_1_d__"]);
+          Func f_grid_1_d_def_(flist_guide["f_grid_1_d_def__"]);
+          // f_guide
+          Func f_guide_0_d_(flist_guide["f_guide_0_d__"]);
+          Func f_guide_0_d_def_(flist_guide["f_guide_0_d_def__"]);
+          // f_input
+          Func f_output_0_d_(flist_guide["f_output_0_d__"]);
+          Func f_output_0_d_def_(flist_guide["f_output_0_d_def__"]);
+          Func f_splat_z(flist_guide["f_splat_z"]);
+          Func f_splat_z_1_d_(flist_guide["f_splat_z_1_d__"]);
+          Func f_splat_z_1_d_def_(flist_guide["f_splat_z_1_d_def__"]);
+          Func f_splat_z_2_d_(flist_guide["f_splat_z_2_d__"]);
+          Func f_splat_z_2_d_def_(flist_guide["f_splat_z_2_d_def__"]);
+          Func filter_im(flist_guide["filter_im"]);
+          Func guide_im(flist_guide["guide_im"]);
+          Func input_im(flist_guide["input_im"]);
+          Func lambda_0(flist_guide["lambda_0"]);
+          Func lambda_1(flist_guide["lambda_1"]);
+          Func re_(flist_guide["repeat_edge"]);
+          Func re1_(flist_guide["repeat_edge$1"]);
+          Func re2_(flist_guide["repeat_edge$2"]);
+          Func re3_(flist_guide["repeat_edge$3"]);
+          Func re4_(flist_guide["repeat_edge$4"]);
+          Func re5_(flist_guide["repeat_edge$5"]);
+          Func re6_(flist_guide["repeat_edge$6"]);
+          Func re9_(flist_guide["repeat_edge$9"]);
+
+          auto flist_input = get_deps(d_input);
+          Func ce6_(flist_input["constant_exterior$6"]);
+          // d_input
+          Func f_input_0_d_(flist_input["f_input_0_d__"]);
+          Func f_input_0_d_def_(flist_input["f_input_0_d_def__"]);
+          Func re8_(flist_input["repeat_edge$8"]);
+
+          auto flist_filter = get_deps(d_filter);
+          Func ce8_(flist_filter["constant_exterior$8"]);
+          // d_filter
+          Func f_filter_0_d_(flist_filter["f_filter_0_d__"]);
+          Func f_filter_0_d_def_(flist_filter["f_filter_0_d_def__"]);
+          Func re10_(flist_filter["repeat_edge$10"]);
+
+          // Forward schedule -------------------------------------------------
           func_map["grid"]
             .compute_root()
             .parallel(ci)
             .vectorize(x, 8)
-            ;
-          func_map["grid"]
             .update(0)
             .parallel(ci)
             .vectorize(x, 8)
@@ -140,128 +221,135 @@ public:
             .vectorize(x, 8)
             ;
 
-          for(auto it=adjoints.begin(); it != adjoints.end(); ++it) {
-            cout << "func " << it->first.first << " " << it->first.second << endl;
-          }
+          print_func(d_input);
+          print_func(d_guide);
+          print_func(d_filter);
 
-          // auto flist_input = get_deps(f_d_input);
-          // print_deps(f_d_filter);
-          // apply_compute_root(f_d_guide);
-          // apply_compute_root(f_d_filter);
-
-        Func d_conv_init  = adjoints[FuncKey{func_map["conv"].name(), -1}];
-        Func d_conv0  = adjoints[FuncKey{func_map["conv"].name(), 0}];
-
-        Func d_grid_init  = adjoints[FuncKey{func_map["grid"].name(), -1}];
-        Func d_grid0  = adjoints[FuncKey{func_map["grid"].name(), 0}];
-
-        Func d_splatz_init  = adjoints[FuncKey{func_map["splatz"].name(), -1}];
-        Func d_splatz0  = adjoints[FuncKey{func_map["splatz"].name(), 0}];
-        Func d_splatz1  = adjoints[FuncKey{func_map["splatz"].name(), 1}];
-
-        Func d_guide_init  = adjoints[FuncKey{func_map["guide"].name(), -1}];
-        Func d_input_init  = adjoints[FuncKey{func_map["input"].name(), -1}];
-
-        // TODO: 
-        // - produce graph structure of the derivative computation
-        // - give out handles to various wrapper locations to schedule the drv
-        auto flist_guide = get_deps(d_guide);
-        assert(flist_guide.find("repeat_edge$9") != flist_guide.end());
-        Func guide_dep = Func(flist_guide["repeat_edge$9"]);
-        assert(flist_guide.find("f_guide_0_d_def__") != flist_guide.end());
-        Func guide_dep2 = Func(flist_guide["f_guide_0_d_def__"]);
-
-        auto flist_input = get_deps(d_input);
-        assert(flist_input.find("repeat_edge$8") != flist_guide.end());
-        Func input_dep = Func(flist_input["repeat_edge$8"]);
-        assert(flist_input.find("f_input_0_d_def__") != flist_guide.end());
-        Func input_dep2 = Func(flist_input["f_input_0_d_def__"]);
-
-        d_conv_init
+          // Backward schedule -------------------------------------------------
+          conv_1_d_def_
             .compute_root()
             .parallel(co)
             .vectorize(x, 8)
             ;
-        d_conv0
-            .compute_root()
-            .parallel(co)
-            .vectorize(x, 8)
-            ;
-
-        d_grid_init
-            .compute_root()
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-        d_grid0
+          f_grid_1_d_def_
             .compute_root()
             .parallel(ci)
             .vectorize(x, 8)
             ;
 
-        d_splatz_init
-            .in(guide_dep)
-            .compute_at(d_guide, x)
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-        d_splatz0
-            .in(guide_dep2)
-            .compute_at(d_guide, x)
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-        d_splatz1
-            .in(guide_dep2)
-            .compute_at(d_guide, x)
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-
-        d_splatz_init
-            .in(input_dep)
-            .compute_at(d_input, x)
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-        d_splatz0
-            .in(input_dep2)
-            .compute_at(d_input, x)
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-        d_splatz1
-            .in(input_dep2)
-            .compute_at(d_input, x)
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-
-        d_input
-            .compute_root()
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-
-        d_guide
+          f_splat_z_1_d_def_
             .compute_root()
             .parallel(n)
             .vectorize(x, 8)
             ;
 
-        d_filter
+          f_splat_z_2_d_def_
+            .compute_root()
+            .parallel(y)
+            .vectorize(x, 8) ;
+            ;
+
+          d_input
+            .compute_root()
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
+          // f_input_0_d_def_
+          //   .compute_root()
+          //   .parallel(ci)
+          //   .vectorize(x, 8)
+          //   ;
+
+          d_guide
+            .compute_root()
+            .parallel(n)
+            .vectorize(x, 8)
+            ;
+          // f_guide_0_d_def_
+          //   .compute_root()
+          //   .parallel(ci)
+          //   .vectorize(x, 8)
+          //   ;
+
+          d_filter
             .compute_root()
             .parallel(co)
             .vectorize(x, 8)
             ;
+          // f_filter_0_d_def_
+          //   .compute_root()
+          //   .parallel(ci)
+          //   .vectorize(x, 8)
+          //   ;
 
+          // f_splat_z_1_d_def_.print_loop_nest();
+          // f_splat_z_2_d_def_.print_loop_nest();
 
-        // Func f_d_guide  = adjoints[FuncKey{f_guide.name(), -1}];
-        // Func f_d_filter = adjoints[FuncKey{f_filter.name(), -1}];
+          // f_grid_1_d_
+          //   .compute_root()
+          //   .parallel(ci)
+          //   .vectorize(x, 8)
+          //   ;
+          // f_filter_0_d_
+          //   .compute_root()
+          //   .parallel(co)
+          //   .vectorize(x, 8)
+          //   ;
+          // f_filter_0_d_def_
+          //   .compute_root()
+          //   .parallel(co)
+          //   .vectorize(x, 8)
+          //   ;
+          // conv_1_d_
+          //   .compute_root()
+          //   .parallel(co)
+          //   .vectorize(x, 8)
+          //   ;
+          // f_splat_z_2_d_
+          //   .compute_root()
+          //   .parallel(ci)
+          //   .vectorize(x, 8)
+          //   ;
+          // f_splat_z_1_d_
+          //   .compute_root()
+          //   .parallel(ci)
+          //   .vectorize(x, 8)
+          //   ;
+          // ce_.compute_root();
+          // ce1_.compute_root();
+          // ce2_.compute_root();
+          // ce3_.compute_root();
+          // ce4_.compute_root();
+          // ce6_.compute_root();
+          // ce7_.compute_root();
+          // ce8_.compute_root();
+          // conv_.compute_root();
+          // d_output_im_.compute_root();
+          // f_filter.compute_root();
+          // f_grid.compute_root();
+          // f_guide.compute_root();
+          // f_input.compute_root();
+          // f_output_0_d_.compute_root();
+          // f_output_0_d_def_.compute_root();
+          // filter_im.compute_root();
+          // input_im.compute_root();
+          // lambda_0.compute_root();
+          // lambda_1.compute_root();
+          // re_.compute_root();
+          // re1_.compute_root();
+          // re2_.compute_root();
+          // re3_.compute_root();
+          // re4_.compute_root();
+          // re5_.compute_root();
+          // re6_.compute_root();
+          // re8_.compute_root();
+          // re9_.compute_root();
+          // re10_.compute_root();
+          // f_guide_0_d_.compute_root();
+          // f_guide_0_d_def_.compute_root();
+          // f_input_0_d_.compute_root();
+          // f_input_0_d_def_.compute_root();
 
-        // d_input(x, y, ci, n) = f_d_input(x, y, ci, n);
-        // d_guide(x, y, n) = f_d_guide(x, y, n);
-        // d_filter(x, y, z, ci, co) = f_d_filter(x, y, z, ci, co);
         }
     }
 };

@@ -51,7 +51,6 @@ std::map<std::string, Func> bilateral_layer(
     f_filter(x, y, z, ci, co) = filter(x, y, z, ci, co);
     Func f_conv("conv");
     f_conv(x, y, z, co, n)  = 0.f;
-    // TODO: center kernel
     f_conv(x, y, z, co, n) += f_filter(r[0], r[1], r[2], r[3], co) *
                               f_grid(x + r[0] - kw/2, y + r[1] - kh/2, z + r[2] - kd/2, r[3], n);
 
