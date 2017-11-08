@@ -27,18 +27,21 @@ std::map<std::string, Func> bilateral_layer(
     Expr lower_bin = cast<int>(floor(guide_pos));
     Expr upper_bin = cast<int>(ceil(guide_pos));
     Expr w = guide_pos - lower_bin;
-    Func f_splatz("f_splat_z");
-    f_splatz(x, y, z, ci, n) = 0.0f;
-    f_splatz(x, y, lower_bin, ci, n) += (1-w)*f_input(x, y, ci, n);
-    f_splatz(x, y, upper_bin, ci, n) += w*f_input(x, y, ci, n);
+
+    // Func f_splatz("f_splat_z");
+    // f_splatz(x, y, z, ci, n) = 0.0f;
+    // f_splatz(x, y, lower_bin, ci, n) += (1-w)*f_input(x, y, ci, n);
+    // f_splatz(x, y, upper_bin, ci, n) += w*f_input(x, y, ci, n);
+
     // Downsample grid
     Expr normalization = 1.0f / (cast<float>(sigma_x) * cast<float>(sigma_y));
     RDom rgrid(0, sigma_x, 0, sigma_y);
     Func f_grid("f_grid");
     f_grid(x, y, z, ci, n) = 0.f;
-    f_grid(x, y, z, ci, n) += 
-      normalization*f_splatz(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y,
-                             clamp(z, 0, sigma_z) , ci, n);
+    f_grid(x, y, lower_bin, ci, n) += 
+      normalization*(1-w)*f_input(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y, ci, n);
+    f_grid(x, y, upper_bin, ci, n) += 
+      normalization*w*f_input(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y, ci, n);
 
 
     // Perform 3D filtering in the grid
@@ -83,7 +86,6 @@ std::map<std::string, Func> bilateral_layer(
     std::map<std::string, Func> func_map;
     func_map["input"]  = f_input;
     func_map["guide"]  = f_guide;
-    func_map["splatz"]   = f_splatz;
     func_map["grid"]   = f_grid;
     func_map["filter"] = f_filter;
     func_map["conv"]   = f_conv;
