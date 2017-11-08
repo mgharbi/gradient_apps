@@ -28,6 +28,8 @@ std::map<std::string, Func> bilateral_layer(
     Expr upper_bin = cast<int>(ceil(guide_pos));
     Expr w = guide_pos - lower_bin;
 
+    // TODO(mgharbi): ideally we'd write this, which is slighly more natural. But the
+    // derivative cannot be fully inlined: infinte compile time/or super long runtime (dont recall which).
     // Func f_splatz("f_splat_z");
     // f_splatz(x, y, z, ci, n) = 0.0f;
     // f_splatz(x, y, lower_bin, ci, n) += (1-w)*f_input(x, y, ci, n);

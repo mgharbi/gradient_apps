@@ -118,8 +118,8 @@ int bilateral_layer_forward_(THFloatTensor *input,
   int filt_co     = THFloatTensor_size(filter, 0);
   int filt_ci     = THFloatTensor_size(filter, 1);
   // int filt_depth  = THFloatTensor_size(filter, 2);
-  int filt_height = THFloatTensor_size(filter, 3);
-  int filt_width  = THFloatTensor_size(filter, 4);
+  // int filt_height = THFloatTensor_size(filter, 3);
+  // int filt_width  = THFloatTensor_size(filter, 4);
 
   THArgCheck(
       guide_bs == batch_size, 0,

@@ -1,0 +1,263 @@
+Sorted Func list:
+  . filter_im
+  . f_filter
+  . guide_im
+  . lambda_1
+  . repeat_edge$1
+  . f_guide
+  . input_im
+  . lambda_0
+  . repeat_edge
+  . f_input
+  . f_grid
+  . conv
+  . f_output
+
+func conv -1
+func conv 0
+func f_filter -1
+func f_grid -1
+func f_grid 0
+func f_grid 1
+func f_guide -1
+func f_input -1
+func f_output -1
+
+Printing function:d_input
+  funcs[22]: d_input
+  funcs[21]: f_input_0_d__
+  funcs[20]: constant_exterior$5
+  funcs[19]: repeat_edge$7
+  funcs[18]: f_input_0_d_def__
+    f_input_0_d_def__(x, y, ci, n) = 0.000000f
+    update:f_input_0_d_def__(x, y, ci, n) = (let t191 = ((x - r885$x)/sigma_x) in (let t192 = ((y - r885$y)/sigma_y) in (let t193.s = min((f_guide(t191, t192, n)*float32(sigma_z)), float32(sigma_z)) in (f_input_0_d_def__(x, y, ci, n) + (f_grid_2_d__(t191, t192, int32(ceil_f32(max(t193.s, 0.000000f))), ci, n)*((1.000000f/(float32(sigma_x)*float32(sigma_y)))*(max(t193.s, 0.000000f) - float32(int32(floor_f32(max(t193.s, 0.000000f)))))))))))
+    RDom: (0, sigma_x) (0, sigma_y)
+    update:f_input_0_d_def__(x, y, ci, n) = (let t241 = ((x - r952$x)/sigma_x) in (let t242 = ((y - r952$y)/sigma_y) in (let t243.s = min((f_guide(t241, t242, n)*float32(sigma_z)), float32(sigma_z)) in (let t244 = int32(floor_f32(max(t243.s, 0.000000f))) in (f_input_0_d_def__(x, y, ci, n) + (f_grid_1_d__(t241, t242, t244, ci, n)*((1.000000f/(float32(sigma_x)*float32(sigma_y)))*((float32(t244) - max(t243.s, 0.000000f)) + 1.000000f))))))))
+    RDom: (0, sigma_x) (0, sigma_y)
+  funcs[17]: f_grid_1_d__
+  funcs[16]: constant_exterior$3
+  funcs[15]: repeat_edge$5
+  funcs[14]: f_grid_1_d_def__
+    f_grid_1_d_def__(x, y, z, ci, n) = 0.000000f
+    update:f_grid_1_d_def__(x, y, z, ci, n) = f_grid_2_d__(x, y, z, ci, n)
+    update:f_grid_1_d_def__(x, y, z, ci, n) = 0.000000f
+    update:f_grid_1_d_def__(r938$y, y, z, ci, n) = (let t206 = int32(ceil_f32(max(min((f_guide(r938$y, r938$z, r938$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))) in (f_grid_1_d_def__(r938$y, r938$z, t206, ci, r938$x) + f_grid_2_d__(r938$y, r938$z, t206, ci, r938$x)))
+    RDom: (d_output.min.3, d_output.extent.3) ((int32(floor_f32((((float32(d_output.min.0) + 0.500000f)/float32(sigma_x)) + -0.500000f))) - (filter.extent.0/2)), (((int32(floor_f32((((float32(((d_output.min.0 + d_output.extent.0) + -1)) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + filter.extent.0) - int32(floor_f32((((float32(d_output.min.0) + 0.500000f)/float32(sigma_x)) + -0.500000f)))) + 1)) ((int32(floor_f32((((float32(d_output.min.1) + 0.500000f)/float32(sigma_y)) + -0.500000f))) - (filter.extent.1/2)), (((int32(floor_f32((((float32(((d_output.min.1 + d_output.extent.1) + -1)) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + filter.extent.1) - int32(floor_f32((((float32(d_output.min.1) + 0.500000f)/float32(sigma_y)) + -0.500000f)))) + 1))
+  funcs[13]: f_grid_2_d__
+  funcs[12]: constant_exterior$2
+  funcs[11]: repeat_edge$4
+  funcs[10]: f_grid_2_d_def__
+    f_grid_2_d_def__(x, y, z, ci, n) = 0.000000f
+    update:f_grid_2_d_def__(x, y, z, r819$y, n) = (f_grid_2_d_def__(x, y, z, r819$y, n) + (conv_1_d__((x + ((filter.extent.0/2) - r819$z)), (y + ((filter.extent.1/2) - r819$w)), (z + ((filter.extent.2/2) - r819$4)), r819$x, n)*f_filter(r819$z, r819$w, r819$4, r819$y, r819$x)))
+    RDom: (d_output.min.2, d_output.extent.2) (0, filter.extent.3) (0, filter.extent.0) (0, filter.extent.1) (0, filter.extent.2)
+  funcs[8]: conv_1_d__
+  funcs[7]: constant_exterior$1
+  funcs[6]: repeat_edge$3
+  funcs[5]: conv_1_d_def__
+    conv_1_d_def__(x, y, z, co, n) = 0.000000f
+    update:conv_1_d_def__((int32(floor_f32((((float32(r538$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t29 = ((float32(r538$y) + 0.500000f)/float32(sigma_x)) in (let t30 = int32(floor_f32((t29 + -0.500000f))) in (let t31 = ((float32(r538$z) + 0.500000f)/float32(sigma_y)) in (let t32 = int32(floor_f32((t31 + -0.500000f))) in (let t33.s = min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__((t30 + 1), (t32 + 1), int32(ceil_f32(max(t33.s, 0.000000f))), co, r538$x) + (((f_output_0_d__(r538$y, r538$z, co, r538$x)*(max(t33.s, 0.000000f) - float32(int32(floor_f32(max(t33.s, 0.000000f))))))*((t31 - float32(t32)) + -0.500000f))*((t29 - float32(t30)) + -0.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__((int32(floor_f32((((float32(r572$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t40 = ((float32(r572$y) + 0.500000f)/float32(sigma_x)) in (let t41 = int32(floor_f32((t40 + -0.500000f))) in (let t42 = ((float32(r572$z) + 0.500000f)/float32(sigma_y)) in (let t43 = int32(floor_f32((t42 + -0.500000f))) in (let t44.s = min((f_guide(r572$y, r572$z, r572$x)*float32(sigma_z)), float32(sigma_z)) in (let t45 = int32(floor_f32(max(t44.s, 0.000000f))) in (conv_1_d_def__((t41 + 1), (t43 + 1), t45, co, r572$x) + (((f_output_0_d__(r572$y, r572$z, co, r572$x)*((float32(t45) - max(t44.s, 0.000000f)) + 1.000000f))*((t42 - float32(t43)) + -0.500000f))*((t40 - float32(t41)) + -0.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__((int32(floor_f32((((float32(r606$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t52 = ((float32(r606$y) + 0.500000f)/float32(sigma_x)) in (let t53 = int32(floor_f32((t52 + -0.500000f))) in (let t54 = ((float32(r606$z) + 0.500000f)/float32(sigma_y)) in (let t55 = int32(floor_f32((t54 + -0.500000f))) in (let t56.s = min((f_guide(r606$y, r606$z, r606$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__((t53 + 1), t55, int32(ceil_f32(max(t56.s, 0.000000f))), co, r606$x) + (((f_output_0_d__(r606$y, r606$z, co, r606$x)*(max(t56.s, 0.000000f) - float32(int32(floor_f32(max(t56.s, 0.000000f))))))*((float32(t55) - t54) + 1.500000f))*((t52 - float32(t53)) + -0.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__((int32(floor_f32((((float32(r640$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t63 = ((float32(r640$y) + 0.500000f)/float32(sigma_x)) in (let t64 = int32(floor_f32((t63 + -0.500000f))) in (let t65 = ((float32(r640$z) + 0.500000f)/float32(sigma_y)) in (let t66 = int32(floor_f32((t65 + -0.500000f))) in (let t67.s = min((f_guide(r640$y, r640$z, r640$x)*float32(sigma_z)), float32(sigma_z)) in (let t68 = int32(floor_f32(max(t67.s, 0.000000f))) in (conv_1_d_def__((t64 + 1), t66, t68, co, r640$x) + (((f_output_0_d__(r640$y, r640$z, co, r640$x)*((float32(t68) - max(t67.s, 0.000000f)) + 1.000000f))*((float32(t66) - t65) + 1.500000f))*((t63 - float32(t64)) + -0.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r674$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t75 = ((float32(r674$y) + 0.500000f)/float32(sigma_x)) in (let t76 = int32(floor_f32((t75 + -0.500000f))) in (let t77 = ((float32(r674$z) + 0.500000f)/float32(sigma_y)) in (let t78 = int32(floor_f32((t77 + -0.500000f))) in (let t79.s = min((f_guide(r674$y, r674$z, r674$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__(t76, (t78 + 1), int32(ceil_f32(max(t79.s, 0.000000f))), co, r674$x) + (((f_output_0_d__(r674$y, r674$z, co, r674$x)*(max(t79.s, 0.000000f) - float32(int32(floor_f32(max(t79.s, 0.000000f))))))*((t77 - float32(t78)) + -0.500000f))*((float32(t76) - t75) + 1.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r708$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t86 = ((float32(r708$y) + 0.500000f)/float32(sigma_x)) in (let t87 = int32(floor_f32((t86 + -0.500000f))) in (let t88 = ((float32(r708$z) + 0.500000f)/float32(sigma_y)) in (let t89 = int32(floor_f32((t88 + -0.500000f))) in (let t90.s = min((f_guide(r708$y, r708$z, r708$x)*float32(sigma_z)), float32(sigma_z)) in (let t91 = int32(floor_f32(max(t90.s, 0.000000f))) in (conv_1_d_def__(t87, (t89 + 1), t91, co, r708$x) + (((f_output_0_d__(r708$y, r708$z, co, r708$x)*((float32(t91) - max(t90.s, 0.000000f)) + 1.000000f))*((t88 - float32(t89)) + -0.500000f))*((float32(t87) - t86) + 1.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r742$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t98 = ((float32(r742$y) + 0.500000f)/float32(sigma_x)) in (let t99 = int32(floor_f32((t98 + -0.500000f))) in (let t100 = ((float32(r742$z) + 0.500000f)/float32(sigma_y)) in (let t101 = int32(floor_f32((t100 + -0.500000f))) in (let t102.s = min((f_guide(r742$y, r742$z, r742$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__(t99, t101, int32(ceil_f32(max(t102.s, 0.000000f))), co, r742$x) + (((f_output_0_d__(r742$y, r742$z, co, r742$x)*(max(t102.s, 0.000000f) - float32(int32(floor_f32(max(t102.s, 0.000000f))))))*((float32(t101) - t100) + 1.500000f))*((float32(t99) - t98) + 1.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(
+        int32(floor_f32((((float32(r795$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))),
+        (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1),
+        int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t123 = ((float32(r795$y) + 0.500000f)/float32(sigma_x)) in (let t124 = int32(floor_f32((t123 + -0.500000f))) in (let t125 = ((float32(r795$z) + 0.500000f)/float32(sigma_y)) in (let t126 = int32(floor_f32((t125 + -0.500000f))) in (let t127.s = min((f_guide(r795$y, r795$z, r795$x)*float32(sigma_z)), float32(sigma_z)) in (let t128 = int32(floor_f32(max(t127.s, 0.000000f))) in (conv_1_d_def__(t124, t126, t128, co, r795$x) + (((f_output_0_d__(r795$y, r795$z, co, r795$x)*((float32(t128) - max(t127.s, 0.000000f)) + 1.000000f))*((float32(t126) - t125) + 1.500000f))*((float32(t124) - t123) + 1.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+  funcs[4]: f_output_0_d__
+  funcs[3]: constant_exterior
+  funcs[2]: repeat_edge$2
+  funcs[1]: f_output_0_d_def__
+  funcs[0]: f_guide
+
+Printing function:d_guide
+  funcs[25]: d_guide
+  funcs[24]: f_guide_0_d__
+  funcs[23]: constant_exterior$6
+  funcs[22]: repeat_edge$8
+  funcs[21]: f_guide_0_d_def__
+    f_guide_0_d_def__(x, y, n) = 0.000000f
+    PURE REDUCTION on OUTPUT_CHANNELS
+    update:f_guide_0_d_def__(x, y, n) = (
+        let t109 = ((float32(x) + 0.500000f)/float32(sigma_x)) in (
+          let t110 = int32(floor_f32((t109 + -0.500000f))) in (
+            let t111 = ((float32(y) + 0.500000f)/float32(sigma_y)) in (
+              let t112 = int32(floor_f32((t111 + -0.500000f))) in (
+                let t113 = (f_guide(x, y, n)*float32(sigma_z)) in (
+                  let t114 = min(t113, float32(sigma_z)) in (
+                    let t116 = int32(floor_f32(max(t114, 0.000000f))) in (
+                      let t117.s = (t109 - float32(t110)) in (
+                        let t118.s = (t111 - float32(t112)) in (
+                          let t119 = int32(ceil_f32(max(t114, 0.000000f))) in (
+                            let t120 = f_output_0_d__(x, y, r761$x, n) in (
+                              f_guide_0_d_def__(x, y, n) + (
+                                select(((float32(sigma_z) < t113) || (t114 < 0.000000f)), 
+                                  0.000000f,
+                                  (t120*((((((conv((t110 + 1), (t112 + 1), t119, r761$x, n)*(t117.s + -0.500000f))*(t118.s + -0.500000f)) + ((conv((t110 + 1), t112, t119, r761$x, n)*(t117.s + -0.500000f))*(1.500000f - t118.s))) + ((conv(t110, (t112 + 1), t119, r761$x, n)*(1.500000f - t117.s))*(t118.s + -0.500000f))) + ((conv(t110, t112, t119, r761$x, n)*(1.500000f - t117.s))*(1.500000f - t118.s))) - (((((conv((t110 + 1), (t112 + 1), t116, r761$x, n)*(t117.s + -0.500000f))*(t118.s + -0.500000f)) + ((conv((t110 + 1), t112, t116, r761$x, n)*(t117.s + -0.500000f))*(1.500000f - t118.s))) + ((conv(t110, (t112 + 1), t116, r761$x, n)*(1.500000f - t117.s))*(t118.s + -0.500000f))) + ((conv(t110, t112, t116, r761$x, n)*(1.500000f - t117.s))*(1.500000f - t118.s))))),
+                                  )*float32(sigma_z))))))))))))))
+    RDom: (d_output.min.2, d_output.extent.2)
+
+    update:f_guide_0_d_def__(x, y, n) = (
+        let t198 = (f_guide(x, y, n)*float32(sigma_z)) in (
+          let t199 = min(t198, float32(sigma_z)) in (
+            f_guide_0_d_def__(x, y, n) + (
+              select(((float32(sigma_z) < t198) || (t199 < 0.000000f)), 
+                0.000000f,
+                ((f_grid_2_d__(x, y, int32(ceil_f32(max(t199, 0.000000f))), r904$z, n)*f_input(((x*sigma_x) + r904$x), ((y*sigma_y) + r904$y), r904$z, n))*(1.000000f/(float32(sigma_x)*float32(sigma_y)))))*float32(sigma_z)))))
+    RDom: (0, sigma_x) (0, sigma_y) (0, filter.extent.3)
+
+    update:f_guide_0_d_def__(x, y, n) = (let t249 = (f_guide(x, y, n)*float32(sigma_z)) in (let t250 = min(t249, float32(sigma_z)) in (f_guide_0_d_def__(x, y, n) + (select(((float32(sigma_z) < t249) || (t250 < 0.000000f)), 0.000000f, (0.000000f - ((f_grid_1_d__(x, y, int32(floor_f32(max(t250, 0.000000f))), r971$z, n)*f_input(((x*sigma_x) + r971$x), ((y*sigma_y) + r971$y), r971$z, n))*(1.000000f/(float32(sigma_x)*float32(sigma_y))))))*float32(sigma_z)))))
+    RDom: (0, sigma_x) (0, sigma_y) (0, filter.extent.3)
+
+  funcs[20]: f_grid_1_d__
+  funcs[19]: constant_exterior$3
+  funcs[18]: repeat_edge$5
+  funcs[17]: f_grid_1_d_def__
+    f_grid_1_d_def__(x, y, z, ci, n) = 0.000000f
+    update:f_grid_1_d_def__(x, y, z, ci, n) = f_grid_2_d__(x, y, z, ci, n)
+    update:f_grid_1_d_def__(x, y, z, ci, n) = 0.000000f
+
+    GENERAL SCATTER
+    update:f_grid_1_d_def__(r938$y, y, z, ci, n) = (
+        let t206 = int32(ceil_f32(max(min((f_guide(r938$y, r938$z, r938$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))) in (
+          f_grid_1_d_def__(r938$y, r938$z, t206, ci, r938$x) + f_grid_2_d__(r938$y, r938$z, t206, ci, r938$x)))
+    RDom: (d_output.min.3, d_output.extent.3) ((int32(floor_f32((((float32(d_output.min.0) + 0.500000f)/float32(sigma_x)) + -0.500000f))) - (filter.extent.0/2)), (((int32(floor_f32((((float32(((d_output.min.0 + d_output.extent.0) + -1)) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + filter.extent.0) - int32(floor_f32((((float32(d_output.min.0) + 0.500000f)/float32(sigma_x)) + -0.500000f)))) + 1)) ((int32(floor_f32((((float32(d_output.min.1) + 0.500000f)/float32(sigma_y)) + -0.500000f))) - (filter.extent.1/2)), (((int32(floor_f32((((float32(((d_output.min.1 + d_output.extent.1) + -1)) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + filter.extent.1) - int32(floor_f32((((float32(d_output.min.1) + 0.500000f)/float32(sigma_y)) + -0.500000f)))) + 1))
+
+  funcs[16]: f_grid_2_d__
+  funcs[15]: constant_exterior$2
+  funcs[14]: repeat_edge$4
+  funcs[13]: f_grid_2_d_def__
+    f_grid_2_d_def__(x, y, z, ci, n) = 0.000000f
+
+    GENERAL SCATTER
+    update:f_grid_2_d_def__(x, y, z, r819$y, n) = (f_grid_2_d_def__(x, y, z, r819$y, n) + (conv_1_d__((x + ((filter.extent.0/2) - r819$z)), (y + ((filter.extent.1/2) - r819$w)), (z + ((filter.extent.2/2) - r819$4)), r819$x, n)*f_filter(r819$z, r819$w, r819$4, r819$y, r819$x)))
+    RDom: (d_output.min.2, d_output.extent.2) (0, filter.extent.3) (0, filter.extent.0) (0, filter.extent.1) (0, filter.extent.2)
+
+  funcs[12]: conv_1_d__
+  funcs[11]: constant_exterior$1
+  funcs[10]: repeat_edge$3
+  funcs[9]: conv_1_d_def__
+    conv_1_d_def__(x, y, z, co, n) = 0.000000f
+
+    GENERAL SCATTER
+    update:conv_1_d_def__((int32(floor_f32((((float32(r538$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), 
+        (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1),
+        int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))),
+        co,
+        r538$x) = (let t29 = ((float32(r538$y) + 0.500000f)/float32(sigma_x)) in (let t30 = int32(floor_f32((t29 + -0.500000f))) in (let t31 = ((float32(r538$z) + 0.500000f)/float32(sigma_y)) in (let t32 = int32(floor_f32((t31 + -0.500000f))) in (let t33.s = min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__((t30 + 1), (t32 + 1), int32(ceil_f32(max(t33.s, 0.000000f))), co, r538$x) + (((f_output_0_d__(r538$y, r538$z, co, r538$x)*(max(t33.s, 0.000000f) - float32(int32(floor_f32(max(t33.s, 0.000000f))))))*((t31 - float32(t32)) + -0.500000f))*((t29 - float32(t30)) + -0.500000f))))))))
+    RDom: 
+      (d_output.min.3, d_output.extent.3) 
+      (d_output.min.0, d_output.extent.0) 
+      (d_output.min.1, d_output.extent.1)
+
+    update:conv_1_d_def__((int32(floor_f32((((float32(r572$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t40 = ((float32(r572$y) + 0.500000f)/float32(sigma_x)) in (let t41 = int32(floor_f32((t40 + -0.500000f))) in (let t42 = ((float32(r572$z) + 0.500000f)/float32(sigma_y)) in (let t43 = int32(floor_f32((t42 + -0.500000f))) in (let t44.s = min((f_guide(r572$y, r572$z, r572$x)*float32(sigma_z)), float32(sigma_z)) in (let t45 = int32(floor_f32(max(t44.s, 0.000000f))) in (conv_1_d_def__((t41 + 1), (t43 + 1), t45, co, r572$x) + (((f_output_0_d__(r572$y, r572$z, co, r572$x)*((float32(t45) - max(t44.s, 0.000000f)) + 1.000000f))*((t42 - float32(t43)) + -0.500000f))*((t40 - float32(t41)) + -0.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__((int32(floor_f32((((float32(r606$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t52 = ((float32(r606$y) + 0.500000f)/float32(sigma_x)) in (let t53 = int32(floor_f32((t52 + -0.500000f))) in (let t54 = ((float32(r606$z) + 0.500000f)/float32(sigma_y)) in (let t55 = int32(floor_f32((t54 + -0.500000f))) in (let t56.s = min((f_guide(r606$y, r606$z, r606$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__((t53 + 1), t55, int32(ceil_f32(max(t56.s, 0.000000f))), co, r606$x) + (((f_output_0_d__(r606$y, r606$z, co, r606$x)*(max(t56.s, 0.000000f) - float32(int32(floor_f32(max(t56.s, 0.000000f))))))*((float32(t55) - t54) + 1.500000f))*((t52 - float32(t53)) + -0.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__((int32(floor_f32((((float32(r640$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t63 = ((float32(r640$y) + 0.500000f)/float32(sigma_x)) in (let t64 = int32(floor_f32((t63 + -0.500000f))) in (let t65 = ((float32(r640$z) + 0.500000f)/float32(sigma_y)) in (let t66 = int32(floor_f32((t65 + -0.500000f))) in (let t67.s = min((f_guide(r640$y, r640$z, r640$x)*float32(sigma_z)), float32(sigma_z)) in (let t68 = int32(floor_f32(max(t67.s, 0.000000f))) in (conv_1_d_def__((t64 + 1), t66, t68, co, r640$x) + (((f_output_0_d__(r640$y, r640$z, co, r640$x)*((float32(t68) - max(t67.s, 0.000000f)) + 1.000000f))*((float32(t66) - t65) + 1.500000f))*((t63 - float32(t64)) + -0.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r674$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t75 = ((float32(r674$y) + 0.500000f)/float32(sigma_x)) in (let t76 = int32(floor_f32((t75 + -0.500000f))) in (let t77 = ((float32(r674$z) + 0.500000f)/float32(sigma_y)) in (let t78 = int32(floor_f32((t77 + -0.500000f))) in (let t79.s = min((f_guide(r674$y, r674$z, r674$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__(t76, (t78 + 1), int32(ceil_f32(max(t79.s, 0.000000f))), co, r674$x) + (((f_output_0_d__(r674$y, r674$z, co, r674$x)*(max(t79.s, 0.000000f) - float32(int32(floor_f32(max(t79.s, 0.000000f))))))*((t77 - float32(t78)) + -0.500000f))*((float32(t76) - t75) + 1.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r708$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t86 = ((float32(r708$y) + 0.500000f)/float32(sigma_x)) in (let t87 = int32(floor_f32((t86 + -0.500000f))) in (let t88 = ((float32(r708$z) + 0.500000f)/float32(sigma_y)) in (let t89 = int32(floor_f32((t88 + -0.500000f))) in (let t90.s = min((f_guide(r708$y, r708$z, r708$x)*float32(sigma_z)), float32(sigma_z)) in (let t91 = int32(floor_f32(max(t90.s, 0.000000f))) in (conv_1_d_def__(t87, (t89 + 1), t91, co, r708$x) + (((f_output_0_d__(r708$y, r708$z, co, r708$x)*((float32(t91) - max(t90.s, 0.000000f)) + 1.000000f))*((t88 - float32(t89)) + -0.500000f))*((float32(t87) - t86) + 1.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r742$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t98 = ((float32(r742$y) + 0.500000f)/float32(sigma_x)) in (let t99 = int32(floor_f32((t98 + -0.500000f))) in (let t100 = ((float32(r742$z) + 0.500000f)/float32(sigma_y)) in (let t101 = int32(floor_f32((t100 + -0.500000f))) in (let t102.s = min((f_guide(r742$y, r742$z, r742$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__(t99, t101, int32(ceil_f32(max(t102.s, 0.000000f))), co, r742$x) + (((f_output_0_d__(r742$y, r742$z, co, r742$x)*(max(t102.s, 0.000000f) - float32(int32(floor_f32(max(t102.s, 0.000000f))))))*((float32(t101) - t100) + 1.500000f))*((float32(t99) - t98) + 1.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r795$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t123 = ((float32(r795$y) + 0.500000f)/float32(sigma_x)) in (let t124 = int32(floor_f32((t123 + -0.500000f))) in (let t125 = ((float32(r795$z) + 0.500000f)/float32(sigma_y)) in (let t126 = int32(floor_f32((t125 + -0.500000f))) in (let t127.s = min((f_guide(r795$y, r795$z, r795$x)*float32(sigma_z)), float32(sigma_z)) in (let t128 = int32(floor_f32(max(t127.s, 0.000000f))) in (conv_1_d_def__(t124, t126, t128, co, r795$x) + (((f_output_0_d__(r795$y, r795$z, co, r795$x)*((float32(t128) - max(t127.s, 0.000000f)) + 1.000000f))*((float32(t126) - t125) + 1.500000f))*((float32(t124) - t123) + 1.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+
+  funcs[8]: f_output_0_d__
+  funcs[7]: constant_exterior
+  funcs[6]: repeat_edge$2
+  funcs[5]: f_output_0_d_def__
+  funcs[4]: conv
+    conv(x, y, z, co, n) = 0.000000f
+    update:conv(x, y, z, co, n) = (conv(x, y, z, co, n) + (f_filter(r9$x, r9$y, r9$z, r9$w, co)*f_grid(((x + r9$x) - (filter.extent.0/2)), ((y + r9$y) - (filter.extent.1/2)), ((z + r9$z) - (filter.extent.2/2)), r9$w, n)))
+    RDom: (0, filter.extent.0) (0, filter.extent.1) (0, filter.extent.2) (0, filter.extent.3)
+  funcs[3]: f_grid
+    f_grid(x, y, z, ci, n) = 0.000000f
+    update:f_grid(x, y, int32(floor_f32(max(min((f_guide(x, y, n)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), ci, n) = (let t0.s = min((f_guide(x, y, n)*float32(sigma_z)), float32(sigma_z)) in (let t1 = int32(floor_f32(max(t0.s, 0.000000f))) in (f_grid(x, y, t1, ci, n) + (((1.000000f/(float32(sigma_x)*float32(sigma_y)))*((float32(t1) - max(t0.s, 0.000000f)) + 1.000000f))*f_input(((x*sigma_x) + r4$x), ((y*sigma_y) + r4$y), ci, n)))))
+    RDom: (0, sigma_x) (0, sigma_y)
+    update:f_grid(x, y, int32(floor_f32(max(min((f_guide(x, y, n)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), ci, n) = (let t6.s = min((f_guide(x, y, n)*float32(sigma_z)), float32(sigma_z)) in (f_grid(x, y, int32(ceil_f32(max(t6.s, 0.000000f))), ci, n) + (((1.000000f/(float32(sigma_x)*float32(sigma_y)))*(max(t6.s, 0.000000f) - float32(int32(floor_f32(max(t6.s, 0.000000f))))))*f_input(((x*sigma_x) + r4$x), ((y*sigma_y) + r4$y), ci, n))))
+    RDom: (0, sigma_x) (0, sigma_y)
+  funcs[2]: f_input
+  funcs[1]: f_guide
+  funcs[0]: f_filter
+
+Printing function:d_filter
+  funcs[15]: d_filter
+  funcs[14]: f_filter_0_d__
+  funcs[13]: constant_exterior$7
+  funcs[12]: repeat_edge$9
+  funcs[11]: f_filter_0_d_def__
+    f_filter_0_d_def__(x, y, z, ci, co) = 0.000000f
+    update:f_filter_0_d_def__(r858$5, r858$6, r858$7, r858$4, co) = (f_filter_0_d_def__(r858$5, r858$6, r858$7, r858$4, co) + (conv_1_d__(r858$y, r858$z, r858$w, co, r858$x)*f_grid(((r858$y + r858$5) - (filter.extent.0/2)), ((r858$z + r858$6) - (filter.extent.1/2)), ((r858$w + r858$7) - (filter.extent.2/2)), r858$4, r858$x)))
+    RDom: (d_output.min.3, d_output.extent.3) 
+          (int32(floor_f32((((float32(d_output.min.0) + 0.500000f)/float32(sigma_x)) + -0.500000f))), ((int32(floor_f32((((float32(((d_output.min.0 + d_output.extent.0) + -1)) + 0.500000f)/float32(sigma_x)) + -0.500000f))) - int32(floor_f32((((float32(d_output.min.0) + 0.500000f)/float32(sigma_x)) + -0.500000f)))) + 2))
+          (int32(floor_f32((((float32(d_output.min.1) + 0.500000f)/float32(sigma_y)) + -0.500000f))), ((int32(floor_f32((((float32(((d_output.min.1 + d_output.extent.1) + -1)) + 0.500000f)/float32(sigma_y)) + -0.500000f))) - int32(floor_f32((((float32(d_output.min.1) + 0.500000f)/float32(sigma_y)) + -0.500000f)))) + 2))
+          (min(int32(floor_f32(max(min((float32(sigma_z)*-inff), float32(sigma_z)), 0.000000f))), int32(ceil_f32(max(min((float32(sigma_z)*-inff), float32(sigma_z)), 0.000000f)))), ((max(int32(floor_f32(max(min((float32(sigma_z)*inff), float32(sigma_z)), 0.000000f))), int32(ceil_f32(max(min((float32(sigma_z)*inff), float32(sigma_z)), 0.000000f)))) - min(int32(floor_f32(max(min((float32(sigma_z)*-inff), float32(sigma_z)), 0.000000f))), int32(ceil_f32(max(min((float32(sigma_z)*-inff), float32(sigma_z)), 0.000000f))))) + 1))
+          (0, filter.extent.3) (0, filter.extent.0) (0, filter.extent.1) (0, filter.extent.2)
+  funcs[10]: f_grid
+    f_grid(x, y, z, ci, n) = 0.000000f
+    update:f_grid(x, y, int32(floor_f32(max(min((f_guide(x, y, n)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), ci, n) = (let t0.s = min((f_guide(x, y, n)*float32(sigma_z)), float32(sigma_z)) in (let t1 = int32(floor_f32(max(t0.s, 0.000000f))) in (f_grid(x, y, t1, ci, n) + (((1.000000f/(float32(sigma_x)*float32(sigma_y)))*((float32(t1) - max(t0.s, 0.000000f)) + 1.000000f))*f_input(((x*sigma_x) + r4$x), ((y*sigma_y) + r4$y), ci, n)))))
+    RDom: (0, sigma_x) (0, sigma_y)
+    update:f_grid(x, y, int32(floor_f32(max(min((f_guide(x, y, n)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), ci, n) = (let t6.s = min((f_guide(x, y, n)*float32(sigma_z)), float32(sigma_z)) in (f_grid(x, y, int32(ceil_f32(max(t6.s, 0.000000f))), ci, n) + (((1.000000f/(float32(sigma_x)*float32(sigma_y)))*(max(t6.s, 0.000000f) - float32(int32(floor_f32(max(t6.s, 0.000000f))))))*f_input(((x*sigma_x) + r4$x), ((y*sigma_y) + r4$y), ci, n))))
+    RDom: (0, sigma_x) (0, sigma_y)
+  funcs[9]: f_input
+  funcs[8]: conv_1_d__
+  funcs[7]: constant_exterior$1
+  funcs[6]: repeat_edge$3
+  funcs[5]: conv_1_d_def__
+    conv_1_d_def__(x, y, z, co, n) = 0.000000f
+    update:conv_1_d_def__((int32(floor_f32((((float32(r538$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t29 = ((float32(r538$y) + 0.500000f)/float32(sigma_x)) in (let t30 = int32(floor_f32((t29 + -0.500000f))) in (let t31 = ((float32(r538$z) + 0.500000f)/float32(sigma_y)) in (let t32 = int32(floor_f32((t31 + -0.500000f))) in (let t33.s = min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__((t30 + 1), (t32 + 1), int32(ceil_f32(max(t33.s, 0.000000f))), co, r538$x) + (((f_output_0_d__(r538$y, r538$z, co, r538$x)*(max(t33.s, 0.000000f) - float32(int32(floor_f32(max(t33.s, 0.000000f))))))*((t31 - float32(t32)) + -0.500000f))*((t29 - float32(t30)) + -0.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__((int32(floor_f32((((float32(r572$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t40 = ((float32(r572$y) + 0.500000f)/float32(sigma_x)) in (let t41 = int32(floor_f32((t40 + -0.500000f))) in (let t42 = ((float32(r572$z) + 0.500000f)/float32(sigma_y)) in (let t43 = int32(floor_f32((t42 + -0.500000f))) in (let t44.s = min((f_guide(r572$y, r572$z, r572$x)*float32(sigma_z)), float32(sigma_z)) in (let t45 = int32(floor_f32(max(t44.s, 0.000000f))) in (conv_1_d_def__((t41 + 1), (t43 + 1), t45, co, r572$x) + (((f_output_0_d__(r572$y, r572$z, co, r572$x)*((float32(t45) - max(t44.s, 0.000000f)) + 1.000000f))*((t42 - float32(t43)) + -0.500000f))*((t40 - float32(t41)) + -0.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__((int32(floor_f32((((float32(r606$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t52 = ((float32(r606$y) + 0.500000f)/float32(sigma_x)) in (let t53 = int32(floor_f32((t52 + -0.500000f))) in (let t54 = ((float32(r606$z) + 0.500000f)/float32(sigma_y)) in (let t55 = int32(floor_f32((t54 + -0.500000f))) in (let t56.s = min((f_guide(r606$y, r606$z, r606$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__((t53 + 1), t55, int32(ceil_f32(max(t56.s, 0.000000f))), co, r606$x) + (((f_output_0_d__(r606$y, r606$z, co, r606$x)*(max(t56.s, 0.000000f) - float32(int32(floor_f32(max(t56.s, 0.000000f))))))*((float32(t55) - t54) + 1.500000f))*((t52 - float32(t53)) + -0.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__((int32(floor_f32((((float32(r640$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))) + 1), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t63 = ((float32(r640$y) + 0.500000f)/float32(sigma_x)) in (let t64 = int32(floor_f32((t63 + -0.500000f))) in (let t65 = ((float32(r640$z) + 0.500000f)/float32(sigma_y)) in (let t66 = int32(floor_f32((t65 + -0.500000f))) in (let t67.s = min((f_guide(r640$y, r640$z, r640$x)*float32(sigma_z)), float32(sigma_z)) in (let t68 = int32(floor_f32(max(t67.s, 0.000000f))) in (conv_1_d_def__((t64 + 1), t66, t68, co, r640$x) + (((f_output_0_d__(r640$y, r640$z, co, r640$x)*((float32(t68) - max(t67.s, 0.000000f)) + 1.000000f))*((float32(t66) - t65) + 1.500000f))*((t63 - float32(t64)) + -0.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r674$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t75 = ((float32(r674$y) + 0.500000f)/float32(sigma_x)) in (let t76 = int32(floor_f32((t75 + -0.500000f))) in (let t77 = ((float32(r674$z) + 0.500000f)/float32(sigma_y)) in (let t78 = int32(floor_f32((t77 + -0.500000f))) in (let t79.s = min((f_guide(r674$y, r674$z, r674$x)*float32(sigma_z)), float32(sigma_z)) in (conv_1_d_def__(t76, (t78 + 1), int32(ceil_f32(max(t79.s, 0.000000f))), co, r674$x) + (((f_output_0_d__(r674$y, r674$z, co, r674$x)*(max(t79.s, 0.000000f) - float32(int32(floor_f32(max(t79.s, 0.000000f))))))*((t77 - float32(t78)) + -0.500000f))*((float32(t76) - t75) + 1.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(int32(floor_f32((((float32(r708$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))), (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1), int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))), co, r538$x) = (let t86 = ((float32(r708$y) + 0.500000f)/float32(sigma_x)) in (let t87 = int32(floor_f32((t86 + -0.500000f))) in (let t88 = ((float32(r708$z) + 0.500000f)/float32(sigma_y)) in (let t89 = int32(floor_f32((t88 + -0.500000f))) in (let t90.s = min((f_guide(r708$y, r708$z, r708$x)*float32(sigma_z)), float32(sigma_z)) in (let t91 = int32(floor_f32(max(t90.s, 0.000000f))) in (conv_1_d_def__(t87, (t89 + 1), t91, co, r708$x) + (((f_output_0_d__(r708$y, r708$z, co, r708$x)*((float32(t91) - max(t90.s, 0.000000f)) + 1.000000f))*((t88 - float32(t89)) + -0.500000f))*((float32(t87) - t86) + 1.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(
+        int32(floor_f32((((float32(r742$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))),
+        (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1),
+        int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))),
+        co, 
+        r538$x) = (let t98 = ((float32(r742$y) + 0.500000f)/float32(sigma_x)) in (
+            let t99 = int32(floor_f32((t98 + -0.500000f))) in (
+              let t100 = ((float32(r742$z) + 0.500000f)/float32(sigma_y)) in (
+                let t101 = int32(floor_f32((t100 + -0.500000f))) in (
+                  let t102.s = min((f_guide(r742$y, r742$z, r742$x)*float32(sigma_z)), float32(sigma_z)) in (
+                    conv_1_d_def__(t99, t101, int32(ceil_f32(max(t102.s, 0.000000f))), co, r742$x) + (((f_output_0_d__(r742$y, r742$z, co, r742$x)*(max(t102.s, 0.000000f) - float32(int32(floor_f32(max(t102.s, 0.000000f))))))*((float32(t101) - t100) + 1.500000f))*((float32(t99) - t98) + 1.500000f))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+    update:conv_1_d_def__(
+        int32(floor_f32((((float32(r795$y) + 0.500000f)/float32(sigma_x)) + -0.500000f))),
+        (int32(floor_f32((((float32(r538$z) + 0.500000f)/float32(sigma_y)) + -0.500000f))) + 1),
+        int32(ceil_f32(max(min((f_guide(r538$y, r538$z, r538$x)*float32(sigma_z)), float32(sigma_z)), 0.000000f))),
+        co, 
+        r538$x) = (let t123 = ((float32(r795$y) + 0.500000f)/float32(sigma_x)) in (
+            let t124 = int32(floor_f32((t123 + -0.500000f))) in (
+              let t125 = ((float32(r795$z) + 0.500000f)/float32(sigma_y)) in (
+                let t126 = int32(floor_f32((t125 + -0.500000f))) in (
+                  let t127.s = min((f_guide(r795$y, r795$z, r795$x)*float32(sigma_z)), float32(sigma_z)) in (
+                    let t128 = int32(floor_f32(max(t127.s, 0.000000f))) in (
+                      conv_1_d_def__(t124, t126, t128, co, r795$x) + (
+                        ((f_output_0_d__(r795$y, r795$z, co, r795$x)*((float32(t128) - max(t127.s, 0.000000f)) + 1.000000f))*((float32(t126) - t125) + 1.500000f))*((float32(t124) - t123) + 1.500000f)))))))))
+    RDom: (d_output.min.3, d_output.extent.3) (d_output.min.0, d_output.extent.0) (d_output.min.1, d_output.extent.1)
+  funcs[4]: f_output_0_d__
+  funcs[3]: constant_exterior
+  funcs[2]: repeat_edge$2
+  funcs[1]: f_output_0_d_def__
+  funcs[0]: f_guide

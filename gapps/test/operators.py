@@ -59,20 +59,20 @@ def test_bilateral_layer():
   assert output.shape[2] == h
   assert output.shape[3] == w
 
-  # print "testing forward"
-  # mini, maxi = output.min(), output.max()
-  # output -= mini
-  # output /= (maxi-mini)
-  #
-  # output = output.data[0].numpy()
-  # output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
-  # output = np.squeeze(output)
-  # skimage.io.imsave(os.path.join(out_dir, "bilateral_layer.png"), output)
-  #
-  # print "testing gradient"
-  # gradcheck(ops.BilateralLayer.apply,
-  #     (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
-  #      raise_exception=True)
+  print "testing forward"
+  mini, maxi = output.min(), output.max()
+  output -= mini
+  output /= (maxi-mini)
+
+  output = output.data[0].numpy()
+  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  output = np.squeeze(output)
+  skimage.io.imsave(os.path.join(out_dir, "bilateral_layer.png"), output)
+
+  print "testing gradient"
+  gradcheck(ops.BilateralLayer.apply,
+      (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
+       raise_exception=True)
 
 
 

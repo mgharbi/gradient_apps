@@ -123,13 +123,13 @@ public:
           // - produce graph structure of the derivative computation
           // - give out handles to various wrapper locations to schedule the drv
           auto flist_guide = get_deps(d_guide);
+          auto flist_filter = get_deps(d_filter);
 
-          Func conv_1_d_(flist_guide["conv_1_d__"]);
-          Func conv_1_d_def_(flist_guide["conv_1_d_def__"]);
-          Func f_grid_1_d_(flist_guide["f_grid_1_d__"]);
-          Func f_grid_1_d_def_(flist_guide["f_grid_1_d_def__"]);
-          Func f_grid_2_d_(flist_guide["f_grid_2_d__"]);
-          Func f_grid_2_d_def_(flist_guide["f_grid_2_d_def__"]);
+          // Func conv_1_d_(flist_guide["conv_1_d__"]);
+          // Func f_grid_1_d_(flist_guide["f_grid_1_d__"]);
+          // Func f_grid_1_d_def_(flist_guide["f_grid_1_d_def__"]);
+          // Func f_grid_2_d_(flist_guide["f_grid_2_d__"]);
+          // Func f_grid_2_d_def_(flist_guide["f_grid_2_d_def__"]);
 
           // Forward schedule -------------------------------------------------
           func_map["grid"]
@@ -169,18 +169,19 @@ public:
           // Func d_guide_init  = adjoints[FuncKey{func_map["guide"].name(), -1}];
           // Func d_input_init  = adjoints[FuncKey{func_map["input"].name(), -1}];
 
-          Func d_conv_def  = adjoints[FuncKey{func_map["conv"].name(), -1}];
+          // Func d_conv_def  = adjoints[FuncKey{func_map["conv"].name(), -1}];
           Func d_conv0  = adjoints[FuncKey{func_map["conv"].name(), 0}];
-          printf("d_conv: %s %s\n", d_conv_def.name().c_str(), d_conv0.name().c_str());
+          // printf("d_conv: %s %s\n", d_conv_def.name().c_str(), d_conv0.name().c_str());
           d_conv0
             .compute_root()
-            .parallel(y, 4)
+            .parallel(co)
             .vectorize(x, 8)
             ;
 
+          // Func d_grid_def  = adjoints[FuncKey{func_map["grid"].name(), -1}];
           Func d_grid0  = adjoints[FuncKey{func_map["grid"].name(), 0}];
           Func d_grid1  = adjoints[FuncKey{func_map["grid"].name(), 1}];
-          printf("d_grid: %s %s\n", d_grid0.name().c_str(), d_grid1.name().c_str());
+          // printf("d_grid: %s %s %s\n", d_grid_def.name().c_str(), d_grid0.name().c_str(), d_grid1.name().c_str());
           d_grid1
             .compute_root()
             .parallel(y, 4)
@@ -192,7 +193,6 @@ public:
             .parallel(y, 4)
             .vectorize(x, 8)
             ;
-
 
           d_input
             .compute_root()
@@ -211,6 +211,21 @@ public:
             .parallel(co)
             .vectorize(x, 8)
             ;
+
+          // this is a scatter
+          Func conv_1_d_def_(flist_guide["conv_1_d_def__"]);
+          conv_1_d_def_.compute_at(d_conv0, co);
+
+          Func d_guide_def(flist_guide["f_guide_0_d_def__"]);
+          RDom rd = d.reductions[{d_guide_def.name(), 2}];
+          Var rf("rf");
+          cout << "rdom " << rd << endl;
+          d_guide_def.update(2).rfactor(rd.y, rf).update().parallel(rf);
+
+          // d_filter.print_loop_nest();
+          // d_guide.print_loop_nest();
+          // d_input.print_loop_nest();
+
         }
     }
 };
