@@ -26,7 +26,7 @@ std::map<std::string, Func> soft_histogram(
     Func f_output("f_output");
     f_output(x) = 0.0f;
     f_output(lower_bin) += 1.0f - w;
-    f_output(upper_bin) += w;
+    // f_output(upper_bin) += w;
 
     std::map<std::string, Func> func_map;
     func_map["input"]  = f_input;

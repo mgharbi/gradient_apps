@@ -98,17 +98,17 @@ class Histogram(Function):
 
     return output
 
-  @staticmethod
-  def backward(ctx, output_grad):
-    input = ctx.saved_variables[0]
-    nbins = ctx.nbins
-
-    input_grad = output_grad.data.new()
-    ops.histogram_backward_(input.data, output_grad.data, nbins, input_grad)
-
-    input_grad = Variable(input_grad)
-
-    return input_grad, None
+  # @staticmethod
+  # def backward(ctx, output_grad):
+  #   input = ctx.saved_variables[0]
+  #   nbins = ctx.nbins
+  #
+  #   input_grad = output_grad.data.new()
+  #   ops.histogram_backward_(input.data, output_grad.data, nbins, input_grad)
+  #
+  #   input_grad = Variable(input_grad)
+  #
+  #   return input_grad, None
 
 
 class SoftHistogram(Function):

@@ -24,6 +24,8 @@ public:
         Func f_d_input  = adjoints[FuncKey{f_input.name(), -1}];
         d_input(x, y) = f_d_input(x, y);
 
+        f_output.compute_root();
+
         if(auto_schedule) {
           printf("Autoscheduling forward\n");
         }

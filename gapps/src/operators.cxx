@@ -293,7 +293,7 @@ int histogram_forward_(THFloatTensor *input, THFloatTensor* output, const int nb
   // grab a reference with contiguous memory
   input = THFloatTensor_newContiguous(input);
 
-  THFloatTensor_resize1d(output, nbins); 
+  THFloatTensor_resize2d(output, nbins); 
 
   // Wrap in Halide buffers
   Buffer<float> input_buf  = wrap(input);

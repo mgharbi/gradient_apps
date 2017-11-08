@@ -24,7 +24,7 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = histogram_forward histogram_backward \
+OPS = histogram_forward \
       soft_histogram_forward soft_histogram_backward
 			#ahd_demosaick_forward #bilateral_layer_forward bilateral_layer_backward playground_forward playground_backward 
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
@@ -33,6 +33,13 @@ all: cffi
 
 cffi: $(OPS_LIBS)
 	python build.py
+
+bin/test_histogram: $(SRC_DIR)/test_histogram.cpp \
+	$(BUILD_DIR)/histogram_tmp.a $(BUILD_DIR)/histogram_tmp.h \
+	$(BUILD_DIR)/soft_histogram_forward.a $(BUILD_DIR)/soft_histogram_forward.h \
+	$(BUILD_DIR)/soft_histogram_backward.a $(BUILD_DIR)/soft_histogram_backward.h
+	mkdir -p bin
+	$(CXX) $< $(BUILD_DIR)/soft_histogram_forward.a $(BUILD_DIR)/soft_histogram_backward.a $(BUILD_DIR)/histogram_tmp.a $(CXXFLAGS) -I$(BUILD_DIR) $(LDFLAGS) -o $(basename $@)
 
 # Generators
 $(BUILD_DIR)/%.a: $(SRC_DIR)/%.hl.cxx build 

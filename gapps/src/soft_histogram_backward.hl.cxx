@@ -32,7 +32,6 @@ public:
           f_output.compute_root();
         }
     }
-        
 };
 
 }  // end namespace gradient_apps

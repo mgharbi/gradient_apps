@@ -133,24 +133,28 @@ def test_ahd_demosaick():
 
 def test_histogram():
   image = skimage.io.imread(os.path.join(data_dir, "gray.png")).astype(np.float32)/255.0
+  image = image[:64, :64]
   nbins = 8
 
   image = Variable(th.from_numpy(image), requires_grad=True)
   print "profiling"
   with profiler.profile() as prof:
     output = ops.Histogram.apply(image, nbins)
-    loss = output.sum()
-    loss.backward()
+    # loss = output.sum()
+    # loss.backward()
 
-  assert image.grad.data.abs().max() < 1e-8
+  print prof
 
-  image = image[:32, :32]
-  gradcheck(ops.Histogram.apply,
-      (image, nbins), eps=1e-4, atol=5e-2, rtol=5e-4, raise_exception=True)
+  # assert image.grad.data.abs().max() < 1e-8
+  #
+  # image = image[:32, :32]
+  # gradcheck(ops.Histogram.apply,
+  #     (image, nbins), eps=1e-4, atol=5e-2, rtol=5e-4, raise_exception=True)
 
 
 def test_soft_histogram():
   image = skimage.io.imread(os.path.join(data_dir, "gray.png")).astype(np.float32)/255.0
+  image = image[:64, :64]
   nbins = 8
 
   image = Variable(th.from_numpy(image), requires_grad=True)
