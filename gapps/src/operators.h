@@ -23,6 +23,8 @@ int bilateral_layer_backward_(THFloatTensor *input,
                             const int sigma_z);
 
 int ahd_demosaick_forward_(THFloatTensor *mosaick, THFloatTensor *output);
-// int playground_backward_(
-//     THFloatTensor *data1, THFloatTensor *data2, THFloatTensor *d_output,
-//     THFloatTensor *d_data1, THFloatTensor *d_data2);
+
+int histogram_forward_(THFloatTensor *input, THFloatTensor *output, const int nbins);
+int histogram_backward_(THFloatTensor *input, THFloatTensor *output_grad, const int nbins, THFloatTensor* input_grad);
+int soft_histogram_forward_(THFloatTensor *input, THFloatTensor *output, const int nbins);
+int soft_histogram_backward_(THFloatTensor *input, THFloatTensor *output_grad, const int nbins, THFloatTensor* input_grad);

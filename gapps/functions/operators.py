@@ -85,17 +85,53 @@ class AHDDemosaick(Function):
 
     return output
 
-  # @staticmethod
-  # def backward(ctx, d_output):
-  #   mosaick = ctx.saved_variables
-  #
-  #   d_mosaick = mosaick.data.new()
-  #   d_input2 = input2.data.new()
-  #   ops.playground_backward_(
-  #       input1.data, input2.data, d_output.data,
-  #       d_input1, d_input2)
-  #
-  #   d_input1 = Variable(d_input1)
-  #   d_input2 = Variable(d_input2)
-  #
-  #   return d_input1, d_input2
+class Histogram(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, nbins):
+    ctx.save_for_backward(input)
+    ctx.nbins = nbins
+
+    output = input.new()
+    ops.histogram_forward_(input, output, nbins)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, output_grad):
+    input = ctx.saved_variables[0]
+    nbins = ctx.nbins
+
+    input_grad = output_grad.data.new()
+    ops.histogram_backward_(input.data, output_grad.data, nbins, input_grad)
+
+    input_grad = Variable(input_grad)
+
+    return input_grad, None
+
+
+class SoftHistogram(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, nbins):
+    ctx.save_for_backward(input)
+    ctx.nbins = nbins
+
+    output = input.new()
+    ops.soft_histogram_forward_(input, output, nbins)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, output_grad):
+    input = ctx.saved_variables[0]
+    nbins = ctx.nbins
+
+    input_grad = output_grad.data.new()
+    ops.soft_histogram_backward_(input.data, output_grad.data, nbins, input_grad)
+
+    input_grad = Variable(input_grad)
+
+    return input_grad, None

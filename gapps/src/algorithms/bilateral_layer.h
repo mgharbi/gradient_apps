@@ -41,7 +41,7 @@ std::map<std::string, Func> bilateral_layer(
     Func f_grid("f_grid");
     f_grid(x, y, z, ci, n) = 0.f;
     f_grid(x, y, lower_bin, ci, n) += 
-      normalization*(1-w)*f_input(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y, ci, n);
+      normalization*(1.0f-w)*f_input(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y, ci, n);
     f_grid(x, y, upper_bin, ci, n) += 
       normalization*w*f_input(x*sigma_x + rgrid.x, y*sigma_y + rgrid.y, ci, n);
 

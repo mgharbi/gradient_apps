@@ -9,6 +9,10 @@
 #include "bilateral_layer_forward.h"
 #include "bilateral_layer_backward.h"
 #include "ahd_demosaick_forward.h"
+#include "histogram_forward.h"
+#include "histogram_backward.h"
+#include "soft_histogram_forward.h"
+#include "soft_histogram_backward.h"
 
 using Halide::Runtime::Buffer;
 using std::vector;
@@ -263,7 +267,7 @@ int bilateral_layer_backward_(THFloatTensor *input,
 }
 
 int ahd_demosaick_forward_(THFloatTensor *mosaick, THFloatTensor* output) {
-  THArgCheck(THFloatTensor_nDimension(mosaick) == 2, 0, "mosaick tensor should be 4D");
+  THArgCheck(THFloatTensor_nDimension(mosaick) == 2, 0, "mosaick tensor should be 2D");
   int height = THFloatTensor_size(mosaick, 0);
   int width = THFloatTensor_size(mosaick, 1);
 
@@ -283,5 +287,97 @@ int ahd_demosaick_forward_(THFloatTensor *mosaick, THFloatTensor* output) {
   return 0;
 }
 
-} // extern C
+int histogram_forward_(THFloatTensor *input, THFloatTensor* output, const int nbins) {
+  THArgCheck(THFloatTensor_nDimension(input) == 2, 0, "input tensor should be 2D");
 
+  // grab a reference with contiguous memory
+  input = THFloatTensor_newContiguous(input);
+
+  THFloatTensor_resize1d(output, nbins); 
+
+  // Wrap in Halide buffers
+  Buffer<float> input_buf  = wrap(input);
+  Buffer<float> output_buf = wrap(output);
+
+  // Run Halide code
+  histogram_forward(input_buf, nbins, output_buf);
+
+  THFloatTensor_free(input); // release reference
+  return 0;
+}
+
+
+int histogram_backward_(
+    THFloatTensor *input, THFloatTensor *output_grad,
+    const int nbins, THFloatTensor* input_grad) {
+
+  // grab a reference with contiguous memory
+  input = THFloatTensor_newContiguous(input);
+  output_grad = THFloatTensor_newContiguous(output_grad);
+
+  int h = THFloatTensor_size(input, 0);
+  int w = THFloatTensor_size(input, 1);
+
+  THFloatTensor_resize2d(input_grad, h, w); 
+  THFloatTensor_zero(input_grad); 
+
+  // Wrap in Halide buffers
+  Buffer<float> input_buf  = wrap(input);
+  Buffer<float> output_grad_buf = wrap(output_grad);
+  Buffer<float> input_grad_buf  = wrap(input_grad);
+
+  // Run Halide code
+  histogram_backward(input_buf, output_grad_buf, nbins, input_grad_buf);
+
+  THFloatTensor_free(input); // release reference
+  THFloatTensor_free(output_grad); // release reference
+  return 0;
+}
+
+int soft_histogram_forward_(THFloatTensor *input, THFloatTensor* output, const int nbins) {
+  THArgCheck(THFloatTensor_nDimension(input) == 2, 0, "input tensor should be 2D");
+
+  // grab a reference with contiguous memory
+  input = THFloatTensor_newContiguous(input);
+
+  THFloatTensor_resize1d(output, nbins); 
+
+  // Wrap in Halide buffers
+  Buffer<float> input_buf  = wrap(input);
+  Buffer<float> output_buf = wrap(output);
+
+  // Run Halide code
+  soft_histogram_forward(input_buf, nbins, output_buf);
+
+  THFloatTensor_free(input); // release reference
+  return 0;
+}
+
+
+int soft_histogram_backward_(
+    THFloatTensor *input, THFloatTensor *output_grad,
+    const int nbins, THFloatTensor* input_grad) {
+
+  // grab a reference with contiguous memory
+  input = THFloatTensor_newContiguous(input);
+  output_grad = THFloatTensor_newContiguous(output_grad);
+
+  int h = THFloatTensor_size(input, 0);
+  int w = THFloatTensor_size(input, 1);
+
+  THFloatTensor_resize2d(input_grad, h, w); 
+  THFloatTensor_zero(input_grad); 
+
+  // Wrap in Halide buffers
+  Buffer<float> input_buf  = wrap(input);
+  Buffer<float> output_grad_buf = wrap(output_grad);
+  Buffer<float> input_grad_buf  = wrap(input_grad);
+
+  // Run Halide code
+  soft_histogram_backward(input_buf, output_grad_buf, nbins, input_grad_buf);
+
+  THFloatTensor_free(input); // release reference
+  THFloatTensor_free(output_grad); // release reference
+  return 0;
+}
+} // extern C
