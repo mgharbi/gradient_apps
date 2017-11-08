@@ -49,6 +49,7 @@ public:
                 ((0.0f - d_output(
                   max(cast<int>(floor((max(min(t4_2, 1.0f), 0.0f)*cast<float>((nbins + -1))))), 0))
                  )*cast<float>((nbins-1))));
+          break;
         //-----------------------------------------------------------------------
       }
     }
