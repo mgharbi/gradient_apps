@@ -42,7 +42,7 @@ bin/test_histogram: $(SRC_DIR)/test_histogram.cpp \
 	$(CXX) $< $(BUILD_DIR)/soft_histogram_forward.a $(BUILD_DIR)/soft_histogram_backward.a $(BUILD_DIR)/histogram_tmp.a $(CXXFLAGS) -I$(BUILD_DIR) $(LDFLAGS) -o $(basename $@)
 
 # Generators
-$(BUILD_DIR)/%.a: $(SRC_DIR)/%.hl.cxx build 
+$(BUILD_DIR)/%.a: $(SRC_DIR)/%.hl.cxx
 	mkdir -p $(BUILD_DIR)
 	$(CXX) $< $(HALIDE_DIR)/tools/GenGen.cpp  $(CXXFLAGS) $(LDFLAGS) -o $(basename $@)
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin ./$(basename $@) -g $(basename $(@F)) -e static_library,h,html -o $(BUILD_DIR) target=$(HL_TARGET) auto_schedule=$(AUTO_SCHEDULE)
