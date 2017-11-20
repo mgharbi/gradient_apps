@@ -75,11 +75,10 @@ def test_bilateral_layer():
     o = np.squeeze(o)
     skimage.io.imsave(os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), o)
 
-  # print "testing gradient"
-  # gradcheck(ops.BilateralLayer.apply,
-  #     (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
-  #      raise_exception=True)
-
+  print "testing gradient"
+  gradcheck(ops.BilateralLayer.apply,
+      (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
+       raise_exception=True)
 
 
 def test_playground():
