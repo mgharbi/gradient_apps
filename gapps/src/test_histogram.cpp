@@ -15,7 +15,6 @@ int main(int argc, char *argv[])
   Buffer<float> grad_input(size, size);
   Buffer<float> grad_output(nbins);
 
-
   soft_histogram_forward(input, nbins, output);
   soft_histogram_backward(input, grad_output, nbins, grad_input);
   histogram_tmp(input, grad_output, nbins, grad_input);

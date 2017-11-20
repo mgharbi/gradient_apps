@@ -7,7 +7,7 @@ public:
     Input<Buffer<float>>  input{"input", 2};       // x, y
 
     Input<int> nbins{"nbins"};
-    Output<Buffer<float>> output{"output", 1};     // x, y, 3
+    Output<Buffer<float>> output{"output", 1};
 
     void generate() {
         std::map<std::string, Func> func_map = histogram(input, nbins);

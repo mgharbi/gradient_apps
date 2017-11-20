@@ -19,14 +19,18 @@ endif
 # Cuda config
 NVCC = nvcc -std c++11 -g #-G  -pg
 NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
-					-gencode=arch=compute_30,code=\"sm_30,compute_30\" -expt-relaxed-constexpr -Wno-deprecated-gpu-targets -ftz=true --ptxas-options=-v -lineinfo 
+					-gencode=arch=compute_30,code=\"sm_30,compute_30\" \
+					-expt-relaxed-constexpr -Wno-deprecated-gpu-targets \
+					-ftz=true --ptxas-options=-v -lineinfo 
 
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = histogram_forward \
-      soft_histogram_forward soft_histogram_backward
-			#ahd_demosaick_forward #bilateral_layer_forward bilateral_layer_backward playground_forward playground_backward 
+OPS = histogram_forward histogram_backward \
+      soft_histogram_forward soft_histogram_backward \
+			bilateral_layer_forward bilateral_layer_backward
+			# ahd_demosaick_forward \
+			playground_forward playground_backward 
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
 all: cffi
@@ -34,18 +38,22 @@ all: cffi
 cffi: $(OPS_LIBS)
 	python build.py
 
-bin/test_histogram: $(SRC_DIR)/test_histogram.cpp \
-	$(BUILD_DIR)/histogram_tmp.a $(BUILD_DIR)/histogram_tmp.h \
-	$(BUILD_DIR)/soft_histogram_forward.a $(BUILD_DIR)/soft_histogram_forward.h \
-	$(BUILD_DIR)/soft_histogram_backward.a $(BUILD_DIR)/soft_histogram_backward.h
-	mkdir -p bin
-	$(CXX) $< $(BUILD_DIR)/soft_histogram_forward.a $(BUILD_DIR)/soft_histogram_backward.a $(BUILD_DIR)/histogram_tmp.a $(CXXFLAGS) -I$(BUILD_DIR) $(LDFLAGS) -o $(basename $@)
+# bin/test_histogram: $(SRC_DIR)/test_histogram.cpp \
+# 	$(BUILD_DIR)/histogram_tmp.a $(BUILD_DIR)/histogram_tmp.h \
+# 	$(BUILD_DIR)/soft_histogram_forward.a $(BUILD_DIR)/soft_histogram_forward.h \
+# 	$(BUILD_DIR)/soft_histogram_backward.a $(BUILD_DIR)/soft_histogram_backward.h
+# 	mkdir -p bin
+# 	$(CXX) $< $(BUILD_DIR)/soft_histogram_forward.a $(BUILD_DIR)/soft_histogram_backward.a $(BUILD_DIR)/histogram_tmp.a $(CXXFLAGS) -I$(BUILD_DIR) $(LDFLAGS) -o $(basename $@)
+
+$(BUILD_DIR)/%.a: $(BUILD_DIR)/%
+	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
+										./$(basename $@) -g $(basename $(@F)) -e static_library,h,html \
+										-o $(BUILD_DIR) target=$(HL_TARGET) auto_schedule=$(AUTO_SCHEDULE)
 
 # Generators
-$(BUILD_DIR)/%.a: $(SRC_DIR)/%.hl.cxx
+$(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx
 	mkdir -p $(BUILD_DIR)
 	$(CXX) $< $(HALIDE_DIR)/tools/GenGen.cpp  $(CXXFLAGS) $(LDFLAGS) -o $(basename $@)
-	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin ./$(basename $@) -g $(basename $(@F)) -e static_library,h,html -o $(BUILD_DIR) target=$(HL_TARGET) auto_schedule=$(AUTO_SCHEDULE)
 
 clean:
 	rm -rf $(BUILD_DIR) $(EXT_DIR)

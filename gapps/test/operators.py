@@ -27,7 +27,7 @@ def test_bilateral_layer():
   kw = 3
   kd = 3
 
-  sx, sy, sz = 16, 16, 8
+  sx, sy, sz = 4, 4, 8
 
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
   guide = skimage.io.imread(os.path.join(data_dir, "gray.png"))
@@ -35,8 +35,9 @@ def test_bilateral_layer():
   # image = np.random.uniform(size=(16, 16, 3))
   # guide = np.random.uniform(size=(16, 16))
   skimage.io.imsave(os.path.join(out_dir, "bilateral_layer_input.png"), image)
-  image = image[:512, :512, :]
-  guide = guide[:512, :512]
+  sz = 32
+  image = image[:sz, :sz, :]
+  guide = guide[:sz, :sz]
 
   h, w = guide.shape
   image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
@@ -52,8 +53,8 @@ def test_bilateral_layer():
   with profiler.profile() as prof:
     output = ops.BilateralLayer.apply(image, guide, kernels, sx, sy, sz)
     output2 = conv(image)
-    # loss = output.sum()
-    # loss.backward()
+    loss = output.sum()
+    loss.backward()
 
   print prof
 
@@ -154,7 +155,6 @@ def test_histogram():
 
 def test_soft_histogram():
   image = skimage.io.imread(os.path.join(data_dir, "gray.png")).astype(np.float32)/255.0
-  image = image[:64, :64]
   nbins = 8
 
   image = Variable(th.from_numpy(image), requires_grad=True)
@@ -167,6 +167,6 @@ def test_soft_histogram():
 
   # assert image.grad.data.abs().max() < 1e-8
 
-  # image = image[:32, :32]
+  # image = image[:4, :4]
   # gradcheck(ops.SoftHistogram.apply,
   #     (image, nbins), eps=1e-4, atol=5e-2, rtol=5e-4, raise_exception=True)

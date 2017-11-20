@@ -4,11 +4,11 @@
 #include <vector>
 
 #include "HalideBuffer.h"
-#include "playground_forward.h"
-#include "playground_backward.h"
+// #include "playground_forward.h"
+// #include "playground_backward.h"
 #include "bilateral_layer_forward.h"
 #include "bilateral_layer_backward.h"
-#include "ahd_demosaick_forward.h"
+// #include "ahd_demosaick_forward.h"
 #include "histogram_forward.h"
 #include "histogram_backward.h"
 #include "soft_histogram_forward.h"
@@ -30,67 +30,67 @@ Buffer<float> wrap(THFloatTensor* tensor) {
 
 extern "C" {
 
-int playground_forward_(THFloatTensor *data1, THFloatTensor *data2, THFloatTensor* output) {
-  THArgCheck(THFloatTensor_nDimension(data1) == 4, 0, "input tensor should be 4D");
-  int batch_size = THFloatTensor_size(data1, 0);
-  int channels = THFloatTensor_size(data1, 1);
-  int height = THFloatTensor_size(data1, 2);
-  int width = THFloatTensor_size(data1, 3);
-  THArgCheck(THFloatTensor_nDimension(data2) == 4, 0, "input tensor should be 4D");
+// int playground_forward_(THFloatTensor *data1, THFloatTensor *data2, THFloatTensor* output) {
+//   THArgCheck(THFloatTensor_nDimension(data1) == 4, 0, "input tensor should be 4D");
+//   int batch_size = THFloatTensor_size(data1, 0);
+//   int channels = THFloatTensor_size(data1, 1);
+//   int height = THFloatTensor_size(data1, 2);
+//   int width = THFloatTensor_size(data1, 3);
+//   THArgCheck(THFloatTensor_nDimension(data2) == 4, 0, "input tensor should be 4D");
+//
+//   // grab a reference with contiguous memory
+//   data1 = THFloatTensor_newContiguous(data1);
+//   data2 = THFloatTensor_newContiguous(data2);
+//
+//   THFloatTensor_resize4d(output, batch_size, channels, height, width); 
+//
+//   // Wrap in Halide buffers
+//   Buffer<float> data1_buf  = wrap(data1);
+//   Buffer<float> data2_buf  = wrap(data2);
+//   Buffer<float> output_buf = wrap(output);
+//
+//   // Run Halide code
+//   playground_forward(data1_buf, data2_buf, output_buf);
+//
+//   THFloatTensor_free(data1); // release reference
+//   THFloatTensor_free(data2); // release reference
+//   return 0;
+// }
 
-  // grab a reference with contiguous memory
-  data1 = THFloatTensor_newContiguous(data1);
-  data2 = THFloatTensor_newContiguous(data2);
-
-  THFloatTensor_resize4d(output, batch_size, channels, height, width); 
-
-  // Wrap in Halide buffers
-  Buffer<float> data1_buf  = wrap(data1);
-  Buffer<float> data2_buf  = wrap(data2);
-  Buffer<float> output_buf = wrap(output);
-
-  // Run Halide code
-  playground_forward(data1_buf, data2_buf, output_buf);
-
-  THFloatTensor_free(data1); // release reference
-  THFloatTensor_free(data2); // release reference
-  return 0;
-}
-
-int playground_backward_(
-    THFloatTensor *data1, THFloatTensor *data2, THFloatTensor* d_output,
-    THFloatTensor *d_data1, THFloatTensor *d_data2) {
-  THArgCheck(THFloatTensor_nDimension(data1) == 4, 0, "input tensor should be 4D");
-  int batch_size = THFloatTensor_size(data1, 0);
-  int channels = THFloatTensor_size(data1, 1);
-  int height = THFloatTensor_size(data1, 2);
-  int width = THFloatTensor_size(data1, 3);
-  THArgCheck(THFloatTensor_nDimension(data2) == 4, 0, "input tensor should be 4D");
-  THArgCheck(THFloatTensor_nDimension(d_output) == 4, 0, "output tensor should be 4D");
-
-  // grab a reference with contiguous memory
-  data1 = THFloatTensor_newContiguous(data1);
-  data2 = THFloatTensor_newContiguous(data2);
-  d_output = THFloatTensor_newContiguous(d_output);
-
-  THFloatTensor_resize4d(d_data1, batch_size, channels, height, width); 
-  THFloatTensor_resize4d(d_data2, batch_size, channels, height, width); 
-
-  // Wrap in Halide buffers
-  Buffer<float> data1_buf  = wrap(data1);
-  Buffer<float> data2_buf  = wrap(data2);
-  Buffer<float> d_output_buf = wrap(d_output);
-  Buffer<float> d_data1_buf  = wrap(d_data1);
-  Buffer<float> d_data2_buf  = wrap(d_data2);
-
-  // Run Halide code
-  playground_backward(data1_buf, data2_buf, d_output_buf, d_data1_buf, d_data2_buf);
-
-  THFloatTensor_free(data1); // release reference
-  THFloatTensor_free(data2); // release reference
-  THFloatTensor_free(d_output); // release reference
-  return 0;
-}
+// int playground_backward_(
+//     THFloatTensor *data1, THFloatTensor *data2, THFloatTensor* d_output,
+//     THFloatTensor *d_data1, THFloatTensor *d_data2) {
+//   THArgCheck(THFloatTensor_nDimension(data1) == 4, 0, "input tensor should be 4D");
+//   int batch_size = THFloatTensor_size(data1, 0);
+//   int channels = THFloatTensor_size(data1, 1);
+//   int height = THFloatTensor_size(data1, 2);
+//   int width = THFloatTensor_size(data1, 3);
+//   THArgCheck(THFloatTensor_nDimension(data2) == 4, 0, "input tensor should be 4D");
+//   THArgCheck(THFloatTensor_nDimension(d_output) == 4, 0, "output tensor should be 4D");
+//
+//   // grab a reference with contiguous memory
+//   data1 = THFloatTensor_newContiguous(data1);
+//   data2 = THFloatTensor_newContiguous(data2);
+//   d_output = THFloatTensor_newContiguous(d_output);
+//
+//   THFloatTensor_resize4d(d_data1, batch_size, channels, height, width); 
+//   THFloatTensor_resize4d(d_data2, batch_size, channels, height, width); 
+//
+//   // Wrap in Halide buffers
+//   Buffer<float> data1_buf  = wrap(data1);
+//   Buffer<float> data2_buf  = wrap(data2);
+//   Buffer<float> d_output_buf = wrap(d_output);
+//   Buffer<float> d_data1_buf  = wrap(d_data1);
+//   Buffer<float> d_data2_buf  = wrap(d_data2);
+//
+//   // Run Halide code
+//   playground_backward(data1_buf, data2_buf, d_output_buf, d_data1_buf, d_data2_buf);
+//
+//   THFloatTensor_free(data1); // release reference
+//   THFloatTensor_free(data2); // release reference
+//   THFloatTensor_free(d_output); // release reference
+//   return 0;
+// }
 
 
 /**
@@ -138,7 +138,7 @@ int bilateral_layer_forward_(THFloatTensor *input,
   THArgCheck(
       filt_ci == channels_in, 0,
       "filter (%d) and input (%d) should have same input channel size", filt_ci, channels_in);  
-  
+
   // grab references with contiguous memory
   input  = THFloatTensor_newContiguous(input);
   guide  = THFloatTensor_newContiguous(guide);
@@ -266,26 +266,26 @@ int bilateral_layer_backward_(THFloatTensor *input,
   return 0;
 }
 
-int ahd_demosaick_forward_(THFloatTensor *mosaick, THFloatTensor* output) {
-  THArgCheck(THFloatTensor_nDimension(mosaick) == 2, 0, "mosaick tensor should be 2D");
-  int height = THFloatTensor_size(mosaick, 0);
-  int width = THFloatTensor_size(mosaick, 1);
-
-  // grab a reference with contiguous memory
-  mosaick = THFloatTensor_newContiguous(mosaick);
-
-  THFloatTensor_resize3d(output, 3, height, width); 
-
-  // Wrap in Halide buffers
-  Buffer<float> mosaick_buf  = wrap(mosaick);
-  Buffer<float> output_buf = wrap(output);
-
-  // Run Halide code
-  ahd_demosaick_forward(mosaick_buf, output_buf);
-
-  THFloatTensor_free(mosaick); // release reference
-  return 0;
-}
+// int ahd_demosaick_forward_(THFloatTensor *mosaick, THFloatTensor* output) {
+//   THArgCheck(THFloatTensor_nDimension(mosaick) == 2, 0, "mosaick tensor should be 2D");
+//   int height = THFloatTensor_size(mosaick, 0);
+//   int width = THFloatTensor_size(mosaick, 1);
+//
+//   // grab a reference with contiguous memory
+//   mosaick = THFloatTensor_newContiguous(mosaick);
+//
+//   THFloatTensor_resize3d(output, 3, height, width); 
+//
+//   // Wrap in Halide buffers
+//   Buffer<float> mosaick_buf  = wrap(mosaick);
+//   Buffer<float> output_buf = wrap(output);
+//
+//   // Run Halide code
+//   ahd_demosaick_forward(mosaick_buf, output_buf);
+//
+//   THFloatTensor_free(mosaick); // release reference
+//   return 0;
+// }
 
 int histogram_forward_(THFloatTensor *input, THFloatTensor* output, const int nbins) {
   THArgCheck(THFloatTensor_nDimension(input) == 2, 0, "input tensor should be 2D");
@@ -293,7 +293,7 @@ int histogram_forward_(THFloatTensor *input, THFloatTensor* output, const int nb
   // grab a reference with contiguous memory
   input = THFloatTensor_newContiguous(input);
 
-  THFloatTensor_resize2d(output, nbins); 
+  THFloatTensor_resize1d(output, nbins); 
 
   // Wrap in Halide buffers
   Buffer<float> input_buf  = wrap(input);
