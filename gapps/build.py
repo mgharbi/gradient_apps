@@ -1,4 +1,5 @@
 import os
+import re
 from torch.utils.ffi import create_extension
 
 abs_path = os.path.dirname(os.path.realpath(__file__))
@@ -12,12 +13,17 @@ if halide_dir is None:
 extra_objects = [f for f in os.listdir(build_dir) if os.path.splitext(f)[-1] == ".a"] 
 extra_objects = [os.path.join(build_dir, o) for o in extra_objects]
 
+re_h = re.compile(r".*\.pytorch\.h")
+headers = [os.path.join(build_dir, f) for f in os.listdir(build_dir) if re_h.match(f)] 
+re_cc = re.compile(r".*\.pytorch\.cpp")
+sources = [os.path.join(build_dir, f) for f in os.listdir(build_dir) if re_cc.match(f)] 
+
 exts = []
 exts.append(create_extension(
   name='_ext.operators',
   package=False,
-  headers='src/operators.h',
-  sources=['src/operators.cxx'],
+  headers=headers,  #'src/operators.h',
+  sources=sources,  #['src/operators.cxx'],
   # language="c++",
   extra_objects=extra_objects,
   extra_compile_args=["-std=c++11"],

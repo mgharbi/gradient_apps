@@ -115,9 +115,9 @@ public:
 
           printf("Autoscheduling bilateral_layer backward\n");
         } else {
-          for(auto it=adjoints.begin(); it != adjoints.end(); ++it) {
-            cout << "func " << it->first.first << " " << it->first.second << endl;
-          }
+          // for(auto it=adjoints.begin(); it != adjoints.end(); ++it) {
+          //   cout << "func " << it->first.first << " " << it->first.second << endl;
+          // }
 
           // TODO: 
           // - produce graph structure of the derivative computation
@@ -167,7 +167,7 @@ public:
 
           Func d_conv_def  = adjoints[FuncKey{func_map["conv"].name(), -1}];
           Func d_conv0  = adjoints[FuncKey{func_map["conv"].name(), 0}];
-          printf("d_conv: %s %s\n", d_conv_def.name().c_str(), d_conv0.name().c_str());
+          // printf("d_conv: %s %s\n", d_conv_def.name().c_str(), d_conv0.name().c_str());
           d_conv0
             .compute_root()
             .parallel(co)
@@ -210,6 +210,7 @@ public:
           // ----------------------------------------------------------------------
           // TODO: there is no handle to compute these func. They are recomputed
           // several times in the next func 
+          // TODO: schedule updates
           Func conv_1_d_def_(flist_guide["conv_1_d_def__"]);
           conv_1_d_def_
             .compute_root()
@@ -239,7 +240,7 @@ public:
             ;
           // ----------------------------------------------------------------------
 
-          print_func(d_input);
+          // print_func(d_input);
 
         }
     }
