@@ -18,10 +18,8 @@ def has_cuda_inputs(args):
 def wrap_op(op, cuda_op):
   def _func(*args, **kwargs):
     if has_cuda_inputs(args):
-      print "using cuda"
       return cuda_op(*args, **kwargs)
     else:
-      print "using cpu"
       return op(*args, **kwargs)
   return _func
 
