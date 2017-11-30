@@ -10,9 +10,9 @@ std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
     std::map<std::string, Internal::Function> flist =
         Internal::find_transitive_calls(F.function());
     flist.insert(std::make_pair(F.name(), F.function()));
-    cout << "Dependencies for " << F.name() << " " << endl;
+    // cout << "Dependencies for " << F.name() << " " << endl;
     for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
-        cout << "  .Func " << fit->first << " " << endl;
+        // cout << "  .Func " << fit->first << " " << endl;
         // Func f(fit->second);
         // f.compute_root();
     }

@@ -53,26 +53,46 @@ public:
             .estimate(n, 0, est_bsize)
             ;
         } else {
-          func_map["grid"]
-            .compute_root()
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-          func_map["grid"]
-            .update(0)
-            .parallel(ci)
-            .vectorize(x, 8)
-            ;
-          func_map["conv"]
-            .compute_root()
-            .parallel(co)
-            .vectorize(x, 8)
-            ;
-          func_map["conv"]
-            .update(0)
-            .parallel(co)
-            .vectorize(x, 8)
-            ;
+          if (get_target().has_gpu_feature()) {
+            Var xi, yi;
+            func_map["grid"]
+              .compute_root()
+              .gpu_tile(x, y, xi, yi, 8, 8);
+              ;
+            func_map["grid"]
+              .update(0)
+              .gpu_tile(x, y, xi, yi, 8, 8);
+              ;
+            func_map["conv"]
+              .compute_root()
+              .gpu_tile(x, y, xi, yi, 8, 8);
+              ;
+            func_map["conv"]
+              .update(0)
+              .gpu_tile(x, y, xi, yi, 8, 8);
+              ;
+          } else {
+            func_map["grid"]
+              .compute_root()
+              .parallel(ci)
+              .vectorize(x, 8)
+              ;
+            func_map["grid"]
+              .update(0)
+              .parallel(ci)
+              .vectorize(x, 8)
+              ;
+            func_map["conv"]
+              .compute_root()
+              .parallel(co)
+              .vectorize(x, 8)
+              ;
+            func_map["conv"]
+              .update(0)
+              .parallel(co)
+              .vectorize(x, 8)
+              ;
+          }
         }
     }
 };

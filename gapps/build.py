@@ -9,7 +9,6 @@ halide_dir = os.getenv("HALIDE_DIR")
 if halide_dir is None:
   raise ValueError("Please specify a HALIDE_DIR env variable.")
 
-# extra_objects = ["hl_operators.a"] 
 extra_objects = [f for f in os.listdir(build_dir) if os.path.splitext(f)[-1] == ".a"] 
 extra_objects = [os.path.join(build_dir, o) for o in extra_objects]
 
@@ -19,17 +18,23 @@ re_cc = re.compile(r".*\.pytorch\.cpp")
 sources = [os.path.join(build_dir, f) for f in os.listdir(build_dir) if re_cc.match(f)] 
 
 exts = []
-exts.append(create_extension(
+
+ffi = create_extension(
   name='_ext.operators',
   package=False,
-  headers=headers,  #'src/operators.h',
-  sources=sources,  #['src/operators.cxx'],
-  # language="c++",
+  headers=headers,
+  sources=sources,
+  define_macros=[('WITH_CUDA', None)],
+  language="c++",
   extra_objects=extra_objects,
   extra_compile_args=["-std=c++11"],
   relative_to=__file__,
   include_dirs=[os.path.join(abs_path, "build"), os.path.join(halide_dir, "include")],
-))
+  with_cuda=True
+)
+
+# ffi.cdef()
+exts.append(ffi)
 
 if __name__ == '__main__':
   for e in exts:

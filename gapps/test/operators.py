@@ -19,7 +19,13 @@ out_dir = os.path.join(test_dir, "output")
 if not os.path.exists(out_dir):
   os.makedirs(out_dir)
 
-def test_bilateral_layer():
+def test_bilateral_layer_cpu():
+  bilateral_layer_(gpu=False)
+
+def test_bilateral_layer_gpu():
+  bilateral_layer_(gpu=True)
+
+def bilateral_layer_(gpu=False):
   bs = 1;
   ci = 3
   co = 1
@@ -49,6 +55,13 @@ def test_bilateral_layer():
 
   conv = th.nn.Conv2d(ci, co, [kh*sy, kw*sx])
 
+  if gpu:
+    image = image.cuda()
+    guide = guide.cuda()
+    kernels = kernels.cuda()
+    conv.cuda()
+
+
   print "profiling"
   with profiler.profile() as prof:
     output = ops.BilateralLayer.apply(image, guide, kernels, sx, sy, sz)
@@ -70,7 +83,7 @@ def test_bilateral_layer():
     o -= mini
     o /= (maxi-mini)
 
-    o = o.data[0].numpy()
+    o = o.data[0].cpu().numpy()
     o = np.clip(np.transpose(o, [1, 2, 0]), 0, 1)
     o = np.squeeze(o)
     skimage.io.imsave(os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), o)
@@ -78,31 +91,6 @@ def test_bilateral_layer():
   print "testing gradient"
   gradcheck(ops.BilateralLayer.apply,
       (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
-       raise_exception=True)
-
-
-def test_playground():
-  bs = 1
-  h = 2
-  w = 4
-  c = 1
-
-  data1 = Variable(th.rand(bs, c, h, w), requires_grad=False)
-  data2 = Variable(th.rand(bs, c, h, w), requires_grad=True)
-  output = ops.Playground.apply(data1, data2)
-
-  assert output.shape[0] == bs
-  assert output.shape[1] == c
-  assert output.shape[2] == h
-  assert output.shape[3] == w
-
-  # assert ((output.data.numpy()-2) == 0).all()
-
-  loss = output.sum()
-  loss.backward()
-
-  gradcheck(ops.Playground.apply,
-      (data1, data2), eps=1e-4, atol=5e-2, rtol=5e-4,
        raise_exception=True)
 
 

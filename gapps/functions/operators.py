@@ -1,7 +1,38 @@
+import inspect
+import re
+
 import torch
 from torch.autograd import Function
 from torch.autograd import Variable
 from .._ext import operators as ops
+
+
+def has_cuda_inputs(args):
+  for a in args:
+    md = inspect.getmodule(a.__class__).__name__
+    if "cuda" in md:
+      return True
+  return False
+
+
+def wrap_op(op, cuda_op):
+  def _func(*args, **kwargs):
+    if has_cuda_inputs(args):
+      print "using cuda"
+      return cuda_op(*args, **kwargs)
+    else:
+      print "using cpu"
+      return op(*args, **kwargs)
+  return _func
+
+
+th_re = re.compile(r"((?!cuda).)*_th_$")
+ops_funcs = [f for f in inspect.getmembers(ops, inspect.isfunction) if th_re.match(f[0])]
+for op_name, op in ops_funcs:
+  wrapper_name = op_name[:-4]  # remove th suffix
+  cuda_name = wrapper_name + "_cuda_th_"
+  cuda_op = getattr(ops, cuda_name)
+  setattr(ops, wrapper_name, wrap_op(op, cuda_op))
 
 
 class BilateralLayer(Function):
@@ -25,7 +56,7 @@ class BilateralLayer(Function):
     output = input.new()
     output.resize_(bs, co, h, w);
 
-    ops.bilateral_layer_forward_th_(
+    ops.bilateral_layer_forward(
         sigma_x, sigma_y, sigma_z,
         input, guide, filter, output)
 
@@ -46,7 +77,7 @@ class BilateralLayer(Function):
     d_guide.resize_as_(guide.data)
     d_filter.resize_as_(filter.data)
 
-    ops.bilateral_layer_backward_th_(
+    ops.bilateral_layer_backward(
         sigma_x, sigma_y, sigma_z,
         input.data, guide.data, filter.data, d_output.data,
         d_input, d_guide, d_filter)
@@ -58,34 +89,6 @@ class BilateralLayer(Function):
     return d_input, d_guide, d_filter, None, None, None
 
 
-# class Playground(Function):
-#   """"""
-#
-#   @staticmethod
-#   def forward(ctx, input1, input2):
-#     ctx.save_for_backward(input1, input2)
-#
-#     output = input1.new()
-#     ops.playground_forward_(
-#         input1, input2, output)
-#
-#     return output
-#
-#   @staticmethod
-#   def backward(ctx, d_output):
-#     input1, input2 = ctx.saved_variables
-#
-#     d_input1 = input1.data.new()
-#     d_input2 = input2.data.new()
-#     ops.playground_backward_(
-#         input1.data, input2.data, d_output.data,
-#         d_input1, d_input2)
-#
-#     d_input1 = Variable(d_input1)
-#     d_input2 = Variable(d_input2)
-#
-#     return d_input1, d_input2
-#
 # class AHDDemosaick(Function):
 #   """"""
 #
