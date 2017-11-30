@@ -19,13 +19,28 @@ out_dir = os.path.join(test_dir, "output")
 if not os.path.exists(out_dir):
   os.makedirs(out_dir)
 
+# ----------- cpu/gpu test calls --------------------------------------------
 def test_bilateral_layer_cpu():
-  bilateral_layer_(gpu=False)
+  _test_bilateral_layer_(gpu=False)
 
 def test_bilateral_layer_gpu():
-  bilateral_layer_(gpu=True)
+  _test_bilateral_layer_(gpu=True)
 
-def bilateral_layer_(gpu=False):
+def test_histogram_cpu():
+  _test_histogram(False)
+
+def test_histogram_gpu():
+  _test_histogram(True)
+
+def test_soft_histogram_cpu():
+  _test_soft_histogram(False)
+
+def test_soft_histogram_gpu():
+  _test_soft_histogram(True)
+# ---------------------------------------------------------------------------
+
+
+def _test_bilateral_layer_(gpu=False):
   bs = 1;
   ci = 3
   co = 1
@@ -38,10 +53,8 @@ def bilateral_layer_(gpu=False):
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
   guide = skimage.io.imread(os.path.join(data_dir, "gray.png"))
 
-  # image = np.random.uniform(size=(16, 16, 3))
-  # guide = np.random.uniform(size=(16, 16))
   skimage.io.imsave(os.path.join(out_dir, "bilateral_layer_input.png"), image)
-  sz = 32
+  sz = 256
   image = image[:sz, :sz, :]
   guide = guide[:sz, :sz]
 
@@ -61,10 +74,10 @@ def bilateral_layer_(gpu=False):
     kernels = kernels.cuda()
     conv.cuda()
 
-
   print "profiling"
   with profiler.profile() as prof:
-    output = ops.BilateralLayer.apply(image, guide, kernels, sx, sy, sz)
+    output = ops.BilateralLayer.apply(
+        image, guide, kernels, sx, sy, sz)
     output2 = conv(image)
     loss = output.sum()
     loss.backward()
@@ -86,74 +99,81 @@ def bilateral_layer_(gpu=False):
     o = o.data[0].cpu().numpy()
     o = np.clip(np.transpose(o, [1, 2, 0]), 0, 1)
     o = np.squeeze(o)
-    skimage.io.imsave(os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), o)
+    skimage.io.imsave(
+        os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), o)
 
-  print "testing gradient"
-  gradcheck(ops.BilateralLayer.apply,
-      (image, guide, kernels, sx, sy, sz), eps=1e-4, atol=5e-2, rtol=5e-4,
-       raise_exception=True)
+  # print "testing gradient"
+  # gradcheck(
+  #     ops.BilateralLayer.apply,
+  #     (image, guide, kernels, sx, sy, sz),
+  #     eps=1e-4, atol=5e-2, rtol=5e-4,
+  #      raise_exception=True)
 
 
-def test_ahd_demosaick():
-  image = skimage.io.imread(os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
-  h, w, _ = image.shape
-  mosaick = utils.make_mosaick(image)
-  skimage.io.imsave(os.path.join(out_dir, "ahd_mosaick.png"), mosaick)
+# def test_ahd_demosaick():
+#   image = skimage.io.imread(
+#       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
+#   h, w, _ = image.shape
+#   mosaick = utils.make_mosaick(image)
+#   skimage.io.imsave(
+#       os.path.join(out_dir, "ahd_mosaick.png"), mosaick)
+#
+#   mosaick = Variable(th.from_numpy(mosaick), requires_grad=False)
+#   print "profiling"
+#   with profiler.profile() as prof:
+#     output = ops.AHDDemosaick.apply(mosaick)
+#     # loss = output.sum()
+#     # loss.backward()
+#
+#   print prof
+#
+#   assert output.shape[0] == 3
+#   assert output.shape[1] == h
+#   assert output.shape[2] == w
+#
+#   output = output.data.numpy()
+#   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+#   output = np.squeeze(output)
+#   skimage.io.imsave(
+#       os.path.join(out_dir, "ahd_demosaicked.png"), output)
 
-  mosaick = Variable(th.from_numpy(mosaick), requires_grad=False)
+
+def _test_histogram(gpu=False):
+  image = skimage.io.imread(
+      os.path.join(data_dir, "gray.png")).astype(np.float32)/255.0
+  image = image[:64, :64]
+  nbins = 8
+
+  image = Variable(th.from_numpy(image), requires_grad=True)
+  if gpu:
+    image = image.cuda()
+
   print "profiling"
   with profiler.profile() as prof:
-    output = ops.AHDDemosaick.apply(mosaick)
-    # loss = output.sum()
-    # loss.backward()
-
+    output = ops.Histogram.apply(image, nbins)
+    loss = output.sum()
+    loss.backward()
   print prof
 
-  assert output.shape[0] == 3
-  assert output.shape[1] == h
-  assert output.shape[2] == w
-
-  output = output.data.numpy()
-  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
-  output = np.squeeze(output)
-  skimage.io.imsave(os.path.join(out_dir, "ahd_demosaicked.png"), output)
+  print "checking gradients"
+  image = image[:32, :32]
+  gradcheck(ops.Histogram.apply,
+      (image, nbins), eps=1e-4, atol=5e-2, rtol=5e-4,
+      raise_exception=True)
 
 
-def test_histogram():
+def _test_soft_histogram(gpu=False):
   image = skimage.io.imread(os.path.join(data_dir, "gray.png")).astype(np.float32)/255.0
   image = image[:64, :64]
   nbins = 8
 
   image = Variable(th.from_numpy(image), requires_grad=True)
-  print "profiling"
-  with profiler.profile() as prof:
-    output = ops.Histogram.apply(image, nbins)
-    # loss = output.sum()
-    # loss.backward()
+  if gpu:
+    image = image.cuda()
 
-  print prof
-
-  # assert image.grad.data.abs().max() < 1e-8
-  #
-  # image = image[:32, :32]
-  # gradcheck(ops.Histogram.apply,
-  #     (image, nbins), eps=1e-4, atol=5e-2, rtol=5e-4, raise_exception=True)
-
-
-def test_soft_histogram():
-  image = skimage.io.imread(os.path.join(data_dir, "gray.png")).astype(np.float32)/255.0
-  nbins = 8
-
-  image = Variable(th.from_numpy(image), requires_grad=True)
   print "profiling"
   with profiler.profile() as prof:
     output = ops.SoftHistogram.apply(image, nbins)
     loss = output.sum()
     loss.backward()
   print prof
-
-  # assert image.grad.data.abs().max() < 1e-8
-
-  # image = image[:4, :4]
-  # gradcheck(ops.SoftHistogram.apply,
-  #     (image, nbins), eps=1e-4, atol=5e-2, rtol=5e-4, raise_exception=True)

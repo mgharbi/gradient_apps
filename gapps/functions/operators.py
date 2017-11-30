@@ -33,6 +33,66 @@ for op_name, op in ops_funcs:
   setattr(ops, wrapper_name, wrap_op(op, cuda_op))
 
 
+class Histogram(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, nbins):
+    ctx.save_for_backward(input)
+    ctx.nbins = nbins
+
+    assert nbins > 0
+    output = input.new()
+    output.resize_(nbins);
+
+    ops.histogram_forward(input, nbins, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, output_grad):
+    input = ctx.saved_variables[0]
+    nbins = ctx.nbins
+
+    input_grad = input.data.new()
+    input_grad.resize_as_(input.data)
+    ops.histogram_backward(input.data, output_grad.data, nbins, input_grad)
+
+    input_grad = Variable(input_grad)
+
+    return input_grad, None
+
+
+class SoftHistogram(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, nbins):
+    ctx.save_for_backward(input)
+    ctx.nbins = nbins
+
+    assert nbins > 0
+
+    output = input.new()
+    output.resize_(nbins);
+    ops.soft_histogram_forward(input, nbins, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, output_grad):
+    input = ctx.saved_variables[0]
+    nbins = ctx.nbins
+
+    input_grad = input.data.new()
+    input_grad.resize_as_(input.data)
+    ops.soft_histogram_backward(input.data, output_grad.data, nbins, input_grad)
+
+    input_grad = Variable(input_grad)
+
+    return input_grad, None
+
+
 class BilateralLayer(Function):
   """"""
 
@@ -100,53 +160,3 @@ class BilateralLayer(Function):
 #
 #     return output
 #
-# class Histogram(Function):
-#   """"""
-#
-#   @staticmethod
-#   def forward(ctx, input, nbins):
-#     ctx.save_for_backward(input)
-#     ctx.nbins = nbins
-#
-#     output = input.new()
-#     ops.histogram_forward_(input, output, nbins)
-#
-#     return output
-#
-#   # @staticmethod
-#   # def backward(ctx, output_grad):
-#   #   input = ctx.saved_variables[0]
-#   #   nbins = ctx.nbins
-#   #
-#   #   input_grad = output_grad.data.new()
-#   #   ops.histogram_backward_(input.data, output_grad.data, nbins, input_grad)
-#   #
-#   #   input_grad = Variable(input_grad)
-#   #
-#   #   return input_grad, None
-#
-#
-# class SoftHistogram(Function):
-#   """"""
-#
-#   @staticmethod
-#   def forward(ctx, input, nbins):
-#     ctx.save_for_backward(input)
-#     ctx.nbins = nbins
-#
-#     output = input.new()
-#     ops.soft_histogram_forward_(input, output, nbins)
-#
-#     return output
-#
-#   @staticmethod
-#   def backward(ctx, output_grad):
-#     input = ctx.saved_variables[0]
-#     nbins = ctx.nbins
-#
-#     input_grad = output_grad.data.new()
-#     ops.soft_histogram_backward_(input.data, output_grad.data, nbins, input_grad)
-#
-#     input_grad = Variable(input_grad)
-#
-#     return input_grad, None

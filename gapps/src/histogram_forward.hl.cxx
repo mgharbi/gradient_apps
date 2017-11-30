@@ -5,7 +5,6 @@ namespace gradient_apps {
 class HistogramGenerator : public Generator<HistogramGenerator> {
 public:
     Input<Buffer<float>>  input{"input", 2};       // x, y
-
     Input<int> nbins{"nbins"};
     Output<Buffer<float>> output{"output", 1};
 
