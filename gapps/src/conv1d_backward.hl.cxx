@@ -65,26 +65,26 @@ public:
             ;
 
           Func f_input_0_d_def__(flist_input["f_input_0_d_def__"]);
+          // f_input_0_d_def__
+          //   .compute_root()
+          //   .fuse(n, ci, nc)
+          //   .parallel(nc)
+          //   .vectorize(x, 8);
+          //   ;
+          // f_input_0_d_def__
+          //   .update()
+          //   .fuse(n, ci, nc)
+          //   .parallel(nc)
+          //   .vectorize(x, 8);
+          //   ;
           f_input_0_d_def__
-            .compute_root()
-            .fuse(n, ci, nc)
-            .parallel(nc)
+            .compute_at(d_input, x)
             .vectorize(x, 8);
             ;
           f_input_0_d_def__
             .update()
-            .fuse(n, ci, nc)
-            .parallel(nc)
-            .vectorize(x, 8);
+            .vectorize(x, 8)
             ;
-          // f_input_0_d_def__
-            // .compute_at(d_input, x)
-            // .vectorize(x, 8);
-            // ;
-          // f_input_0_d_def__
-          //   .update()
-          //   .vectorize(x, 8)
-          //   ;
 
           Func f_output_1_d__(flist_input["f_output_1_d__"]);
           f_output_1_d__

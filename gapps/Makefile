@@ -27,8 +27,7 @@ SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
 OPS = \
-      bilateral_layer_forward bilateral_layer_backward
-			# conv1d_forward conv1d_backward
+			conv1d_forward conv1d_backward
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
