@@ -1,6 +1,5 @@
 TORCH_INC ?= `python -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
 HALIDE_DIR ?= 
-HL_TARGET ?= host
 AUTO_SCHEDULE=false
 
 CXX ?= g++
@@ -27,9 +26,10 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = bilateral_layer_forward bilateral_layer_backward \
-			histogram_forward histogram_backward \
-			soft_histogram_forward soft_histogram_backward
+OPS = conv3d_forward conv3d_backward
+      # bilateral_layer_forward bilateral_layer_backward
+			# histogram_forward histogram_backward \
+			# soft_histogram_forward soft_histogram_backward
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
@@ -41,16 +41,16 @@ cffi: $(OPS_LIBS) $(CUDA_OPS_LIBS)
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	cd $(BUILD_DIR); \
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
-										./$(basename $(@F)) -g $(basename $(@F)) -e static_library,h,pytorch_wrapper\
-										-o . target=host auto_schedule=$(AUTO_SCHEDULE)
+										./$(basename $(@F)) -g $(basename $(@F)) -e static_library,h,pytorch_wrapper,html\
+										-o . target=host-profile auto_schedule=$(AUTO_SCHEDULE)
 
 $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 	$(eval name = $(subst _cuda,,$(basename $(@F))))
 	@echo $(name) is the name
-	cd $(BUILD_DIR); \
-	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
-										./$(name) -g $(name) -f $(name)_cuda -e static_library,h,pytorch_wrapper \
-										-o . target=host-cuda auto_schedule=$(AUTO_SCHEDULE)
+	# cd $(BUILD_DIR); \
+	# DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
+	# 									./$(name) -g $(name) -f $(name)_cuda -e static_library,h,pytorch_wrapper \
+	# 									-o . target=host-cuda-profile auto_schedule=$(AUTO_SCHEDULE)
 
 # Generators
 $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx

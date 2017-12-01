@@ -10,9 +10,9 @@ std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
     std::map<std::string, Internal::Function> flist =
         Internal::find_transitive_calls(F.function());
     flist.insert(std::make_pair(F.name(), F.function()));
-    // cout << "Dependencies for " << F.name() << " " << endl;
+    cout << "Dependencies for " << F.name() << " " << endl;
     for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
-        // cout << "  .Func " << fit->first << " " << "\n";
+        cout << "  .Func " << fit->first << " " << "\n";
         // Func f(fit->second);
         // f.compute_root();
     }
@@ -115,22 +115,17 @@ public:
 
           printf("Autoscheduling bilateral_layer backward\n");
         } else {
+          printf("Manually scheduling bilateral_layer backward\n");
           // for(auto it=adjoints.begin(); it != adjoints.end(); ++it) {
           //   cout << "func " << it->first.first << " " << it->first.second << endl;
           // }
 
-          // TODO: 
-          // - produce graph structure of the derivative computation
-          // - give out handles to various wrapper locations to schedule the drv
-          auto flist_guide = get_deps(d_guide);
-          auto flist_filter = get_deps(d_filter);
-          auto flist_input = get_deps(d_input);
-
-          // Func conv_1_d_(flist_guide["conv_1_d__"]);
-          // Func f_grid_1_d_(flist_guide["f_grid_1_d__"]);
-          // Func f_grid_1_d_def_(flist_guide["f_grid_1_d_def__"]);
-          // Func f_grid_2_d_(flist_guide["f_grid_2_d__"]);
-          // Func f_grid_2_d_def_(flist_guide["f_grid_2_d_def__"]);
+          printf("\nd_input deps:\n\n");
+          print_func(d_input);
+          printf("\nd_guide deps:\n\n");
+          print_func(d_guide);
+          printf("\nd_filter deps:\n\n");
+          print_func(d_filter);
 
           // Forward schedule -------------------------------------------------
           func_map["grid"]
@@ -141,87 +136,93 @@ public:
             .parallel(ci)
             .vectorize(x, 8)
             ;
+          func_map["grid"]
+            .update(1)
+            .parallel(ci)
+            .vectorize(x, 8)
+            ;
           func_map["conv"]
             .compute_root()
+            .parallel(n)
             .parallel(co)
+            .parallel(z)
             .vectorize(x, 8)
             ;
           func_map["conv"]
             .update(0)
+            .parallel(n)
             .parallel(co)
+            .parallel(z)
             .vectorize(x, 8)
             ;
           func_map["output"]
             .compute_root()
+            .parallel(n)
             .parallel(co)
+            .parallel(y)
             .vectorize(x, 8)
             ;
 
           // Backward schedule -------------------------------------------------
-
-          // Func d_grid_init  = adjoints[FuncKey{func_map["grid"].name(), -1}];
-          // Func d_grid0  = adjoints[FuncKey{func_map["grid"].name(), 0}];
-          //
-          // Func d_guide_init  = adjoints[FuncKey{func_map["guide"].name(), -1}];
-          // Func d_input_init  = adjoints[FuncKey{func_map["input"].name(), -1}];
-
-          Func d_conv_def  = adjoints[FuncKey{func_map["conv"].name(), -1}];
-          Func d_conv0  = adjoints[FuncKey{func_map["conv"].name(), 0}];
-          // printf("d_conv: %s %s\n", d_conv_def.name().c_str(), d_conv0.name().c_str());
-          d_conv0
-            .compute_root()
-            .parallel(co)
-            .vectorize(x, 8)
-            ;
-
-          // Func d_grid_def  = adjoints[FuncKey{func_map["grid"].name(), -1}];
-          Func d_grid0  = adjoints[FuncKey{func_map["grid"].name(), 0}];
-          Func d_grid1  = adjoints[FuncKey{func_map["grid"].name(), 1}];
-          // printf("d_grid: %s %s %s\n", d_grid_def.name().c_str(), d_grid0.name().c_str(), d_grid1.name().c_str());
-          
-          d_grid1
-            .compute_root()
-            .parallel(y, 4)
-            .vectorize(x, 8)
-            ;
-          d_grid0
-            .compute_root()
-            .parallel(y, 4)
-            .vectorize(x, 8)
-            ;
-
-          d_input
-            .compute_root()
-            .parallel(y, 4)
-            .vectorize(x, 8)
-            ;
-
-          d_guide
-            .compute_root()
-            .parallel(y, 4)
-            .vectorize(x, 8)
-            ;
-
-          d_filter
-            .compute_root()
-            .parallel(co)
-            ;
+          auto flist_guide = get_deps(d_guide);
+          auto flist_filter = get_deps(d_filter);
+          auto flist_input = get_deps(d_input);
 
           // ----------------------------------------------------------------------
-          // TODO: there is no handle to compute these func. They are recomputed
-          // several times in the next func 
-          // TODO: schedule updates
           Func conv_1_d_def_(flist_guide["conv_1_d_def__"]);
           conv_1_d_def_
             .compute_root()
-            .parallel(y, 4)
+            .parallel(y)
             .vectorize(x, 8)
             ;
+          // for(int i = 0; i<8; ++i) {
+          //   conv_1_d_def_
+          //     .update(i)
+          //     .parallel(co)
+          //     .parallel(n)
+          //     ;
+          // }
 
-          Func grid_2_d_def_(flist_input["f_grid_2_d_def__"]);
-          grid_2_d_def_
+          Func conv_1_d_(flist_guide["conv_1_d__"]);
+          conv_1_d_
             .compute_root()
-            .parallel(y, 4)
+            .parallel(y)
+            .vectorize(x, 8)
+            ;
+          
+          Func f_grid_1_d_def_(flist_guide["f_grid_1_d_def__"]);
+          f_grid_1_d_def_
+            .compute_root()
+            .parallel(y)
+            .vectorize(x, 8)
+            ;
+          for (int i = 0; i < 3; ++i) {
+            f_grid_1_d_def_
+              .update(i)
+              .parallel(y)
+              .vectorize(x, 8)
+              ;
+          }
+
+
+          Func f_grid_2_d_def_(flist_input["f_grid_2_d_def__"]);
+          std::vector<RVar> rvars = f_grid_2_d_def_.rvars(0);
+          for(RVar r: rvars) {
+            cout << "rvar " << r.name() << "\n";
+          }
+          f_grid_2_d_def_
+            .compute_root()
+            .parallel(n)
+            .parallel(ci)
+            .parallel(z)
+            .vectorize(x, 8)
+            ;
+          f_grid_2_d_def_
+            .update(0)
+            .reorder(rvars[0], rvars[1], rvars[2], rvars[3])
+            .parallel(n)
+            .parallel(ci)
+            .parallel(z)
             .vectorize(x, 8)
             ;
 
@@ -238,9 +239,45 @@ public:
             .parallel(y, 4)
             .vectorize(x, 8)
             ;
-          // ----------------------------------------------------------------------
+          for(int i = 0; i<3; ++i) {
+            guide_0_d_def_
+              .update(i)
+              .parallel(y, 4)
+              .vectorize(x, 8)
+              ;
+          }
 
-          print_func(d_input);
+          Func f_filter_0_d_def(flist_filter["f_filter_0_d_def__"]);
+          f_filter_0_d_def
+            .compute_root()
+            .parallel(co)
+            .parallel(ci)
+            .parallel(z)
+            .parallel(y)
+            .vectorize(x, 2)
+            ;
+          // TODO: rfactor the update?
+          f_filter_0_d_def
+            .update(0)
+            .parallel(co)
+            .parallel(ci)
+            .parallel(z)
+            .parallel(y)
+            .vectorize(x, 2)
+            ;
+
+          // std::vector<RVar> rvars = f_filter_0_d_def.rvars(0);
+          // Var u;
+          // Func intermediate = f_filter_0_d_def.update(0).rfactor(rvars[0], u);
+          // intermediate.compute_root().update()
+          //   .parallel(u)
+          //   .parallel(co)
+          //   .parallel(ci)
+          //   .parallel(z)
+          //   .parallel(y);
+          // intermediate
+          //   .vectorize(x, 2);
+          // ----------------------------------------------------------------------
 
         }
     }

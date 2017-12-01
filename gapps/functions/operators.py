@@ -17,7 +17,7 @@ def has_cuda_inputs(args):
 
 def wrap_op(op, cuda_op):
   def _func(*args, **kwargs):
-    if has_cuda_inputs(args):
+    if has_cuda_inputs(args) and cuda_op is not None:
       return cuda_op(*args, **kwargs)
     else:
       return op(*args, **kwargs)
@@ -29,7 +29,11 @@ ops_funcs = [f for f in inspect.getmembers(ops, inspect.isfunction) if th_re.mat
 for op_name, op in ops_funcs:
   wrapper_name = op_name[:-4]  # remove th suffix
   cuda_name = wrapper_name + "_cuda_th_"
-  cuda_op = getattr(ops, cuda_name)
+  try:
+    cuda_op = getattr(ops, cuda_name)
+  except AttributeError:
+    print("op {}, not present, setting to none".format(cuda_name))
+    cuda_op = None
   setattr(ops, wrapper_name, wrap_op(op, cuda_op))
 
 
@@ -91,6 +95,45 @@ class SoftHistogram(Function):
     input_grad = Variable(input_grad)
 
     return input_grad, None
+
+
+class Conv3d(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, filter):
+    ctx.save_for_backward(input, filter)
+
+    bs, ci, d, h, w = input.shape
+    co = filter.shape[0]
+
+    assert filter.shape[1] == ci
+
+    output = input.new()
+    output.resize_(bs, co, d, h, w);
+
+    ops.conv3d_forward(
+        input, filter, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    input, filter = ctx.saved_variables
+
+    d_input = input.data.new()
+    d_filter = filter.data.new()
+    d_input.resize_as_(input.data)
+    d_filter.resize_as_(filter.data)
+
+    ops.conv3d_backward(
+        input.data, filter.data, d_output.data,
+        d_input, d_filter)
+
+    d_input = Variable(d_input)
+    d_filter = Variable(d_filter)
+
+    return d_input, d_filter
 
 
 class BilateralLayer(Function):

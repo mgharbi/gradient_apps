@@ -63,6 +63,10 @@ public:
               .update(0)
               .gpu_tile(x, y, xi, yi, 8, 8);
               ;
+            func_map["grid"]
+              .update(1)
+              .gpu_tile(x, y, xi, yi, 8, 8);
+              ;
             func_map["conv"]
               .compute_root()
               .gpu_tile(x, y, xi, yi, 8, 8);
@@ -74,22 +78,44 @@ public:
           } else {
             func_map["grid"]
               .compute_root()
+              .parallel(n)
               .parallel(ci)
+              .parallel(z)
               .vectorize(x, 8)
               ;
             func_map["grid"]
               .update(0)
+              .parallel(n)
               .parallel(ci)
+              .parallel(y)
+              .vectorize(x, 8)
+              ;
+            func_map["grid"]
+              .update(1)
+              .parallel(n)
+              .parallel(ci)
+              .parallel(y)
               .vectorize(x, 8)
               ;
             func_map["conv"]
               .compute_root()
+              .parallel(n)
               .parallel(co)
+              .parallel(z)
               .vectorize(x, 8)
               ;
             func_map["conv"]
               .update(0)
+              .parallel(n)
               .parallel(co)
+              .parallel(z)
+              .vectorize(x, 8)
+              ;
+            output
+              .compute_root()
+              .parallel(n)
+              .parallel(co)
+              .parallel(y)
               .vectorize(x, 8)
               ;
           }

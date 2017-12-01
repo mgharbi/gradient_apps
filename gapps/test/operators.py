@@ -20,6 +20,12 @@ if not os.path.exists(out_dir):
   os.makedirs(out_dir)
 
 # ----------- cpu/gpu test calls --------------------------------------------
+def test_conv3d_cpu():
+  _test_conv3d(gpu=False)
+
+def test_conv3d_gpu():
+  _test_conv3d(gpu=True)
+
 def test_bilateral_layer_cpu():
   _test_bilateral_layer_(gpu=False)
 
@@ -39,11 +45,39 @@ def test_soft_histogram_gpu():
   _test_soft_histogram(True)
 # ---------------------------------------------------------------------------
 
+def _test_conv3d(gpu=False):
+  bs = 1
+  ci = 3
+  co = 3
+  kh = 3
+  kw = 3
+  kd = 3
+
+  # grid size
+  d = 8
+  h = 16
+  w = 16
+
+  input_grid = Variable(th.randn(bs, ci, d, h, w), requires_grad=True)
+  kernels = Variable(th.randn(co, ci, kd, kh, kw), requires_grad=True)
+
+  if gpu:
+    input_grid = input_grid.cuda()
+    kernels = kernels.cuda()
+
+  print "profiling"
+  with profiler.profile() as prof:
+    output = ops.Conv3d.apply(
+        input_grid, kernels)
+    loss = output.sum()
+    loss.backward()
+
+  print prof
 
 def _test_bilateral_layer_(gpu=False):
   bs = 1;
   ci = 3
-  co = 1
+  co = 3
   kh = 3
   kw = 3
   kd = 3
@@ -141,7 +175,7 @@ def _test_bilateral_layer_(gpu=False):
 def _test_histogram(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "gray.png")).astype(np.float32)/255.0
-  image = image[:64, :64]
+  image = image[:16, :16]
   nbins = 8
 
   image = Variable(th.from_numpy(image), requires_grad=True)
