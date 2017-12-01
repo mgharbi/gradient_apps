@@ -45,19 +45,103 @@ public:
 
         if(auto_schedule) {
         } else {
-          // Forward schedule -------------------------------------------------
+          // Forward schedule -----------------------------------
+          Var nc("nc");
+          Var ncz("ncz");
+          Var nczy("nczy");
           f_output
             .compute_root()
-            .parallel(n)
-            .parallel(co)
-            .parallel(z)
+            .fuse(n, co, nc)
+            .fuse(nc, z, ncz)
+            .fuse(ncz, y, nczy)
+            .parallel(nczy)
             .vectorize(x, 8)
             ;
 
+          // Backward schedule -----------------------------------
           printf("\nd_input deps:\n\n");
           print_func(d_input);
           printf("\nd_filter deps:\n\n");
           print_func(d_filter);
+
+          auto flist_input = get_deps(d_input);
+
+          // Func f_output_1_d__(flist_input["f_output_1_d__"]);
+          // f_output_1_d__
+          //   .compute_root()
+          //   .fuse(n, co, nc)
+          //   .fuse(nc, z, ncz)
+          //   .fuse(ncz, y, nczy)
+          //   .parallel(nczy)
+          //   .vectorize(x, 8)
+          //   ;
+
+          // This just does a copy of the repeat_edge, constant_exterior
+          Func d_input(flist_input["d_input"]);
+          d_input
+            .compute_root()
+            .fuse(n, ci, nc)
+            .fuse(nc, z, ncz)
+            .fuse(ncz, y, nczy)
+            .parallel(nczy)
+            .vectorize(x, 8);
+            ;
+
+          Func f_input_0_d_def__(flist_input["f_input_0_d_def__"]);
+          f_input_0_d_def__
+            .compute_root()
+            .fuse(n, ci, nc)
+            .fuse(nc, z, ncz)
+            .fuse(ncz, y, nczy)
+            .parallel(nczy)
+            .vectorize(x, 8);
+            ;
+
+          std::vector<RVar> rvars = f_input_0_d_def__.rvars(0);
+          for(RVar r: rvars) {
+            cout << "rvar " << r.name() << "\n";
+          }
+          f_input_0_d_def__
+            .update()
+            // .reorder(rvars[1], rvars[2], rvars[3], rvars[0])
+            .fuse(n, ci, nc)
+            .fuse(nc, z, ncz)
+            .fuse(ncz, y, nczy)
+            .parallel(nczy)
+            .vectorize(x, 8)
+            ;
+
+          auto flist_filter = get_deps(d_filter);
+          Func f_filter_0_d_def__(flist_filter["f_filter_0_d_def__"]);
+          f_filter_0_d_def__
+            .compute_root()
+            .fuse(co, ci, nc)
+            .fuse(nc, z, ncz)
+            .fuse(ncz, y, nczy)
+            .parallel(nczy)
+            .vectorize(x, 2)
+            ;
+
+          rvars = f_filter_0_d_def__.rvars();  // ci, x, y, z
+          Var r0("r0");
+          Var r1("r1");
+          Var r2("r2");
+          Var r3("r3");
+          Func intrm = f_filter_0_d_def__
+            .update()
+            .rfactor({{rvars[3], r3}});
+
+          intrm
+            .compute_at(f_filter_0_d_def__, x)
+            .fuse(co, ci, nc)
+            .fuse(nc, z, ncz)
+            .fuse(ncz, y, nczy)
+            .parallel(nczy)
+            .vectorize(x, 2)
+            ;
+          intrm
+            .update()
+            .parallel(r3);
 
           // Backward schedule -------------------------------------------------
         }

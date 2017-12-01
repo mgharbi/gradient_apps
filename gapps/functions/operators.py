@@ -97,6 +97,45 @@ class SoftHistogram(Function):
     return input_grad, None
 
 
+class Conv1d(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, filter):
+    ctx.save_for_backward(input, filter)
+
+    bs, ci, w = input.shape
+    co = filter.shape[0]
+
+    assert filter.shape[1] == ci
+
+    output = input.new()
+    output.resize_(bs, co, w);
+
+    ops.conv1d_forward(
+        input, filter, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    input, filter = ctx.saved_variables
+
+    d_input = input.data.new()
+    d_filter = filter.data.new()
+    d_input.resize_as_(input.data)
+    d_filter.resize_as_(filter.data)
+
+    ops.conv1d_backward(
+        input.data, filter.data, d_output.data,
+        d_input, d_filter)
+
+    d_input = Variable(d_input)
+    d_filter = Variable(d_filter)
+
+    return d_input, d_filter
+
+
 class Conv3d(Function):
   """"""
 

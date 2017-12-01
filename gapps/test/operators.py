@@ -20,6 +20,12 @@ if not os.path.exists(out_dir):
   os.makedirs(out_dir)
 
 # ----------- cpu/gpu test calls --------------------------------------------
+def test_conv1d_cpu():
+  _test_conv1d(gpu=False)
+
+def test_conv1d_gpu():
+  _test_conv1d(gpu=True)
+
 def test_conv3d_cpu():
   _test_conv3d(gpu=False)
 
@@ -45,18 +51,44 @@ def test_soft_histogram_gpu():
   _test_soft_histogram(True)
 # ---------------------------------------------------------------------------
 
+def _test_conv1d(gpu=False):
+  bs = 16
+  ci = 64
+  co = 64
+  kw = 5
+
+  w = 2048
+
+  input_grid = Variable(th.randn(bs, ci, w), requires_grad=True)
+  kernels = Variable(th.randn(co, ci, kw), requires_grad=True)
+
+  if gpu:
+    input_grid = input_grid.cuda()
+    kernels = kernels.cuda()
+
+  print "profiling"
+  with profiler.profile() as prof:
+    for i in range(5):
+      output = ops.Conv1d.apply(
+          input_grid, kernels)
+      loss = output.sum()
+      loss.backward()
+
+  print prof
+
+
 def _test_conv3d(gpu=False):
-  bs = 1
-  ci = 3
-  co = 3
+  bs = 16
+  ci = 8
+  co = 8
   kh = 3
   kw = 3
   kd = 3
 
   # grid size
   d = 8
-  h = 16
-  w = 16
+  h = 64
+  w = 64
 
   input_grid = Variable(th.randn(bs, ci, d, h, w), requires_grad=True)
   kernels = Variable(th.randn(co, ci, kd, kh, kw), requires_grad=True)
@@ -67,10 +99,11 @@ def _test_conv3d(gpu=False):
 
   print "profiling"
   with profiler.profile() as prof:
-    output = ops.Conv3d.apply(
-        input_grid, kernels)
-    loss = output.sum()
-    loss.backward()
+    for i in range(1):
+      output = ops.Conv3d.apply(
+          input_grid, kernels)
+      loss = output.sum()
+      loss.backward()
 
   print prof
 

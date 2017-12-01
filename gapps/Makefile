@@ -26,8 +26,9 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
-OPS = conv3d_forward conv3d_backward
-      # bilateral_layer_forward bilateral_layer_backward
+OPS = \
+      bilateral_layer_forward bilateral_layer_backward
+			# conv1d_forward conv1d_backward
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
