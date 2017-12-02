@@ -101,8 +101,9 @@ class Conv1d(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, input, filter):
+  def forward(ctx, input, filter, manual_backward=False):
     ctx.save_for_backward(input, filter)
+    ctx.manual_backward = manual_backward
 
     bs, ci, w = input.shape
     co = filter.shape[0]
@@ -122,18 +123,25 @@ class Conv1d(Function):
     input, filter = ctx.saved_variables
 
     d_input = input.data.new()
+    w, ci, n = input.shape
     d_filter = filter.data.new()
-    d_input.resize_as_(input.data)
+    d_input.resize_(w, ci, n)
+    print w, ci, n
+    # d_input.resize_as_(input.data)
     d_filter.resize_as_(filter.data)
 
-    ops.conv1d_backward(
-        input.data, filter.data, d_output.data,
-        d_input, d_filter)
+    if ctx.manual_backward:
+      ops.conv1d_manual_backward(
+          input.data, filter.data, d_output.data, d_input)
+    else:
+      ops.conv1d_backward(
+          input.data, filter.data, d_output.data,
+          d_input)
 
     d_input = Variable(d_input)
     d_filter = Variable(d_filter)
 
-    return d_input, d_filter
+    return d_input, d_filter, None
 
 
 class Conv3d(Function):

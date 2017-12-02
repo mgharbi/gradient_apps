@@ -57,7 +57,7 @@ def _test_conv1d(gpu=False):
   co = 64
   kw = 5
 
-  w = 2048
+  w = 2*2048
 
   input_grid = Variable(th.randn(bs, ci, w), requires_grad=True)
   kernels = Variable(th.randn(co, ci, kw), requires_grad=True)
@@ -68,10 +68,15 @@ def _test_conv1d(gpu=False):
 
   print "profiling"
   with profiler.profile() as prof:
-    for i in range(5):
+    for i in range(10):
       output = ops.Conv1d.apply(
           input_grid, kernels)
       loss = output.sum()
+      loss.backward()
+
+      output2 = ops.Conv1d.apply(
+          input_grid, kernels, True)
+      loss = output2.sum()
       loss.backward()
 
   print prof
