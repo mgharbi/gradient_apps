@@ -66,7 +66,7 @@ def _test_conv1d(gpu=False):
     input_grid = input_grid.cuda()
     kernels = kernels.cuda()
 
-  print "profiling"
+  print("profiling")
   with profiler.profile() as prof:
     for i in range(10):
       output = ops.Conv1d.apply(
@@ -79,7 +79,7 @@ def _test_conv1d(gpu=False):
       loss = output2.sum()
       loss.backward()
 
-  print prof
+  print(prof)
 
 
 def _test_conv3d(gpu=False):
@@ -102,7 +102,7 @@ def _test_conv3d(gpu=False):
     input_grid = input_grid.cuda()
     kernels = kernels.cuda()
 
-  print "profiling"
+  print("profiling")
   with profiler.profile() as prof:
     for i in range(1):
       output = ops.Conv3d.apply(
@@ -110,7 +110,7 @@ def _test_conv3d(gpu=False):
       loss = output.sum()
       loss.backward()
 
-  print prof
+  print(prof)
 
 def _test_bilateral_layer_(gpu=False):
   bs = 1;
@@ -146,7 +146,7 @@ def _test_bilateral_layer_(gpu=False):
     kernels = kernels.cuda()
     conv.cuda()
 
-  print "profiling"
+  print("profiling")
   with profiler.profile() as prof:
     output = ops.BilateralLayer.apply(
         image, guide, kernels, sx, sy, sz)
@@ -154,15 +154,15 @@ def _test_bilateral_layer_(gpu=False):
     loss = output.sum()
     loss.backward()
 
-  print prof
+  print(prof)
 
-  print "testing dimensions"
+  print("testing dimensions")
   assert output.shape[0] == bs
   assert output.shape[1] == co
   assert output.shape[2] == h
   assert output.shape[3] == w
 
-  print "testing forward"
+  print("testing forward")
   for i, o in enumerate([output, output2]):
     mini, maxi = o.min(), o.max()
     o -= mini
@@ -220,14 +220,14 @@ def _test_histogram(gpu=False):
   if gpu:
     image = image.cuda()
 
-  print "profiling"
+  print("profiling")
   with profiler.profile() as prof:
     output = ops.Histogram.apply(image, nbins)
     loss = output.sum()
     loss.backward()
-  print prof
+  print(prof)
 
-  print "checking gradients"
+  print("checking gradients")
   image = image[:32, :32]
   gradcheck(ops.Histogram.apply,
       (image, nbins), eps=1e-4, atol=5e-2, rtol=5e-4,
@@ -243,9 +243,9 @@ def _test_soft_histogram(gpu=False):
   if gpu:
     image = image.cuda()
 
-  print "profiling"
+  print("profiling")
   with profiler.profile() as prof:
     output = ops.SoftHistogram.apply(image, nbins)
     loss = output.sum()
     loss.backward()
-  print prof
+  print(prof)
