@@ -30,10 +30,10 @@ public:
       f_output_1_d_def(x, co, n) = d_output(x, co, n);
       Func re1("re1");
       re1(x, co, n) = Halide::BoundaryConditions::repeat_edge(f_output_1_d_def,
-          {{0, width}, {0, in_chans}, {0, bsize}})(x, co, n);
+        {{0, width}, {0, in_chans}, {0, bsize}})(x, co, n);
       Func ce("ce");
       ce(x, co, n) = Halide::BoundaryConditions::constant_exterior(re1, 0.0f,
-          {{0, width}, {0, in_chans}, {0, bsize}})(x, co, n);
+        {{0, width}, {0, in_chans}, {0, bsize}})(x, co, n);
       Func f_output_1_d("f_output_1_d");
       f_output_1_d(x, co, n) = ce(x, co, n);
 
@@ -43,20 +43,21 @@ public:
       f_input_0_d_def(x, ci, n) = f_input_0_d_def(x, ci, n) + 
         f_output_1_d(x + kw/2 - r.y, r.x, n)*f_filter(r.y, ci, r.x);
 
-      d_input(x, ci, n) = f_input_0_d_def(x, ci, n);
+      // d_input(x, ci, n) = f_input_0_d_def(x, ci, n);
 
-      // Func re2("re2");
-      // re2(x, ci, n) = Halide::BoundaryConditions::repeat_edge(f_input_0_d_def,
-      //     {{0, width}, {0, in_chans}, {0, bsize}})(x, ci, n);
-      // Func ce1("ce1");
-      // ce1(x, ci, n) = Halide::BoundaryConditions::constant_exterior(f_input_0_d_def, 0.0f,
-      //     {{0, width}, {0, in_chans}, {0, bsize}})(x, ci, n);
-      // Func f_input_0_d("f_input_0_d");
-      // f_input_0_d(x, ci, n) = ce1(x, ci, n);
-      // d_input(x, ci, n) = f_input_0_d(x, ci, n);
-      
+      Func re2("re2");
+      re2(x, ci, n) = Halide::BoundaryConditions::repeat_edge(f_input_0_d_def,
+          {{0, width}, {0, in_chans}, {0, bsize}})(x, ci, n);
+      Func ce1("ce1");
+      ce1(x, ci, n) = Halide::BoundaryConditions::constant_exterior(re2, 0.0f,
+          {{0, width}, {0, in_chans}, {0, bsize}})(x, ci, n);
+      Func f_input_0_d("f_input_0_d");
+      f_input_0_d(x, ci, n) = ce1(x, ci, n);
+      d_input(x, ci, n) = f_input_0_d(x, ci, n);
 
       Var nc("nc");
+      ce.compute_root().fuse(n, co, nc).parallel(nc).vectorize(x, 8);
+      ce1.compute_root().fuse(n, ci, nc).parallel(nc).vectorize(x, 8);
       d_input
         .compute_root()
         .fuse(n, ci, nc)
@@ -64,10 +65,15 @@ public:
         .vectorize(x, 8)
         ;
       f_input_0_d_def
-        .compute_at(d_input, x)
+        .compute_root()
+        .fuse(n, ci, nc)
+        .parallel(nc)
+        //.compute_at(ce1, x)
         .vectorize(x, 8);
       f_input_0_d_def
         .update()
+        .fuse(n, ci, nc)
+        .parallel(nc)
         .vectorize(x, 8);
     }
 };
