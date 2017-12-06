@@ -237,16 +237,32 @@ class BilateralLayer(Function):
     return d_input, d_guide, d_filter, None, None, None
 
 
-# class AHDDemosaick(Function):
-#   """"""
-#
-#   @staticmethod
-#   def forward(ctx, mosaick):
-#     ctx.save_for_backward(mosaick)
-#
-#     output = mosaick.new()
-#     ops.ahd_demosaick_forward_(
-#         mosaick, output)
-#
-#     return output
-#
+class NaiveDemosaick(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, mosaick):
+    ctx.save_for_backward(mosaick)
+
+    output = mosaick.new()
+    h, w = mosaick.shape
+    output.resize_(3, h, w)
+    ops.naive_demosaick_forward(
+        mosaick, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    mosaick = ctx.saved_variables[0]
+
+    d_mosaick = mosaick.data.new()
+    d_mosaick.resize_as_(mosaick.data)
+
+    ops.naive_demosaick_backward(
+        mosaick.data, d_output.data,
+        d_mosaick)
+
+    d_mosaick = Variable(d_mosaick)
+
+    return d_mosaick

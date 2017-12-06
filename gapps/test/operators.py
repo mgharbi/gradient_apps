@@ -49,6 +49,12 @@ def test_soft_histogram_cpu():
 
 def test_soft_histogram_gpu():
   _test_soft_histogram(True)
+
+def test_naive_demosaick_cpu():
+  _test_naive_demosaick(False)
+
+def test_naive_demosaick_gpu():
+  _test_naive_demosaick(True)
 # ---------------------------------------------------------------------------
 
 def _test_conv1d(gpu=False):
@@ -182,34 +188,6 @@ def _test_bilateral_layer_(gpu=False):
   #      raise_exception=True)
 
 
-# def test_ahd_demosaick():
-#   image = skimage.io.imread(
-#       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
-#   h, w, _ = image.shape
-#   mosaick = utils.make_mosaick(image)
-#   skimage.io.imsave(
-#       os.path.join(out_dir, "ahd_mosaick.png"), mosaick)
-#
-#   mosaick = Variable(th.from_numpy(mosaick), requires_grad=False)
-#   print "profiling"
-#   with profiler.profile() as prof:
-#     output = ops.AHDDemosaick.apply(mosaick)
-#     # loss = output.sum()
-#     # loss.backward()
-#
-#   print prof
-#
-#   assert output.shape[0] == 3
-#   assert output.shape[1] == h
-#   assert output.shape[2] == w
-#
-#   output = output.data.numpy()
-#   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
-#   output = np.squeeze(output)
-#   skimage.io.imsave(
-#       os.path.join(out_dir, "ahd_demosaicked.png"), output)
-
-
 def _test_histogram(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "gray.png")).astype(np.float32)/255.0
@@ -249,3 +227,35 @@ def _test_soft_histogram(gpu=False):
     loss = output.sum()
     loss.backward()
   print(prof)
+
+
+def _test_naive_demosaick(gpu=False):
+  image = skimage.io.imread(
+      os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
+  h, w, _ = image.shape
+  mosaick = utils.make_mosaick(image)
+  skimage.io.imsave(
+      os.path.join(out_dir, "naive_mosaick.png"), mosaick)
+
+  mosaick = Variable(th.from_numpy(mosaick), requires_grad=True)
+  if gpu:
+    mosaick = mosaick.cuda()
+  print "profiling"
+  with profiler.profile() as prof:
+    output = ops.NaiveDemosaick.apply(mosaick)
+    # loss = output.sum()
+    # loss.backward()
+
+  print prof
+
+  assert output.shape[0] == 3
+  assert output.shape[1] == h
+  assert output.shape[2] == w
+
+  output = output.data.cpu().numpy()
+  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  output = np.squeeze(output)
+  skimage.io.imsave(
+      os.path.join(out_dir, "naive_demosaicked.png"), output)
+
+

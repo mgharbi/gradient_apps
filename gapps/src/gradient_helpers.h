@@ -24,4 +24,14 @@ std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
     return flist;
 }
 
+void compute_all_root(Func F) {
+    std::map<std::string, Internal::Function> flist =
+        Internal::find_transitive_calls(F.function());
+    flist.insert(std::make_pair(F.name(), F.function()));
+    for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
+        Func f(fit->second);
+        f.compute_root();
+    }
+}
+
 #endif /* end of include guard: GRADIENT_HELPERS_H_FSA3FYYR */
