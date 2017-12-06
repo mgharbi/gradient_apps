@@ -242,7 +242,7 @@ def _test_naive_demosaick(gpu=False):
     mosaick = mosaick.cuda()
   print "profiling"
   with profiler.profile() as prof:
-    for i in range(5):
+    for i in range(50):
       output = ops.NaiveDemosaick.apply(mosaick)
       loss = output.sum()
       loss.backward()

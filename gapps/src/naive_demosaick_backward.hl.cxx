@@ -44,19 +44,15 @@ public:
           Func d_chroma = adjoints[FuncKey{"chroma", -1}];
           Func d_chroma_def = adjoints[FuncKey{"chroma_def__", -1}];
           Func d_h_interp = adjoints[FuncKey{"h_interp", -1}];
+          Func d_h_interp_def = adjoints[FuncKey{"h_interp_def__", -1}];
           Func d_v_interp = adjoints[FuncKey{"v_interp", -1}];
           Func d_v_interp_def = adjoints[FuncKey{"v_interp_def__", -1}];
           Func d_q_interp = adjoints[FuncKey{"q_interp", -1}];
+          Func d_q_interp_def = adjoints[FuncKey{"q_interp_def__", -1}];
           Func d_mosaick_def = adjoints[FuncKey{"f_mosaick_def__", -1}];
+          Func d_igreen = adjoints[FuncKey{"interpolated_green", -1}];
+          Func d_igreen_def = adjoints[FuncKey{"interpolated_green_def__", -1}];
 
-          // d_red
-          //   .compute_at(d_mosaick, xy)
-          //   .vectorize(x, 8)
-          //   ;
-          // d_blue
-          //   .compute_at(d_mosaick, xy)
-          //   .vectorize(x, 8)
-          //   ;
           d_blue_def
             .compute_at(d_mosaick, xy)
             .vectorize(x, 8)
@@ -74,69 +70,78 @@ public:
             .vectorize(x, 8)
             ;
 
-          d_q_interp
-            .compute_at(d_mosaick, xy)
-            .vectorize(x, 8)
-            ;
-          d_v_interp
-            .compute_at(d_mosaick, xy)
-            .vectorize(x, 8)
-            ;
           d_v_interp_def
+            .compute_at(d_mosaick, xy)
+            .vectorize(x, 8)
             .update(0)
-            .vectorize(x)
+            .vectorize(x, 8)
             ;
           d_v_interp_def
             .update(1)
-            .vectorize(x)
-            ;
-          d_h_interp
-            .compute_at(d_mosaick, xy)
             .vectorize(x, 8)
             ;
 
-          // d_h_interp
-          //   .update(0)
-          //   .vectorize(x, 8);
-          // d_h_interp
-          //   .update(1)
-          //   .vectorize(x, 8);
-
-          d_chroma
+          d_h_interp_def
             .compute_at(d_mosaick, xy)
+            .vectorize(x, 8)
+            .update(0)
+            .vectorize(x, 8)
+            ;
+          d_h_interp_def
+            .update(1)
+            .vectorize(x, 8)
+            ;
+
+          d_q_interp_def
+            .compute_at(d_mosaick, xy)
+            .vectorize(x, 8)
+            .update(0)
+            .vectorize(x, 8)
+            ;
+          d_q_interp_def
+            .update(1)
             .vectorize(x, 8)
             ;
 
           d_chroma_def
-              .vectorize(x)
-              ;
-          for (int i = 0; i < 8; ++i) {
-            d_chroma_def
-              .update(i)
-              .vectorize(x)
-              ;
-          }
-          d_green
             .compute_at(d_mosaick, xy)
             .vectorize(x, 8)
             ;
+          for (int i = 0; i < 8; ++i) {
+            d_chroma_def
+              .update(i)
+              .vectorize(x, 8)
+              ;
+          }
+
           d_green_def
-            .vectorize(x)
+            .compute_at(d_mosaick, xy)
+            .vectorize(x, 8)
             ;
           for (int i = 0; i < 5; ++i) {
             d_green_def
               .update(i)
-              .vectorize(x)
+              .vectorize(x, 8)
               ;
           }
 
+          d_igreen_def
+            .compute_at(d_mosaick, xy)
+            .vectorize(x, 8)
+            ;
+          d_igreen_def
+            .update()
+            .vectorize(x, 8)
+            ;
+
           d_mosaick_def
-            .vectorize(x)
+            .compute_at(d_mosaick, xy)
+            .vectorize(x, 8)
             ;
           for (int i = 0; i < 5; ++i) {
             d_mosaick_def
               .update(i)
-              .vectorize(x)
+              .vectorize(x, 8)
               ;
           }
           d_mosaick
@@ -145,7 +150,6 @@ public:
             .parallel(xy)
             .vectorize(xi, 8)
             ;
-
         }
     }
 };
