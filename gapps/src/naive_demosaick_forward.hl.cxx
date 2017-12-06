@@ -15,6 +15,16 @@ public:
 
         if(auto_schedule) {
         } else {
+          // Var yc("yc");
+          Var xi("xi"), yi("yi"), xy("xy");
+          output
+            // .fuse(y, c, yc)
+            // .parallel(yc, 8)
+            .tile(x, y, xi, yi, 8, 8)
+            .fuse(x, y, xy)
+            .parallel(xy)
+            .vectorize(xi, 8)
+            ;
         }
     }
         
