@@ -47,21 +47,31 @@ public:
           Func d_v_interp = adjoints[FuncKey{"v_interp", -1}];
           Func d_v_interp_def = adjoints[FuncKey{"v_interp_def__", -1}];
           Func d_q_interp = adjoints[FuncKey{"q_interp", -1}];
+          Func d_mosaick_def = adjoints[FuncKey{"f_mosaick_def__", -1}];
 
-          d_red
-            .compute_at(d_mosaick, xy)
-            .vectorize(x, 8)
-            ;
-          d_blue
-            .compute_at(d_mosaick, xy)
-            .vectorize(x, 8)
-            ;
+          // d_red
+          //   .compute_at(d_mosaick, xy)
+          //   .vectorize(x, 8)
+          //   ;
+          // d_blue
+          //   .compute_at(d_mosaick, xy)
+          //   .vectorize(x, 8)
+          //   ;
           d_blue_def
-            .vectorize(x)
+            .compute_at(d_mosaick, xy)
+            .vectorize(x, 8)
             ;
           d_blue_def
             .update()
-            .vectorize(x)
+            .vectorize(x, 8)
+            ;
+          d_red_def
+            .compute_at(d_mosaick, xy)
+            .vectorize(x, 8)
+            ;
+          d_red_def
+            .update()
+            .vectorize(x, 8)
             ;
 
           d_q_interp
@@ -97,6 +107,9 @@ public:
             .vectorize(x, 8)
             ;
 
+          d_chroma_def
+              .vectorize(x)
+              ;
           for (int i = 0; i < 8; ++i) {
             d_chroma_def
               .update(i)
@@ -107,12 +120,32 @@ public:
             .compute_at(d_mosaick, xy)
             .vectorize(x, 8)
             ;
+          d_green_def
+            .vectorize(x)
+            ;
+          for (int i = 0; i < 5; ++i) {
+            d_green_def
+              .update(i)
+              .vectorize(x)
+              ;
+          }
+
+          d_mosaick_def
+            .vectorize(x)
+            ;
+          for (int i = 0; i < 5; ++i) {
+            d_mosaick_def
+              .update(i)
+              .vectorize(x)
+              ;
+          }
           d_mosaick
-            .tile(x, y, xi, yi, 8, 8)
+            .tile(x, y, xi, yi, 16, 16)
             .fuse(x, y, xy)
             .parallel(xy)
             .vectorize(xi, 8)
             ;
+
         }
     }
 };
