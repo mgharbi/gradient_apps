@@ -1,11 +1,26 @@
 TORCH_INC ?= `python -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
 HALIDE_DIR ?= 
 AUTO_SCHEDULE=false
+BUILD_TYPE ?= release
 
 CXX ?= g++
-CXXFLAGS += -O3 -g -std=c++11 -fno-rtti -I$(HALIDE_DIR)/include/
+CXXFLAGS += -O3 -std=c++11 -fno-rtti -I$(HALIDE_DIR)/include/
 LDFLAGS ?=
 LDFLAGS += $(HALIDE_DIR)/lib/libHalide.a -lpthread -ldl -lcurses -lz
+
+NVCC = nvcc -std c++11 #-G  -pg
+NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
+					-gencode=arch=compute_30,code=\"sm_30,compute_30\" \
+					-expt-relaxed-constexpr -Wno-deprecated-gpu-targets \
+					-ftz=true --ptxas-options=-v -lineinfo 
+
+TARGET_FEATURES ?=
+
+ifeq ($(BUILD_TYPE), debug)
+CXXFLAGS += -g
+NVFLAGS += -g
+TARGET_FEATURES += -profile
+endif
 
 ifeq ($(UNAME), Darwin)
 CXXFLAGS += -fvisibility=hidden
@@ -18,11 +33,6 @@ endif
 
 
 # Cuda config
-NVCC = nvcc -std c++11 -g #-G  -pg
-NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
-					-gencode=arch=compute_30,code=\"sm_30,compute_30\" \
-					-expt-relaxed-constexpr -Wno-deprecated-gpu-targets \
-					-ftz=true --ptxas-options=-v -lineinfo 
 
 HALIDE_GEN = $(HALIDE_DIR)/tools/GenGen.cpp
 
@@ -32,7 +42,8 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			naive_demosaick_forward naive_demosaick_backward
+			naive_demosaick_forward \
+			learnable_demosaick_forward learnable_demosaick_backward
 			# conv1d_forward conv1d_backward conv1d_manual_backward \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
@@ -40,7 +51,7 @@ OPS = \
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
-_ext/operators/_operators.so: $(OPS_LIBS)
+_ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS)
 	@echo Python CFFI wrapper
 	@python build.py
 
@@ -50,7 +61,7 @@ $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(basename $(@F)) -g $(basename $(@F)) \
 										-e static_library,h,pytorch_wrapper,html\
-										-o . target=host-profile auto_schedule=$(AUTO_SCHEDULE)
+										-o . target=host$(TARGET_FEATURES) auto_schedule=$(AUTO_SCHEDULE)
 
 $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 	@echo Op (CUDA) $(subst $(BUILD_DIR)/,, $@)
@@ -59,7 +70,7 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(name) -g $(name) -f $(name)_cuda \
 										-e static_library,h,pytorch_wrapper \
-										-o . target=host-cuda-profile auto_schedule=$(AUTO_SCHEDULE)
+										-o . target=host-cuda$(TARGET_FEATURES) auto_schedule=$(AUTO_SCHEDULE)
 
 # Generators
 $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) 

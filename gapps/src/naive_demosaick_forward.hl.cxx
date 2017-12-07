@@ -16,12 +16,12 @@ public:
         if(auto_schedule) {
         } else {
           Var xi("xi"), yi("yi"), xy("xy");
-          output
-            .tile(x, y, xi, yi, 16, 16)
-            .fuse(x, y, xy)
-            .parallel(xy, 8)
-            .vectorize(xi, 8)
-            ;
+            output
+              .tile(x, y, xi, yi, 16, 16)
+              .fuse(x, y, xy)
+              .parallel(xy, 8)
+              .vectorize(xi, 8)
+              ;
         }
     }
         

@@ -1,6 +1,4 @@
-#ifndef NAIVE_DEMOSAICK_H_3RFNQ2BF
-#define NAIVE_DEMOSAICK_H_3RFNQ2BF
-
+#pragma once
 
 #include "Halide.h"
 
@@ -69,9 +67,10 @@ std::map<std::string, Func> naive_demosaick(
                         f_mosaick(x, y));
 
     Func f_output("f_output");
-    f_output(x, y, c) = select(c == 0, red(x, y),
-                               c == 1, green(x, y),
-                               blue(x, y));
+    // f_output(x, y, c) = select(c == 0, red(x, y),
+    //                            c == 1, green(x, y),
+    //                            blue(x, y));
+    f_output(x, y, c) = green(x, y);
 
     std::map<std::string, Func> func_map;
     func_map["mosaick"]  = f_mosaick;
@@ -79,4 +78,3 @@ std::map<std::string, Func> naive_demosaick(
 
     return func_map;
 }
-#endif /* end of include guard: NAIVE_DEMOSAICK_H_3RFNQ2BF */

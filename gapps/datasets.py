@@ -12,6 +12,25 @@ from torch.utils.data import Dataset
 
 log = logging.getLogger("gapps")
 
+class DemosaickingDataset(Dataset):
+  def __init__(self, root, transform=None):
+    self.transform=transform
+    self.num_inputs = 1
+    self.num_targets = 1
+
+  def __len__(self):
+    return 100
+
+  def __getitem__(self, idx):
+    mosaick = np.zeros((1, 64, 64), dtype=np.float32)
+    reference = np.zeros((3, 64, 64), dtype=np.float32)
+
+    # if self.transform is not None:
+    #   mosaick = self.transform(mosaick)
+    #   reference = self.transform(reference)
+
+    return mosaick, reference
+
 class ADESegmentationDataset(Dataset):
   def __init__(self, root, transform=None):
     self.transform = transform

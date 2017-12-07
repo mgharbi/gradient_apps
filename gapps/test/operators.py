@@ -11,7 +11,8 @@ from torch.autograd import gradcheck
 from torch.autograd import profiler
 
 import gapps.utils as utils
-import gapps.functions.operators as ops
+import gapps.functions as funcs
+import gapps.modules as modules
 
 test_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(test_dir, "data")
@@ -55,6 +56,12 @@ def test_naive_demosaick_cpu():
 
 def test_naive_demosaick_gpu():
   _test_naive_demosaick(True)
+
+def test_learnable_demosaick_cpu():
+  _test_learnable_demosaick(False)
+
+def test_learnable_demosaick_gpu():
+  _test_learnable_demosaick(True)
 # ---------------------------------------------------------------------------
 
 def _test_conv1d(gpu=False):
@@ -75,12 +82,12 @@ def _test_conv1d(gpu=False):
   print("profiling")
   with profiler.profile() as prof:
     for i in range(10):
-      output = ops.Conv1d.apply(
+      output = funcs.Conv1d.apply(
           input_grid, kernels)
       loss = output.sum()
       loss.backward()
 
-      output2 = ops.Conv1d.apply(
+      output2 = funcs.Conv1d.apply(
           input_grid, kernels, True)
       loss = output2.sum()
       loss.backward()
@@ -111,7 +118,7 @@ def _test_conv3d(gpu=False):
   print("profiling")
   with profiler.profile() as prof:
     for i in range(1):
-      output = ops.Conv3d.apply(
+      output = funcs.Conv3d.apply(
           input_grid, kernels)
       loss = output.sum()
       loss.backward()
@@ -154,7 +161,7 @@ def _test_bilateral_layer_(gpu=False):
 
   print("profiling")
   with profiler.profile() as prof:
-    output = ops.BilateralLayer.apply(
+    output = funcs.BilateralLayer.apply(
         image, guide, kernels, sx, sy, sz)
     output2 = conv(image)
     loss = output.sum()
@@ -182,7 +189,7 @@ def _test_bilateral_layer_(gpu=False):
 
   # print "testing gradient"
   # gradcheck(
-  #     ops.BilateralLayer.apply,
+  #     funcs.BilateralLayer.apply,
   #     (image, guide, kernels, sx, sy, sz),
   #     eps=1e-4, atol=5e-2, rtol=5e-4,
   #      raise_exception=True)
@@ -200,14 +207,14 @@ def _test_histogram(gpu=False):
 
   print("profiling")
   with profiler.profile() as prof:
-    output = ops.Histogram.apply(image, nbins)
+    output = funcs.Histogram.apply(image, nbins)
     loss = output.sum()
     loss.backward()
   print(prof)
 
   print("checking gradients")
   image = image[:32, :32]
-  gradcheck(ops.Histogram.apply,
+  gradcheck(funcs.Histogram.apply,
       (image, nbins), eps=1e-4, atol=5e-2, rtol=5e-4,
       raise_exception=True)
 
@@ -223,7 +230,7 @@ def _test_soft_histogram(gpu=False):
 
   print("profiling")
   with profiler.profile() as prof:
-    output = ops.SoftHistogram.apply(image, nbins)
+    output = funcs.SoftHistogram.apply(image, nbins)
     loss = output.sum()
     loss.backward()
   print(prof)
@@ -242,12 +249,12 @@ def _test_naive_demosaick(gpu=False):
     mosaick = mosaick.cuda()
   print "profiling"
   with profiler.profile() as prof:
-    for i in range(50):
-      output = ops.NaiveDemosaick.apply(mosaick)
-      loss = output.sum()
-      loss.backward()
+    for i in range(1):
+      output = funcs.NaiveDemosaick.apply(mosaick)
+      # loss = output.sum()
+      # loss.backward()
 
-  print prof
+  # print prof
 
   assert output.shape[0] == 3
   assert output.shape[1] == h
@@ -260,3 +267,37 @@ def _test_naive_demosaick(gpu=False):
       os.path.join(out_dir, "naive_demosaicked.png"), output)
 
 
+def _test_learnable_demosaick(gpu=False):
+  image = skimage.io.imread(
+      os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
+  h, w, _ = image.shape
+  mosaick = utils.make_mosaick(image)
+  skimage.io.imsave(
+      os.path.join(out_dir, "learnable_mosaick.png"), mosaick)
+
+  mosaick = Variable(th.from_numpy(mosaick), requires_grad=True)
+  mosaick = mosaick.view(1, 1, h, w)
+  op = modules.LearnableDemosaick()
+
+  if gpu:
+    mosaick = mosaick.cuda()
+    op.cuda()
+
+  print "profiling"
+  with profiler.profile() as prof:
+    for i in range(1):
+      output = op(mosaick).view(3, h, w)
+      # loss = output.sum()
+      # loss.backward()
+
+  # print prof
+
+  assert output.shape[0] == 3
+  assert output.shape[1] == h
+  assert output.shape[2] == w
+
+  output = output.data.cpu().numpy()
+  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  output = np.squeeze(output)
+  skimage.io.imsave(
+      os.path.join(out_dir, "learnable_demosaicked.png"), output)

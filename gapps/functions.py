@@ -4,7 +4,7 @@ import re
 import torch
 from torch.autograd import Function
 from torch.autograd import Variable
-from .._ext import operators as ops
+from ._ext import operators as ops
 
 
 def has_cuda_inputs(args):
@@ -266,3 +266,39 @@ class NaiveDemosaick(Function):
     d_mosaick = Variable(d_mosaick)
 
     return d_mosaick
+
+
+class LearnableDemosaick(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, mosaick, gfilt, grad_filt):
+    ctx.save_for_backward(mosaick, gfilt, grad_filt)
+
+    output = mosaick.new()
+    bs, ci, h, w = mosaick.shape
+    assert ci == 1
+
+    output.resize_(bs, 3, h, w)
+    ops.learnable_demosaick_forward(
+        mosaick.view(bs, h, w), gfilt, grad_filt, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    mosaick, gfilt, grad_filt = ctx.saved_variables
+
+    d_mosaick = mosaick.data.new()
+    d_mosaick.resize_as_(mosaick.data)
+
+    bs, ci, h, w = mosaick.shape
+
+    ops.learnable_demosaick_backward(
+        mosaick.data.view(bs, h, w), gfilt.data, grad_filt.data,
+        d_output.data,
+        d_mosaick.view(bs, h, w))
+
+    d_mosaick = Variable(d_mosaick)
+
+    return d_mosaick, None, None
