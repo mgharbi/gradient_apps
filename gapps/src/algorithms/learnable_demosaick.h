@@ -19,6 +19,10 @@ std::map<std::string, Func> learnable_demosaick(
     Func f_mosaick("f_mosaick");
     f_mosaick(x, y, n) = Halide::BoundaryConditions::repeat_edge(
         mosaick)(x, y, n);
+    Func f_gfilt("f_gfilt");
+    Func f_grad_filt("f_grad_filt");
+    f_gfilt(x) = gfilt(x);
+    f_grad_filt(x) = grad_filt(x);
 
     Expr gfilt_sz = gfilt.dim(0).extent();
     Expr grad_filt_sz = gfilt.dim(0).extent();
@@ -33,21 +37,21 @@ std::map<std::string, Func> learnable_demosaick(
     Func dy("dy");
     RDom rgrad(0, grad_filt_sz);
     dx(x, y, n) += 0.0f;
-    dx(x, y, n) += f_mosaick(x + rgrad - grad_filt_sz/2, y, n)*grad_filt(rgrad);
+    dx(x, y, n) += f_mosaick(x + rgrad - grad_filt_sz/2, y, n)*f_grad_filt(rgrad);
     dx(x, y, n) = abs(dx(x, y, n));
     dy(x, y, n) += 0.0f;
-    dy(x, y, n) += f_mosaick(x, y + rgrad - gfilt_sz/2, n)*grad_filt(rgrad);
+    dy(x, y, n) += f_mosaick(x, y + rgrad - gfilt_sz/2, n)*f_grad_filt(rgrad);
     dy(x, y, n) = abs(dy(x, y, n));
 
     Func h_interp_g("h_interp_g");
     Func v_interp_g("v_interp_g");
     RDom r(0, gfilt_sz);
     h_interp_g(x, y, n) += 0.0f;
-    h_interp_g(x, y, n) += f_mosaick(x + r - gfilt_sz/2, y, n)*gfilt(r);
+    h_interp_g(x, y, n) += f_mosaick(x + r - gfilt_sz/2, y, n)*f_gfilt(r);
     v_interp_g(x, y, n) += 0.0f;
-    v_interp_g(x, y, n) += f_mosaick(x, y + r - gfilt_sz/2, n)*gfilt(r);
+    v_interp_g(x, y, n) += f_mosaick(x, y + r - gfilt_sz/2, n)*f_gfilt(r);
 
-    float scale = 100.f;
+    float scale = 1.f;
     Expr mask = clamp(sigmoid((dx(x, y, n)-dy(x, y, n))*scale), 0.0f, 1.0f);
 
     Func interpolated_green("interpolated_green");
@@ -93,6 +97,8 @@ std::map<std::string, Func> learnable_demosaick(
 
     std::map<std::string, Func> func_map;
     func_map["mosaick"]  = f_mosaick;
+    func_map["gfilt"]  = f_gfilt;
+    func_map["grad_filt"]  = f_grad_filt;
     func_map["dx"]  = dx;
     func_map["dy"]  = dy;
     func_map["v_interp_g"]  = v_interp_g;

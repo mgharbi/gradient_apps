@@ -10,24 +10,29 @@ import skimage.transform
 import torch as th
 from torch.utils.data import Dataset
 
+import gapps.utils as utils
+
 log = logging.getLogger("gapps")
 
 class DemosaickingDataset(Dataset):
-  def __init__(self, root, transform=None):
+  def __init__(self, filelist, transform=None):
     self.transform=transform
     self.num_inputs = 1
     self.num_targets = 1
 
+    self.root = os.path.dirname(filelist)
+    with open(filelist) as fid:
+      self.files = [l.strip() for l in fid.xreadlines()]
+
   def __len__(self):
-    return 100
+    return len(self.files)
 
   def __getitem__(self, idx):
-    mosaick = np.zeros((1, 64, 64), dtype=np.float32)
-    reference = np.zeros((3, 64, 64), dtype=np.float32)
-
-    # if self.transform is not None:
-    #   mosaick = self.transform(mosaick)
-    #   reference = self.transform(reference)
+    reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
+    reference = reference.astype(np.float32)/255.0
+    mosaick = utils.make_mosaick(reference) 
+    reference = reference.transpose((2, 0, 1))
+    mosaick = np.expand_dims(mosaick, 0)
 
     return mosaick, reference
 

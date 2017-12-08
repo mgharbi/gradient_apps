@@ -1,6 +1,6 @@
 .PHONY: gapps clean
 gapps:
-	$(MAKE) -C $@
+	@$(MAKE) -C $@
 
 clean:
 	$(MAKE) -C gapps clean

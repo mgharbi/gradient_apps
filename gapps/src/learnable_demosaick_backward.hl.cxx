@@ -11,12 +11,17 @@ public:
     Input<Buffer<float>>  gfilt{"gfilt", 1};
     Input<Buffer<float>>  grad_filt{"grad_filt", 1};
     Input<Buffer<float>>  d_output{"d_output", 4};
+
     Output<Buffer<float>> d_mosaick{"d_mosaick", 3};
+    Output<Buffer<float>>  d_gfilt{"d_gfilt", 1};
+    Output<Buffer<float>>  d_grad_filt{"d_grad_filt", 1};
 
     void generate() {
         std::map<std::string, Func> func_map = learnable_demosaick(mosaick, gfilt, grad_filt);
         Func f_output = func_map["output"];
         Func f_mosaick = func_map["mosaick"];
+        Func f_gfilt = func_map["gfilt"];
+        Func f_grad_filt = func_map["grad_filt"];
 
         Derivative d = propagate_adjoints(
             f_output, d_output,
@@ -27,18 +32,23 @@ public:
              });
         std::map<FuncKey, Func> adjoints = d.adjoints;
         assert(adjoints.find(FuncKey{f_mosaick.name(), -1}) != adjoints.end());
+        assert(adjoints.find(FuncKey{f_gfilt.name(), -1}) != adjoints.end());
+        assert(adjoints.find(FuncKey{f_grad_filt.name(), -1}) != adjoints.end());
 
         Func f_d_mosaick  = adjoints[FuncKey{f_mosaick.name(), -1}];
+        Func f_d_gfilt  = adjoints[FuncKey{f_gfilt.name(), -1}];
+        Func f_d_grad_filt  = adjoints[FuncKey{f_grad_filt.name(), -1}];
 
-        d_mosaick(x, y, n) = f_d_mosaick(x, y, n);
+        d_mosaick(x, y, n) = f_d_mosaick(x, y, 0);
+        d_gfilt(x) = f_d_gfilt(x);
+        d_grad_filt(x) = f_d_grad_filt(x);
 
-        if(false) {
+        if(true) {
           compute_all_root(d_mosaick);
         } else {
           Var xi("xi"), yi("yi"), xy("xy");
           auto deps = get_deps(d_mosaick);
-          print_adjoints(adjoints);
-          print_func(d_mosaick);
+
 
           Func d_red  = adjoints[FuncKey{"red", -1}];
           Func d_red_def = adjoints[FuncKey{"red_def__", -1}];
@@ -131,11 +141,13 @@ public:
           }
 
           d_igreen_def
-            .compute_at(d_mosaick, xy)
+            .compute_root()
+            .parallel(y, 8)
             .vectorize(x, 8)
             ;
           d_igreen_def
             .update()
+            .parallel(y, 8)
             .vectorize(x, 8)
             ;
 

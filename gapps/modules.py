@@ -4,7 +4,7 @@ import torch.nn as nn
 import gapps.functions as funcs
 
 class LearnableDemosaick(nn.Module):
-  def __init__(self, gfilt_size=3, grad_filt_size=3):
+  def __init__(self, gfilt_size=7, grad_filt_size=7):
     super(LearnableDemosaick, self).__init__()
 
     self.gfilt = nn.Parameter(th.zeros(gfilt_size))
@@ -16,10 +16,13 @@ class LearnableDemosaick(nn.Module):
     assert gfilt_size >= 3
 
     # Initialize to reference method
-    self.gfilt.data[gfilt_size//2 - 1] = 0.5
-    self.gfilt.data[gfilt_size//2 + 1] = 0.5
-    self.grad_filt.data[grad_filt_size//2 - 1] = -1
-    self.grad_filt.data[grad_filt_size//2 + 1] = 1
+    self.gfilt.data.normal_(0, 1e-3)
+    self.grad_filt.data.normal_(0, 1e-3)
+    self.gfilt.data[gfilt_size//2 - 1] += 0.5
+    self.gfilt.data[gfilt_size//2 + 1] += 0.5
+    self.grad_filt.data[grad_filt_size//2 - 1] += -1
+    self.grad_filt.data[grad_filt_size//2 + 1] += 1
 
   def forward(self, mosaick):
-    return funcs.LearnableDemosaick.apply(mosaick, self.gfilt, self.grad_filt)
+    output = funcs.LearnableDemosaick.apply(mosaick, self.gfilt, self.grad_filt)
+    return output

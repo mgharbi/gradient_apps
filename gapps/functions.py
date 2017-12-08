@@ -291,14 +291,20 @@ class LearnableDemosaick(Function):
 
     d_mosaick = mosaick.data.new()
     d_mosaick.resize_as_(mosaick.data)
+    d_gfilt = gfilt.data.new()
+    d_gfilt.resize_as_(gfilt.data)
+    d_grad_filt = grad_filt.data.new()
+    d_grad_filt.resize_as_(grad_filt.data)
 
     bs, ci, h, w = mosaick.shape
 
     ops.learnable_demosaick_backward(
         mosaick.data.view(bs, h, w), gfilt.data, grad_filt.data,
         d_output.data,
-        d_mosaick.view(bs, h, w))
+        d_mosaick.view(bs, h, w), d_gfilt, d_grad_filt)
 
     d_mosaick = Variable(d_mosaick)
+    d_gfilt = Variable(d_gfilt)
+    d_grad_filt = Variable(d_grad_filt)
 
-    return d_mosaick, None, None
+    return d_mosaick, d_gfilt, d_grad_filt

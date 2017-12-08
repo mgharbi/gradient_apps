@@ -9,7 +9,6 @@ public:
     Input<Buffer<float>>  grad_filt{"grad_filt", 1};
     Output<Buffer<float>> output{"output", 4};
 
-
     void generate() {
         std::map<std::string, Func> func_map = learnable_demosaick(mosaick, gfilt, grad_filt);
         Func f_output = func_map["output"];

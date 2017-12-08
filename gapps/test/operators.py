@@ -287,10 +287,10 @@ def _test_learnable_demosaick(gpu=False):
   with profiler.profile() as prof:
     for i in range(1):
       output = op(mosaick).view(3, h, w)
-      # loss = output.sum()
-      # loss.backward()
+      loss = output.sum()
+      loss.backward()
 
-  # print prof
+  print prof
 
   assert output.shape[0] == 3
   assert output.shape[1] == h
