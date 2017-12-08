@@ -320,3 +320,43 @@ class LearnableDemosaick(Function):
     # output 'None' if you do not want a gradient
 
     return d_mosaick, d_gfilt, d_grad_filt
+
+class LearnableWiener(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, blurred, kernel, reg_kernel):
+    ctx.save_for_backward(blurred, kernel, reg_kernel)
+
+    output = blurred.new()
+    ci, h, w = blurred.shape
+    assert ci == 3
+
+    output.resize_(3, h, w)
+    ops.learnable_wiener_forward(
+        blurred.view(h, w), blurred, kernel, reg_kernel, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    blurred, kernel, reg_kernel = ctx.saved_variables
+
+    d_blurred = blurred.data.new()
+    d_blurred.resize_as_(blurred.data)
+    d_kernel = kernel.data.new()
+    d_kernel.resize_as_(kernel.data)
+    d_reg_kernel = reg_kernel.data.new()
+    d_reg_kernel.resize_as_(reg_kernel.data)
+
+    ci, h, w = blurred.shape
+
+    ops.learnable_demosaick_backward(
+        blurred.data.view(3, h, w), kernel.data, reg_kernel.data,
+        d_output.data, d_reg_kernel)
+
+    d_blurred = Variable(d_blurred)
+    d_kernel = Variable(d_kernel)
+    d_reg_kernel = Variable(d_reg_kernel)
+
+    return d_blurred, d_kernel, d_reg_kernel
