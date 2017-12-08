@@ -19,7 +19,7 @@ TARGET_FEATURES ?=
 ifeq ($(BUILD_TYPE), debug)
 CXXFLAGS += -g
 NVFLAGS += -g
-TARGET_FEATURES += -profile
+TARGET_FEATURES = -profile
 endif
 
 ifeq ($(UNAME), Darwin)
@@ -39,6 +39,8 @@ HALIDE_GEN = $(HALIDE_DIR)/tools/GenGen.cpp
 SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
+
+# TODO mk build
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \

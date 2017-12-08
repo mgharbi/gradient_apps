@@ -3,7 +3,7 @@ import time
 import unittest
 import skimage.io
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 import torch as th
 from torch.autograd import Variable
@@ -289,7 +289,6 @@ def _test_learnable_demosaick(gpu=False):
       output = op(mosaick).view(3, h, w)
       loss = output.sum()
       loss.backward()
-
   print prof
 
   assert output.shape[0] == 3

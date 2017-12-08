@@ -298,6 +298,16 @@ class LearnableDemosaick(Function):
 
     bs, ci, h, w = mosaick.shape
 
+    # handling batch input without batch
+    # assert bs == 1
+    # mosaick.view(ci, h, w)
+
+    # output = []
+    # for m in range(bs):
+    #   m_ = mosaick[m, ...]
+    #   output.append(th.expand_dims(backward(m_), 0))
+    # th.cat(output, dim=0)
+
     ops.learnable_demosaick_backward(
         mosaick.data.view(bs, h, w), gfilt.data, grad_filt.data,
         d_output.data,
@@ -306,5 +316,7 @@ class LearnableDemosaick(Function):
     d_mosaick = Variable(d_mosaick)
     d_gfilt = Variable(d_gfilt)
     d_grad_filt = Variable(d_grad_filt)
+
+    # output 'None' if you do not want a gradient
 
     return d_mosaick, d_gfilt, d_grad_filt

@@ -4,9 +4,10 @@ import torch.nn as nn
 import gapps.functions as funcs
 
 class LearnableDemosaick(nn.Module):
-  def __init__(self, gfilt_size=7, grad_filt_size=7):
+  def __init__(self, gfilt_size=9, grad_filt_size=9):
     super(LearnableDemosaick, self).__init__()
 
+    # Register parameters that need gradients as data members
     self.gfilt = nn.Parameter(th.zeros(gfilt_size))
     self.grad_filt = nn.Parameter(th.zeros(grad_filt_size))
 
@@ -26,3 +27,12 @@ class LearnableDemosaick(nn.Module):
   def forward(self, mosaick):
     output = funcs.LearnableDemosaick.apply(mosaick, self.gfilt, self.grad_filt)
     return output
+
+
+# class CG(nn.Module):
+#   def forward(self, A, b):
+#     r = 0
+#     x = 0
+#     for nit:
+#       r, x, p = funcs.cg_it(r, x, p)
+#     return x

@@ -51,7 +51,7 @@ std::map<std::string, Func> learnable_demosaick(
     v_interp_g(x, y, n) += 0.0f;
     v_interp_g(x, y, n) += f_mosaick(x, y + r - gfilt_sz/2, n)*f_gfilt(r);
 
-    float scale = 1.f;
+    float scale = 10.f;
     Expr mask = clamp(sigmoid((dx(x, y, n)-dy(x, y, n))*scale), 0.0f, 1.0f);
 
     Func interpolated_green("interpolated_green");

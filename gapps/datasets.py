@@ -14,6 +14,7 @@ import gapps.utils as utils
 
 log = logging.getLogger("gapps")
 
+
 class DemosaickingDataset(Dataset):
   def __init__(self, filelist, transform=None):
     self.transform=transform
@@ -35,6 +36,7 @@ class DemosaickingDataset(Dataset):
     mosaick = np.expand_dims(mosaick, 0)
 
     return mosaick, reference
+
 
 class ADESegmentationDataset(Dataset):
   def __init__(self, root, transform=None):
