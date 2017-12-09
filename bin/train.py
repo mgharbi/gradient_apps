@@ -22,19 +22,22 @@ import gapps.modules as models
 
 log = logging.getLogger("gapps")
 
-# class PSNR(metrics.Metric):
-#   def __init__(self):
-#     self.sum = 0.
-#     self.total_count = 0.
-#
-#     def reset(self):
-#       self.sum = 0.
-#       self.total_count = 0.
-#
-#     def __call__(self, y_pred, y_true=None):
-#       mse = th.square(y_pred-y_true)
-#       self.sum += mse
-#       self.total_count +=
+class PSNR(metrics.Metric):
+  def __init__(self):
+    self.sum = 0.
+    self.total_count = 0.
+    self._name = "psnr"
+
+  def reset(self):
+    self.sum = 0.
+    self.total_count = 0.
+
+  def __call__(self, y_pred, y_true=None):
+    mse = th.mean(th.mean(th.mean(th.pow(y_pred-y_true, 2), -1), -1), -1)
+    psnr = -10*th.log(mse)/np.log(10.0)
+    self.sum += psnr
+    self.total_count += 1
+    return self.sum.data[0] / self.total_count
 
 
 class DemosaickCallback(callbacks.Callback):
@@ -46,6 +49,9 @@ class DemosaickCallback(callbacks.Callback):
     self.gkernel = viz.ScalarVisualizer("green_kernel", env=env)
     self.grad_kernel = viz.ScalarVisualizer("grad_kernel", env=env)
 
+    self.loss_viz = viz.ScalarVisualizer("loss", env=env)
+    self.psnr_viz = viz.ScalarVisualizer("psnr", env=env)
+
     self.current_epoch = 0
 
   def on_train_begin(self, logs):
@@ -54,9 +60,19 @@ class DemosaickCallback(callbacks.Callback):
   def on_epoch_begin(self, epoch, logs=None):
     self.current_epoch = epoch
 
+  def on_epoch_end(self, epoch, logs=None):
+    print logs
+  #   if logs is not None:
+  #     else:
+  #       print "no loss"
+
   def on_batch_end(self, batch, logs=None):
     mdl = self.trainer.model
     frac = self.current_epoch + batch*1.0/self.train_logs['num_batches']
+    if "loss" in logs.keys():
+      self.loss_viz.update(frac, logs['loss'])
+    if "psnr" in logs.keys():
+      self.psnr_viz.update(frac, logs['psnr'])
     for n, p in self.trainer.model.named_parameters():
       if n == "gfilt":
         self.gkernel.update(frac, list(p.data.cpu().numpy()))
@@ -88,6 +104,21 @@ class GreenLoss(th.nn.Module):
     mse = th.mean(th.pow(diff[:, 1, ...], 2))
     return mse
 
+class CroppedMSELoss(th.nn.Module):
+  def __init__(self, crop=5):
+    super(CroppedMSELoss, self).__init__()
+    self.crop = crop
+    self.mse = th.nn.MSELoss()
+
+  def forward(self, src, tgt):
+    crop = self.crop
+    if crop > 0:
+      src = src[..., crop:-crop, crop:-crop]
+      tgt = tgt[..., crop:-crop, crop:-crop]
+
+    return self.mse(src, tgt)
+
+
 
 def main(args):
   model = models.LearnableDemosaick()
@@ -112,18 +143,19 @@ def main(args):
   trainer = ts.ModuleTrainer(model)
   trainer.compile(
       # loss=GreenLoss(), 
-      loss=th.nn.MSELoss(), 
+      loss=CroppedMSELoss(), 
       # optimizer=th.optim.LBFGS(model.parameters(), lr=1),
       optimizer=th.optim.Adam(model.parameters(), lr=args.lr),
+      metrics=PSNR(),
       callbacks=cbks
       )
 
-  trainer.fit_loader(loader, val_loader=val_loader, num_epoch=10, cuda_device=-1)
+  trainer.fit_loader(loader, val_loader=val_loader, num_epoch=5, cuda_device=-1)
 
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
-  parser.add_argument("--dataset", default="data/demosaick/val/filelist.txt")
+  parser.add_argument("--dataset", default="data/demosaick/train/filelist.txt")
   parser.add_argument("--val_dataset", default="data/demosaick/val/filelist.txt")
   parser.add_argument("--output", default="output/demosaick")
   parser.add_argument("--lr", type=float, default=1e-4)

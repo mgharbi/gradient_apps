@@ -4,3 +4,5 @@ gapps:
 
 clean:
 	$(MAKE) -C gapps clean
+
+# TODO: make server

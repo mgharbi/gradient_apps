@@ -40,13 +40,11 @@ SRC_DIR = src
 BUILD_DIR = build
 EXT_DIR = _ext
 
-# TODO mk build
-
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
 			naive_demosaick_forward \
-			learnable_demosaick_forward learnable_demosaick_backward
-			# conv1d_forward conv1d_backward conv1d_manual_backward \
+			learnable_demosaick_forward learnable_demosaick_backward \
+			conv1d_forward conv1d_backward conv1d_manual_backward \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
 
@@ -65,7 +63,7 @@ $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 										-e static_library,h,pytorch_wrapper,html\
 										-o . target=host$(TARGET_FEATURES) auto_schedule=$(AUTO_SCHEDULE)
 
-$(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
+$(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/% 
 	@echo Op (CUDA) $(subst $(BUILD_DIR)/,, $@)
 	@$(eval name = $(subst _cuda,,$(basename $(@F))))
 	@cd $(BUILD_DIR); \
@@ -75,10 +73,13 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 										-o . target=host-cuda$(TARGET_FEATURES) auto_schedule=$(AUTO_SCHEDULE)
 
 # Generators
-$(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) 
+$(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) $(BUILD_DIR)
 	@echo Generator $(subst $(BUILD_DIR)/,, $@)
-	@mkdir -p $(BUILD_DIR)
 	@$(CXX) $(HALIDE_GEN) $< $(CXXFLAGS) $(LDFLAGS) -MMD -MP -o $(basename $@)
+
+$(BUILD_DIR):
+	@echo Making $@ dir
+	@mkdir -p $@
 
 clean:
 	$(RM) -r $(BUILD_DIR) $(EXT_DIR)
