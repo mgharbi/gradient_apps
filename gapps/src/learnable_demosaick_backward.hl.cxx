@@ -39,7 +39,7 @@ public:
         Func f_d_gfilt  = adjoints[FuncKey{f_gfilt.name(), -1}];
         Func f_d_grad_filt  = adjoints[FuncKey{f_grad_filt.name(), -1}];
 
-        d_mosaick(x, y, n) = f_d_mosaick(x, y, 0);
+        d_mosaick(x, y, n) = f_d_mosaick(x, y, n);
         d_gfilt(x) = f_d_gfilt(x);
         d_grad_filt(x) = f_d_grad_filt(x);
 

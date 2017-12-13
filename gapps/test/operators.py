@@ -24,9 +24,6 @@ if not os.path.exists(out_dir):
 def test_conv1d_cpu():
   _test_conv1d(gpu=False)
 
-def test_conv1d_gpu():
-  _test_conv1d(gpu=True)
-
 def test_conv3d_cpu():
   _test_conv3d(gpu=False)
 
@@ -70,7 +67,7 @@ def _test_conv1d(gpu=False):
   co = 64
   kw = 5
 
-  w = 2*2048
+  w = 2048
 
   input_grid = Variable(th.randn(bs, ci, w), requires_grad=True)
   kernels = Variable(th.randn(co, ci, kw), requires_grad=True)

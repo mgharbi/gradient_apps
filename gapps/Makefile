@@ -4,10 +4,11 @@ AUTO_SCHEDULE=false
 BUILD_TYPE ?= release
 
 CXX ?= g++
-CXXFLAGS += -O3 -std=c++11 -fno-rtti -I$(HALIDE_DIR)/include/
+CXXFLAGS += -std=c++11 -fno-rtti -I$(HALIDE_DIR)/include/
 LDFLAGS ?=
 LDFLAGS += $(HALIDE_DIR)/lib/libHalide.a -lpthread -ldl -lcurses -lz
 
+# Cuda config
 NVCC = nvcc -std c++11 #-G  -pg
 NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 					-gencode=arch=compute_30,code=\"sm_30,compute_30\" \
@@ -16,10 +17,15 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 
 TARGET_FEATURES ?=
 
+ifeq ($(BUILD_TYPE), profile)
+TARGET_FEATURES = -profile
+endif
+
 ifeq ($(BUILD_TYPE), debug)
 CXXFLAGS += -g
 NVFLAGS += -g
-TARGET_FEATURES = -profile
+else
+CXXFLAGS += -O3
 endif
 
 ifeq ($(UNAME), Darwin)
@@ -31,8 +37,6 @@ DYLD_LIBRARY_PATH=$(DYLD_LIBRARY_PATH):$(HALIDE_DIR)/bin
 else
 endif
 
-
-# Cuda config
 
 HALIDE_GEN = $(HALIDE_DIR)/tools/GenGen.cpp
 
@@ -61,7 +65,8 @@ $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(basename $(@F)) -g $(basename $(@F)) \
 										-e static_library,h,pytorch_wrapper,html\
-										-o . target=host$(TARGET_FEATURES) auto_schedule=$(AUTO_SCHEDULE)
+										-o . target=host$(TARGET_FEATURES) \
+										auto_schedule=$(AUTO_SCHEDULE)
 
 $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/% 
 	@echo Op (CUDA) $(subst $(BUILD_DIR)/,, $@)
@@ -70,7 +75,8 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(name) -g $(name) -f $(name)_cuda \
 										-e static_library,h,pytorch_wrapper \
-										-o . target=host-cuda$(TARGET_FEATURES) auto_schedule=$(AUTO_SCHEDULE)
+										-o . target=host-cuda$(TARGET_FEATURES) \
+										auto_schedule=$(AUTO_SCHEDULE)
 
 # Generators
 $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) $(BUILD_DIR)
@@ -85,5 +91,5 @@ clean:
 	$(RM) -r $(BUILD_DIR) $(EXT_DIR)
 
 DEPS = $(wildcard $(BUILD_DIR)/*.d)
--include $(DEPS)
 
+-include $(DEPS)

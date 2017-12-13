@@ -126,7 +126,6 @@ class Conv1d(Function):
     w, ci, n = input.shape
     d_filter = filter.data.new()
     d_input.resize_(w, ci, n)
-    print(w, ci, n)
     # d_input.resize_as_(input.data)
     d_filter.resize_as_(filter.data)
 
