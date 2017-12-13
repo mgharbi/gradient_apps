@@ -14,6 +14,22 @@ import gapps.utils as utils
 
 log = logging.getLogger("gapps")
 
+class DeconvDataset(Dataset):
+  def __init__(self, filelist):
+    self.root = os.path.dirname(filelist)
+    with open(filelist) as fid:
+      self.files = [l.strip() for l in fid.xreadlines()]
+
+  def __len__(self):
+    return len(self.files)
+
+  def __getitem__(self, idx):
+    reference = skimage.io.read(os.path.join(self.root, self.files[idx]))
+    reference = reference.astype(np.float32)/255.0
+    kernel = utils.sample_kernel(5)
+    blurred = utils.make_blur(refernece, kernel)
+    reference = reference.transpose((2, 0, 1))
+    return blurred, reference, kernel
 
 class DemosaickingDataset(Dataset):
   def __init__(self, filelist, transform=None):
@@ -31,12 +47,11 @@ class DemosaickingDataset(Dataset):
   def __getitem__(self, idx):
     reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
     reference = reference.astype(np.float32)/255.0
-    mosaick = utils.make_mosaick(reference) 
+    mosaick = utils.make_mosaick(reference)
     reference = reference.transpose((2, 0, 1))
     mosaick = np.expand_dims(mosaick, 0)
 
     return mosaick, reference[1:2, ...]
-
 
 class ADESegmentationDataset(Dataset):
   def __init__(self, root, transform=None):

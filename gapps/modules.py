@@ -3,7 +3,6 @@ import torch.nn as nn
 
 import gapps.functions as funcs
 
-
 class NaiveDemosaick(nn.Module):
   def __init__(self):
     super(NaiveDemosaick, self).__init__()
