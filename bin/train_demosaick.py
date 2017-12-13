@@ -31,8 +31,8 @@ class DemosaickCallback(object):
     self.val_loader = val_loader
 
     self.viz = viz.BatchVisualizer("demosaick", env=env)
-    self.gkernel = viz.ScalarVisualizer("green_kernel", env=env)
-    self.grad_kernel = viz.ScalarVisualizer("grad_kernel", env=env)
+    self.sel_kernels = viz.BatchVisualizer("selection_kernels", env=env)
+    self.green_kernels = viz.BatchVisualizer("green_kernels", env=env)
 
     self.loss_viz = viz.ScalarVisualizer("loss", env=env)
     self.psnr_viz = viz.ScalarVisualizer("psnr", env=env)
@@ -52,7 +52,8 @@ class DemosaickCallback(object):
       inp = b[0].cpu().numpy()
       gt = b[1].cpu().numpy()
       diff = np.abs(gt-out)*4
-      batchviz = np.concatenate([np.tile(inp, [1, 3, 1, 1]), gt, out, ref, diff], axis=0)
+      inp = np.tile(inp, [1, gt.shape[1], 1, 1])
+      batchviz = np.concatenate([inp, gt, out, ref, diff], axis=0)
       batchviz = np.clip(batchviz, 0, 1)
       return batchviz
 
@@ -68,11 +69,20 @@ class DemosaickCallback(object):
     self.viz.update(self._get_im_batch(), per_row=self.val_loader.batch_size,
                     caption="input | gt | ours | ref | diff (x4)")
 
-    for n, p in self.model.named_parameters():
-      if n == "gfilt":
-        self.gkernel.update(epoch, list(p.data.cpu().numpy()))
-      elif n == "grad_filt":
-        self.grad_kernel.update(epoch, list(p.data.cpu().numpy()))
+    k = self.model.sel_filts.data.clone().cpu().view(
+        self.model.num_filters, 1, self.model.fsize, self.model.fsize)
+    mini, maxi = k.min(), k.max()
+    k -= mini
+    k /= maxi-mini
+    self.sel_kernels.update(k, caption="{:.2f} {:2f}".format(mini, maxi))
+
+    k = self.model.green_filts.data.clone().cpu().view(
+        self.model.num_filters, 1, self.model.fsize, self.model.fsize)
+    mini, maxi = k.min(), k.max()
+    k -= mini
+    k /= maxi-mini
+    self.green_kernels.update(k, caption="{:.2f} {:2f}".format(mini, maxi))
+
 
   def on_batch_end(self, batch, logs):
     frac = self.current_epoch + batch*1.0/self.num_batches
@@ -101,16 +111,21 @@ def main(args):
   loader = DataLoader(dset, batch_size=args.batch_size, num_workers=4, shuffle=True)
   val_loader = DataLoader(val_dset, batch_size=args.batch_size)
 
+  if args.cuda:
+    model = model.cuda()
+    reference_model = reference_model.cuda()
+
   optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
   loss_fn = metrics.CroppedMSELoss(crop=5)
   psnr_fn = metrics.PSNR(crop=5)
 
   checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
-  callback = DemosaickCallback(model, reference_model, len(loader), val_loader, env="gapps_demosaick")
+  callback = DemosaickCallback(
+      model, reference_model, len(loader), val_loader, env="gapps_demosaick")
 
   smooth_loss = 0
   smooth_psnr = 0
-  ema = 0.99
+  ema = 0.9
   for epoch in range(args.num_epochs):
     # Training
     model.train(True)
@@ -121,6 +136,10 @@ def main(args):
         mosaick, reference = batch
         mosaick = Variable(mosaick, requires_grad=False)
         reference = Variable(reference, requires_grad=False)
+
+        if args.cuda:
+          mosaick = mosaick.cuda()
+          reference = reference.cuda()
 
         output = model(mosaick)
 
@@ -151,6 +170,10 @@ def main(args):
         mosaick = Variable(mosaick, requires_grad=False)
         reference = Variable(reference, requires_grad=False)
 
+        if args.cuda:
+          mosaick = mosaick.cuda()
+          reference = reference.cuda()
+
         output = model(mosaick)
         loss = loss_fn(output, reference)
         psnr = psnr_fn(output, reference)
@@ -175,9 +198,11 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="data/demosaick/val/filelist.txt")
   parser.add_argument("--val_dataset", default="data/demosaick/val/filelist.txt")
   parser.add_argument("--output", default="output/demosaick")
-  parser.add_argument("--lr", type=float, default=1e-4)
+  parser.add_argument("--lr", type=float, default=1e-3)
   parser.add_argument("--batch_size", type=int, default=16)
   parser.add_argument("--num_epochs", type=int, default=5)
+  parser.add_argument("--cuda", dest="cuda", action="store_true")
+  parser.set_defaults(cuda=False)
   args = parser.parse_args()
 
   logging.basicConfig(

@@ -10,32 +10,25 @@ class NaiveDemosaick(nn.Module):
 
   def forward(self, mosaick):
     output = funcs.NaiveDemosaick.apply(mosaick)
-    return output
+    return output[:, 1:2, ...]
 
 class LearnableDemosaick(nn.Module):
-  def __init__(self, gfilt_size=9, grad_filt_size=9):
+  def __init__(self, num_filters=8, fsize=5):
     super(LearnableDemosaick, self).__init__()
 
+    self.num_filters = num_filters
+    self.fsize = fsize
+
     # Register parameters that need gradients as data members
-    self.gfilt = nn.Parameter(th.zeros(gfilt_size))
-    self.grad_filt = nn.Parameter(th.zeros(grad_filt_size))
+    self.sel_filts = nn.Parameter(th.zeros(fsize, fsize, num_filters))
+    self.green_filts = nn.Parameter(th.zeros(fsize, fsize, num_filters))
 
-    assert grad_filt_size % 2 == 1
-    assert gfilt_size % 2 == 1
-    assert grad_filt_size >= 3
-    assert gfilt_size >= 3
-
-    # Initialize to reference method
-    self.gfilt.data.normal_(0, 1e-3)
-    self.grad_filt.data.normal_(0, 1e-3)
-    self.gfilt.data[gfilt_size//2 - 1] += 0.5
-    self.gfilt.data[gfilt_size//2 + 1] += 0.5
-    self.grad_filt.data[grad_filt_size//2 - 1] += -1
-    self.grad_filt.data[grad_filt_size//2 + 1] += 1
+    self.sel_filts.data.normal_(0, 1.0/(fsize*fsize))
+    self.green_filts.data.normal_(0, 1.0/(fsize*fsize))
 
   def forward(self, mosaick):
-    output = funcs.LearnableDemosaick.apply(mosaick, self.gfilt, self.grad_filt)
-    return output
+    output = funcs.LearnableDemosaick.apply(mosaick, self.sel_filts, self.green_filts)
+    return output[:, 1:2, ...]
 
 
 # class CG(nn.Module):

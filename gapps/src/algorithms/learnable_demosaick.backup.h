@@ -8,21 +8,24 @@
 
 using namespace Halide;
 
-Var x("x"), y("y"), c("c"), n("n"), k("k");
+Var x("x"), y("y"), c("c"), n("n");
 
 template <typename Input>
 std::map<std::string, Func> learnable_demosaick(
         const Input &mosaick,
-        const Input &selection_filters,
-        const Input &green_filters
+        const Input &gfilt,
+        const Input &grad_filt
         ) {
     Func f_mosaick("f_mosaick");
     f_mosaick(x, y, n) = Halide::BoundaryConditions::repeat_edge(
         mosaick)(x, y, n);
-    Func f_sel_filts("f_sel_filts");
-    f_sel_filts(x, y, k) = selection_filters(x, y, k);
-    Func f_green_filts("f_green_filts");
-    f_green_filts(x, y, k) = green_filters(x, y, k);
+    Func f_gfilt("f_gfilt");
+    Func f_grad_filt("f_grad_filt");
+    f_gfilt(x) = gfilt(x);
+    f_grad_filt(x) = grad_filt(x);
+
+    Expr gfilt_sz = gfilt.dim(0).extent();
+    Expr grad_filt_sz = gfilt.dim(0).extent();
 
     Expr is_green = (x % 2 == y % 2);
     Expr is_g0 = (x % 2 == 0) && (y % 2 == 0);
@@ -30,37 +33,31 @@ std::map<std::string, Func> learnable_demosaick(
     Expr is_red = (x % 2 == 1) && (y % 2 == 0);
     Expr is_blue = (x % 2 == 0) && (y % 2 == 1);
 
-    Expr sel_filt_w = selection_filters.dim(0).extent();
-    Expr sel_filt_h = selection_filters.dim(1).extent();
-    Expr green_filt_w = green_filters.dim(0).extent();
-    Expr green_filt_h = green_filters.dim(1).extent();
+    Func dx("dx");
+    Func dy("dy");
+    RDom rgrad(0, grad_filt_sz);
+    dx(x, y, n) += 0.0f;
+    dx(x, y, n) += f_mosaick(x + rgrad - grad_filt_sz/2, y, n)*f_grad_filt(rgrad);
+    // dx(x, y, n) = (dx(x, y, n));
+    dx(x, y, n) = abs(dx(x, y, n));
+    dy(x, y, n) += 0.0f;
+    dy(x, y, n) += f_mosaick(x, y + rgrad - gfilt_sz/2, n)*f_grad_filt(rgrad);
+    // dy(x, y, n) = (dy(x, y, n));
+    dy(x, y, n) = abs(dy(x, y, n));
 
-    Expr nfilters = green_filters.dim(2).extent();
+    Func h_interp_g("h_interp_g");
+    Func v_interp_g("v_interp_g");
+    RDom r(0, gfilt_sz);
+    h_interp_g(x, y, n) += 0.0f;
+    h_interp_g(x, y, n) += f_mosaick(x + r - gfilt_sz/2, y, n)*f_gfilt(r);
+    v_interp_g(x, y, n) += 0.0f;
+    v_interp_g(x, y, n) += f_mosaick(x, y + r - gfilt_sz/2, n)*f_gfilt(r);
 
-    Func selection("selection");
-    RDom rsel(0, sel_filt_w, 0, sel_filt_h);
-    selection(x, y, k, n) = 0.0f;
-    selection(x, y, k, n) += f_mosaick(x + rsel.x - sel_filt_w/2, y + rsel.y - sel_filt_h/2, n)*f_sel_filts(rsel.x, rsel.y, k);
-
-    // Softmax
-    Func exp_selection("exp_selection");
-    exp_selection(x, y, k, n) = exp(-selection(x, y, k, n)); // TODO: stable softmax (-= max)
-    Func normalizer("normalizer");
-    RDom rfilters(0, nfilters);
-    normalizer(x, y, n) = 0.0f;
-    normalizer(x, y, n) += exp_selection(x, y, rfilters, n);
-
-    Func weights("weights");
-    weights(x, y, k, n) = exp_selection(x, y, k, n) / normalizer(x, y, n);
-
-    Func interp_g("interp_g");
-    RDom r(0, green_filt_w, 0, green_filt_h);
-    interp_g(x, y, k, n) = 0.0f;
-    interp_g(x, y, k, n) += f_mosaick(x + r.x - green_filt_w/2, y + r.y - green_filt_h/2, n)*f_green_filts(r.x, r.y, k);
+    float scale = 1.f;
+    Expr mask = clamp(sigmoid((dx(x, y, n)-dy(x, y, n))*scale), 0.0f, 1.0f);
 
     Func interpolated_green("interpolated_green");
-    interpolated_green(x, y, n) = 0.0f;
-    interpolated_green(x, y, n) += interp_g(x, y, rfilters, n)*weights(x, y, rfilters, n);
+    interpolated_green(x, y, n) = v_interp_g(x, y, n)*mask + h_interp_g(x, y, n)*(1.0f-mask);
 
     Func green("green");
     green(x, y, n) = select(is_green, f_mosaick(x, y, n), interpolated_green(x, y, n));
@@ -102,14 +99,12 @@ std::map<std::string, Func> learnable_demosaick(
 
     std::map<std::string, Func> func_map;
     func_map["mosaick"]  = f_mosaick;
-    func_map["selection_filters"]  = f_sel_filts;
-    func_map["green_filters"]  = f_green_filts;
-    func_map["selection"]  = selection;
-    func_map["exp_selection"]  = exp_selection;
-    func_map["normalizer"]  = normalizer;
-    func_map["weights"]  = weights;
-    func_map["interp_g"]  = interp_g;
-    func_map["interpolated_green"]  = interpolated_green;
+    func_map["gfilt"]  = f_gfilt;
+    func_map["grad_filt"]  = f_grad_filt;
+    func_map["dx"]  = dx;
+    func_map["dy"]  = dy;
+    func_map["v_interp_g"]  = v_interp_g;
+    func_map["h_interp_g"]  = h_interp_g;
     func_map["output"]  = f_output;
 
     return func_map;

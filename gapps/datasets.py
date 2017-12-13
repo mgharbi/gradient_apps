@@ -35,7 +35,7 @@ class DemosaickingDataset(Dataset):
     reference = reference.transpose((2, 0, 1))
     mosaick = np.expand_dims(mosaick, 0)
 
-    return mosaick, reference
+    return mosaick, reference[1:2, ...]
 
 
 class ADESegmentationDataset(Dataset):

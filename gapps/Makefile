@@ -55,7 +55,7 @@ OPS = \
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
-_ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS)
+_ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
 	@echo Python CFFI wrapper
 	@python build.py
 
@@ -69,12 +69,12 @@ $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 										auto_schedule=$(AUTO_SCHEDULE)
 
 $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/% 
-	@echo Op (CUDA) $(subst $(BUILD_DIR)/,, $@)
 	@$(eval name = $(subst _cuda,,$(basename $(@F))))
+	@echo "Op (CUDA) $(name)"
 	@cd $(BUILD_DIR); \
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(name) -g $(name) -f $(name)_cuda \
-										-e static_library,h,pytorch_wrapper \
+										-e static_library,h,pytorch_wrapper,html \
 										-o . target=host-cuda$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 

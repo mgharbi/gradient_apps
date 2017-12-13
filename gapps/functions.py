@@ -273,8 +273,8 @@ class LearnableDemosaick(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, mosaick, gfilt, grad_filt):
-    ctx.save_for_backward(mosaick, gfilt, grad_filt)
+  def forward(ctx, mosaick, selection_filters, green_filters):
+    ctx.save_for_backward(mosaick, selection_filters, green_filters)
 
     output = mosaick.new()
     bs, ci, h, w = mosaick.shape
@@ -282,33 +282,33 @@ class LearnableDemosaick(Function):
 
     output.resize_(bs, 3, h, w)
     ops.learnable_demosaick_forward(
-        mosaick.view(bs, h, w), gfilt, grad_filt, output)
+        mosaick.view(bs, h, w), selection_filters, green_filters, output)
 
     return output
 
   @staticmethod
   def backward(ctx, d_output):
-    mosaick, gfilt, grad_filt = ctx.saved_variables
+    mosaick, selection_filters, green_filters = ctx.saved_variables
 
     d_mosaick = mosaick.data.new()
     d_mosaick.resize_as_(mosaick.data)
-    d_gfilt = gfilt.data.new()
-    d_gfilt.resize_as_(gfilt.data)
-    d_grad_filt = grad_filt.data.new()
-    d_grad_filt.resize_as_(grad_filt.data)
+    d_sel_filts = selection_filters.data.new()
+    d_sel_filts.resize_as_(selection_filters.data)
+    d_green_filts = green_filters.data.new()
+    d_green_filts.resize_as_(green_filters.data)
 
     bs, ci, h, w = mosaick.shape
 
     ops.learnable_demosaick_backward(
-        mosaick.data.view(bs, h, w), gfilt.data, grad_filt.data,
+        mosaick.data.view(bs, h, w), selection_filters.data, green_filters.data,
         d_output.data,
-        d_mosaick.view(bs, h, w), d_gfilt, d_grad_filt)
+        d_mosaick.view(bs, h, w), d_sel_filts, d_green_filts)
 
     d_mosaick = Variable(d_mosaick)
-    d_gfilt = Variable(d_gfilt)
-    d_grad_filt = Variable(d_grad_filt)
+    d_sel_filts = Variable(d_sel_filts)
+    d_green_filts = Variable(d_green_filts)
 
-    return d_mosaick, d_gfilt, d_grad_filt
+    return d_mosaick, d_sel_filts, d_green_filts
 
 
 class LearnableWiener(Function):

@@ -311,15 +311,10 @@ def _test_learnable_demosaick(gpu=False):
   print "profiling"
   with profiler.profile() as prof:
     for i in range(1):
-      output = op(mosaick).view(3, h, w)
+      output = op(mosaick).view(1, h, w)
       loss = output.sum()
       loss.backward()
   print prof
-
-
-  assert output.shape[0] == 3
-  assert output.shape[1] == h
-  assert output.shape[2] == w
 
   output = output.data.cpu().numpy()
   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)

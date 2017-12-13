@@ -34,8 +34,8 @@ public:
           Var xi("xi"), yi("yi"), xy("xy"), xyn("xyn");
 
           auto deps = get_deps(d_mosaick);
-          print_adjoints(adjoints);
-          print_func(d_mosaick);
+          // print_adjoints(adjoints);
+          // print_func(d_mosaick);
 
           Func d_red  = adjoints[FuncKey{"red", -1}];
           Func d_red_def = adjoints[FuncKey{"red_def__", -1}];
