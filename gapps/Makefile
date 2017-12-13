@@ -1,6 +1,6 @@
 TORCH_INC ?= `python -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
-HALIDE_DIR ?= 
-AUTO_SCHEDULE=false
+HALIDE_DIR ?=
+AUTO_SCHEDULE = false
 BUILD_TYPE ?= release
 
 CXX ?= g++
@@ -44,8 +44,9 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			naive_demosaick_forward \
-			learnable_demosaick_forward learnable_demosaick_backward
+			deconv_cg_init_forward deconv_cg_iter_forward deconv_cg_iter_backward
+			# naive_demosaick_forward \
+			# learnable_demosaick_forward learnable_demosaick_backward \
 			# conv1d_forward conv1d_backward conv1d_manual_backward \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
@@ -59,7 +60,7 @@ _ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS)
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	@echo Op $(subst $(BUILD_DIR)/,, $@)
-	@cd $(BUILD_DIR); \
+	cd $(BUILD_DIR); \
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(basename $(@F)) -g $(basename $(@F)) \
 										-e static_library,h,pytorch_wrapper,html\
@@ -78,7 +79,7 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) 
 	@echo Generator $(subst $(BUILD_DIR)/,, $@)
 	@mkdir -p $(BUILD_DIR)
-	@$(CXX) $(HALIDE_GEN) $< $(CXXFLAGS) $(LDFLAGS) -MMD -MP -o $(basename $@)
+	$(CXX) $(HALIDE_GEN) $< $(CXXFLAGS) $(LDFLAGS) -MMD -MP -o $(basename $@)
 
 clean:
 	$(RM) -r $(BUILD_DIR) $(EXT_DIR)

@@ -321,42 +321,63 @@ class LearnableDemosaick(Function):
 
     return d_mosaick, d_gfilt, d_grad_filt
 
-class LearnableWiener(Function):
+class DeconvCGInit(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, blurred, kernel, reg_kernel):
-    ctx.save_for_backward(blurred, kernel, reg_kernel)
-
-    output = blurred.new()
+  def forward(ctx, blurred, x0, kernel, reg_kernel_weights, reg_kernels):
+    xrp = blurred.new()
     ci, h, w = blurred.shape
     assert ci == 3
 
-    output.resize_(3, h, w)
-    ops.learnable_wiener_forward(
-        blurred.view(h, w), blurred, kernel, reg_kernel, output)
+    xrp.resize(3, ci, h, w)
+    ops.deconv_cg_init_forward(
+        blurred, x0, kernel, reg_kernel_weights, reg_kernels, xrp)
 
-    return output
+    return xrp
 
   @staticmethod
-  def backward(ctx, d_output):
-    blurred, kernel, reg_kernel = ctx.saved_variables
+  def backward(ctx, d_xrp):
+    return None, None, None, None, None
 
-    d_blurred = blurred.data.new()
-    d_blurred.resize_as_(blurred.data)
-    d_kernel = kernel.data.new()
-    d_kernel.resize_as_(kernel.data)
-    d_reg_kernel = reg_kernel.data.new()
-    d_reg_kernel.resize_as_(reg_kernel.data)
+class DeconvCGIter(Function):
+  """"""
 
-    ci, h, w = blurred.shape
+  @staticmethod
+  def forward(ctx, xrp, kernel, reg_kernel_weights, reg_kernels):
+    ctx.save_for_backward(xrp, kernel, reg_kernel_weights, reg_kernels)
 
-    ops.learnable_demosaick_backward(
-        blurred.data.view(3, h, w), kernel.data, reg_kernel.data,
-        d_output.data, d_reg_kernel)
+    next_xrp = xrp.new()
+    n, ci, h, w = xrp.shape()
+    assert n == 3
+    assert ci == 3
 
-    d_blurred = Variable(d_blurred)
-    d_kernel = Variable(d_kernel)
-    d_reg_kernel = Variable(d_reg_kernel)
+    next_xrp.resize(n, ci, h, w)
+    ops.deconv_cg_iter_forward(
+        xrp, kernel, reg_kernel_weights, reg_kernels)
 
-    return d_blurred, d_kernel, d_reg_kernel
+    return next_xrp
+
+  @staticmethod
+  def backward(ctx, d_next_xrp):
+    xrp, kernel, reg_kernel_weights, reg_kernels = ctx.saved_variables
+
+    d_xrp = xrp.data.new()
+    d_xrp.resize_as_(xrp.data)
+    d_reg_kernel_weights = d_reg_kernel_weights.data.new()
+    d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
+    d_reg_kernels = reg_kernels.data.new()
+    d_reg_kernels.resize_as_(reg_kernels.data)
+
+    n, ci, h, w = xrp.shape
+
+    ops.deconv_cg_iter_backward(
+        xrp, kernel, reg_kernel_weights, reg_kernels, d_next_xrp,
+        d_xrp, d_reg_kernel_weights, d_reg_kernels)
+
+    d_xrp = Variable(d_xrp)
+    d_reg_kernel_weights = Variable(d_reg_kernel_weights)
+    d_reg_kernels = Variable(d_reg_kernels)
+
+    return d_xrp, d_reg_kernel_weights, d_reg_kernels
+

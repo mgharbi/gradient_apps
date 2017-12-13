@@ -4,7 +4,7 @@
 #include <string>
 #include <Halide.h>
 
-#include "fft.h"
+#include "fft/fft.h"
 
 using namespace Halide;
 
@@ -12,12 +12,11 @@ Var x("x"), y("y"), c("c"), n("n");
 
 template <typename Input>
 std::map<std::string, Func> learnable_wiener(
+        int W, int H,
         const Input &blurred,
         const Input &kernel,
         const Input &reg_kernel
         ) {
-    int W = blurred.width();
-    int H = blurred.height();
     Func kernel_ce = BoundaryConditions::constant_exterior(kernel, 0.f);
     Func kernel_padded("kernel_padded");
     Expr u = select(x < (W - x), x, x - W) + kernel.width()  / 2;
@@ -35,7 +34,7 @@ std::map<std::string, Func> learnable_wiener(
     blurred_g(x, y) = blurred(x, y, 1);
     Func blurred_b("blurred_b");
     blurred_b(x, y) = blurred(x, y, 2);
-    Target target = get_target_from_environment();
+    Target target = get_jit_target_from_environment();
     ComplexFunc dft_in_r = fft2d_r2c(blurred_r, W, H, target, fwd_desc);
     ComplexFunc dft_in_g = fft2d_r2c(blurred_g, W, H, target, fwd_desc);
     ComplexFunc dft_in_b = fft2d_r2c(blurred_b, W, H, target, fwd_desc);
@@ -45,7 +44,7 @@ std::map<std::string, Func> learnable_wiener(
     reg_kernel_func(x, y) = reg_kernel(x, y);
     // Compute Wiener filter.
     ComplexFunc filter("wiener_filter");
-    filter(x, y) = conj(dft_kernel(x, y) * 
+    filter(x, y) = conj(dft_kernel(x, y) *
         (re(dft_kernel(x, y) * conj(dft_kernel(x, y))) +
          reg_kernel_func(x, y) * reg_kernel_func(x, y) + 1e-6f));
     ComplexFunc dft_wiener_r("dft_wiener_r");
