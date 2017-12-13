@@ -24,9 +24,6 @@ if not os.path.exists(out_dir):
 def test_conv1d_cpu():
   _test_conv1d(gpu=False)
 
-def test_conv1d_gpu():
-  _test_conv1d(gpu=True)
-
 def test_conv3d_cpu():
   _test_conv3d(gpu=False)
 
@@ -70,7 +67,7 @@ def _test_conv1d(gpu=False):
   co = 64
   kw = 5
 
-  w = 2*2048
+  w = 2048
 
   input_grid = Variable(th.randn(bs, ci, w), requires_grad=True)
   kernels = Variable(th.randn(co, ci, kw), requires_grad=True)
@@ -245,14 +242,18 @@ def _test_naive_demosaick(gpu=False):
       os.path.join(out_dir, "naive_mosaick.png"), mosaick)
 
   mosaick = Variable(th.from_numpy(mosaick), requires_grad=True)
+  mosaick = mosaick.view(1, 1, h, w)
   if gpu:
     mosaick = mosaick.cuda()
   print "profiling"
+
+  op = modules.NaiveDemosaick()
+
   with profiler.profile() as prof:
     for i in range(1):
-      output = funcs.NaiveDemosaick.apply(mosaick)
-      # loss = output.sum()
-      # loss.backward()
+      output = op(mosaick).view(3, h, w)
+      loss = output.sum()
+      loss.backward()
 
   # print prof
 
@@ -266,6 +267,30 @@ def _test_naive_demosaick(gpu=False):
   skimage.io.imsave(
       os.path.join(out_dir, "naive_demosaicked.png"), output)
 
+
+def test_learnable_demosaick_gradients():
+  bs = 1
+  h = 64
+  w = 64
+  fsize = 5
+  mosaick = Variable(th.randn(bs, 1, h, w))
+  gfilt = Variable(th.randn(fsize), requires_grad=True)
+  grad_filt = Variable(th.randn(fsize))
+  print "Testing green filters grad"
+  gradcheck(
+      funcs.LearnableDemosaick.apply,
+      (mosaick, gfilt, grad_filt),
+      eps=1e-4, atol=5e-2, rtol=5e-4,
+       raise_exception=True)
+
+  print "Testing gradient filters grad"
+  gfilt = Variable(th.randn(fsize))
+  grad_filt = Variable(th.randn(fsize), requires_grad=True)
+  gradcheck(
+      funcs.LearnableDemosaick.apply,
+      (mosaick, gfilt, grad_filt),
+      eps=1e-4, atol=5e-2, rtol=5e-4,
+       raise_exception=True)
 
 def _test_learnable_demosaick(gpu=False):
   image = skimage.io.imread(
@@ -290,6 +315,7 @@ def _test_learnable_demosaick(gpu=False):
       loss = output.sum()
       loss.backward()
   print prof
+
 
   assert output.shape[0] == 3
   assert output.shape[1] == h

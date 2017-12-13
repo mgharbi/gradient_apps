@@ -126,7 +126,6 @@ class Conv1d(Function):
     w, ci, n = input.shape
     d_filter = filter.data.new()
     d_input.resize_(w, ci, n)
-    print(w, ci, n)
     # d_input.resize_as_(input.data)
     d_filter.resize_as_(filter.data)
 
@@ -245,10 +244,10 @@ class NaiveDemosaick(Function):
     ctx.save_for_backward(mosaick)
 
     output = mosaick.new()
-    h, w = mosaick.shape
-    output.resize_(3, h, w)
+    bs, ci, h, w = mosaick.shape
+    output.resize_(bs, 3, h, w)
     ops.naive_demosaick_forward(
-        mosaick, output)
+        mosaick.view(bs, h, w), output)
 
     return output
 
@@ -256,12 +255,14 @@ class NaiveDemosaick(Function):
   def backward(ctx, d_output):
     mosaick = ctx.saved_variables[0]
 
+    bs, ci, h, w = mosaick.shape
+
     d_mosaick = mosaick.data.new()
     d_mosaick.resize_as_(mosaick.data)
 
     ops.naive_demosaick_backward(
-        mosaick.data, d_output.data,
-        d_mosaick)
+        mosaick.data.view(bs, h, w), d_output.data,
+        d_mosaick.view(bs, h, w))
 
     d_mosaick = Variable(d_mosaick)
 
@@ -298,16 +299,6 @@ class LearnableDemosaick(Function):
 
     bs, ci, h, w = mosaick.shape
 
-    # handling batch input without batch
-    # assert bs == 1
-    # mosaick.view(ci, h, w)
-
-    # output = []
-    # for m in range(bs):
-    #   m_ = mosaick[m, ...]
-    #   output.append(th.expand_dims(backward(m_), 0))
-    # th.cat(output, dim=0)
-
     ops.learnable_demosaick_backward(
         mosaick.data.view(bs, h, w), gfilt.data, grad_filt.data,
         d_output.data,
@@ -316,8 +307,6 @@ class LearnableDemosaick(Function):
     d_mosaick = Variable(d_mosaick)
     d_gfilt = Variable(d_gfilt)
     d_grad_filt = Variable(d_grad_filt)
-
-    # output 'None' if you do not want a gradient
 
     return d_mosaick, d_gfilt, d_grad_filt
 

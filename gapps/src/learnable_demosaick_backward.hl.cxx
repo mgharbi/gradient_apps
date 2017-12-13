@@ -39,7 +39,7 @@ public:
         Func f_d_gfilt  = adjoints[FuncKey{f_gfilt.name(), -1}];
         Func f_d_grad_filt  = adjoints[FuncKey{f_grad_filt.name(), -1}];
 
-        d_mosaick(x, y, n) = f_d_mosaick(x, y, 0);
+        d_mosaick(x, y, n) = f_d_mosaick(x, y, n);
         d_gfilt(x) = f_d_gfilt(x);
         d_grad_filt(x) = f_d_grad_filt(x);
 
@@ -48,7 +48,6 @@ public:
         } else {
           Var xi("xi"), yi("yi"), xy("xy");
           auto deps = get_deps(d_mosaick);
-
 
           Func d_red  = adjoints[FuncKey{"red", -1}];
           Func d_red_def = adjoints[FuncKey{"red_def__", -1}];
@@ -164,7 +163,7 @@ public:
           d_mosaick
             .tile(x, y, xi, yi, 16, 16)
             .fuse(x, y, xy)
-            .parallel(xy)
+            .parallel(xy, 8)
             .vectorize(xi, 8)
             ;
         }
