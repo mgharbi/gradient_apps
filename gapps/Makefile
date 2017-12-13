@@ -46,7 +46,7 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			deconv_cg_init_forward deconv_cg_iter_forward deconv_cg_iter_backward
+			deconv_cg_init_forward deconv_cg_iter_forward deconv_cg_iter_backward \
 			naive_demosaick_forward naive_demosaick_backward \
 			learnable_demosaick_forward learnable_demosaick_backward \
 			conv1d_forward conv1d_backward conv1d_manual_backward \
