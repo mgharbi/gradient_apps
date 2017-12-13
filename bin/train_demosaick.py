@@ -24,12 +24,13 @@ log = logging.getLogger("gapps_demosaicking")
 
 
 class DemosaickCallback(object):
-  def __init__(self, model, num_batches, env=None):
+  def __init__(self, model, reference, num_batches, val_loader, env=None):
     self.model = model
+    self.reference = reference
     self.num_batches = num_batches
+    self.val_loader = val_loader
 
-    # self.loader = loader
-    # self.viz = viz.BatchVisualizer("demosaick", env=env)
+    self.viz = viz.BatchVisualizer("demosaick", env=env)
     self.gkernel = viz.ScalarVisualizer("green_kernel", env=env)
     self.grad_kernel = viz.ScalarVisualizer("grad_kernel", env=env)
 
@@ -40,6 +41,21 @@ class DemosaickCallback(object):
 
     self.current_epoch = 0
 
+  def _get_im_batch(self):
+    for b in self.val_loader:
+      batchv = Variable(b[0])
+      out = self.model(batchv)
+      out = out.data.cpu().numpy()
+      ref = self.reference(batchv)
+      ref = ref.data.cpu().numpy()
+
+      inp = b[0].cpu().numpy()
+      gt = b[1].cpu().numpy()
+      diff = np.abs(gt-out)*4
+      batchviz = np.concatenate([np.tile(inp, [1, 3, 1, 1]), gt, out, ref, diff], axis=0)
+      batchviz = np.clip(batchviz, 0, 1)
+      return batchviz
+
   def on_epoch_begin(self, epoch):
     self.current_epoch = epoch
 
@@ -49,6 +65,15 @@ class DemosaickCallback(object):
     if "psnr" in logs.keys():
       self.val_psnr_viz.update(epoch, logs['psnr'])
 
+    self.viz.update(self._get_im_batch(), per_row=self.val_loader.batch_size,
+                    caption="input | gt | ours | ref | diff (x4)")
+
+    for n, p in self.model.named_parameters():
+      if n == "gfilt":
+        self.gkernel.update(epoch, list(p.data.cpu().numpy()))
+      elif n == "grad_filt":
+        self.grad_kernel.update(epoch, list(p.data.cpu().numpy()))
+
   def on_batch_end(self, batch, logs):
     frac = self.current_epoch + batch*1.0/self.num_batches
     if "loss" in logs.keys():
@@ -56,30 +81,10 @@ class DemosaickCallback(object):
     if "psnr" in logs.keys():
       self.psnr_viz.update(frac, logs['psnr'])
 
-    for n, p in self.model.named_parameters():
-      if n == "gfilt":
-        self.gkernel.update(frac, list(p.data.cpu().numpy()))
-      elif n == "grad_filt":
-        self.grad_kernel.update(frac, list(p.data.cpu().numpy()))
-
-
-    # for b in self.loader:
-    #   batchv = Variable(b[0])
-    #   out = mdl(batchv)
-    #   out = out.data.cpu().numpy()
-    #   inp = b[0].cpu().numpy()
-    #   gt = b[1].cpu().numpy()
-    #   batchviz = np.concatenate([np.tile(inp, [1, 3, 1, 1]), gt, out], axis=0)
-    #   batchviz = np.clip(batchviz, 0, 1)
-    #   self.viz.update(batchviz, per_row=gt.shape[0], caption="input | gt | ours")
-    #   break
-
-  # def on_epoch_end(self, epoch, logs=None):
-  #   pass
-
 
 def main(args):
   model = models.LearnableDemosaick()
+  reference_model = models.NaiveDemosaick()
 
   if not os.path.exists(args.output):
     os.makedirs(args.output)
@@ -101,15 +106,16 @@ def main(args):
   psnr_fn = metrics.PSNR(crop=5)
 
   checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
-  callback = DemosaickCallback(model, len(loader), env="gapps_demosaick")
+  callback = DemosaickCallback(model, reference_model, len(loader), val_loader, env="gapps_demosaick")
 
   smooth_loss = 0
   smooth_psnr = 0
   ema = 0.99
   for epoch in range(args.num_epochs):
+    # Training
+    model.train(True)
     with tqdm(total=len(loader), unit=' batches') as pbar:
       pbar.set_description("Epoch {}/{}".format(epoch+1, args.num_epochs))
-      model.train(True)
       callback.on_epoch_begin(epoch)
       for batch_id, batch in enumerate(loader):
         mosaick, reference = batch
@@ -132,9 +138,9 @@ def main(args):
         pbar.set_postfix(logs)
         pbar.update(1)
         callback.on_batch_end(batch_id, logs)
-      model.train(False)
+    model.train(False)
 
-      # val
+    # Validation
     with tqdm(total=len(val_loader), unit=' batches') as pbar:
       pbar.set_description("Epoch {}/{} (val)".format(epoch+1, args.num_epochs))
       total_loss = 0
@@ -160,8 +166,8 @@ def main(args):
       pbar.set_postfix(logs)
       callback.on_epoch_end(epoch, logs)
 
-      # save
-      checkpointer.on_epoch_end(epoch)
+    # save
+    checkpointer.on_epoch_end(epoch)
 
 
 if __name__ == "__main__":

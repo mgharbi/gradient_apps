@@ -38,12 +38,12 @@ std::map<std::string, Func> learnable_demosaick(
     RDom rgrad(0, grad_filt_sz);
     dx(x, y, n) += 0.0f;
     dx(x, y, n) += f_mosaick(x + rgrad - grad_filt_sz/2, y, n)*f_grad_filt(rgrad);
-    dx(x, y, n) = diff_abs(dx(x, y, n));
-    // dx(x, y, n) = abs(dx(x, y, n));
+    // dx(x, y, n) = (dx(x, y, n));
+    dx(x, y, n) = abs(dx(x, y, n));
     dy(x, y, n) += 0.0f;
     dy(x, y, n) += f_mosaick(x, y + rgrad - gfilt_sz/2, n)*f_grad_filt(rgrad);
-    dy(x, y, n) = diff_abs(dy(x, y, n));
-    // dy(x, y, n) = abs(dy(x, y, n));
+    // dy(x, y, n) = (dy(x, y, n));
+    dy(x, y, n) = abs(dy(x, y, n));
 
     Func h_interp_g("h_interp_g");
     Func v_interp_g("v_interp_g");
