@@ -4,7 +4,7 @@
 
 namespace gradient_apps {
 
-class LearnableDemosaickBackwardGenerator 
+class LearnableDemosaickBackwardGenerator
   : public Generator<LearnableDemosaickBackwardGenerator> {
 public:
     Input<Buffer<float>>  mosaick{"mosaick", 3};

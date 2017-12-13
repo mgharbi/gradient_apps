@@ -12,8 +12,8 @@ using std::endl;
 using namespace Halide;
 
 std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
-    std::map<std::string, Internal::Function> flist =
-        Internal::find_transitive_calls(F.function());
+    std::map<std::string, Halide::Internal::Function> flist =
+        Halide::Internal::find_transitive_calls(F.function());
     flist.insert(std::make_pair(F.name(), F.function()));
     cerr << "Dependencies for " << F.name() << " " << endl;
     for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
@@ -23,8 +23,8 @@ std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
 }
 
 void compute_all_root(Func F) {
-    std::map<std::string, Internal::Function> flist =
-        Internal::find_transitive_calls(F.function());
+    std::map<std::string, Halide::Internal::Function> flist =
+        Halide::Internal::find_transitive_calls(F.function());
     flist.insert(std::make_pair(F.name(), F.function()));
     for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
         Func f(fit->second);
