@@ -49,7 +49,6 @@ public:
           Var xi("xi"), yi("yi"), xy("xy");
           auto deps = get_deps(d_mosaick);
 
-
           Func d_red  = adjoints[FuncKey{"red", -1}];
           Func d_red_def = adjoints[FuncKey{"red_def__", -1}];
           Func d_green = adjoints[FuncKey{"green", -1}];
@@ -164,7 +163,7 @@ public:
           d_mosaick
             .tile(x, y, xi, yi, 16, 16)
             .fuse(x, y, xy)
-            .parallel(xy)
+            .parallel(xy, 8)
             .vectorize(xi, 8)
             ;
         }

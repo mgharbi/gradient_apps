@@ -3,6 +3,15 @@ import torch.nn as nn
 
 import gapps.functions as funcs
 
+
+class NaiveDemosaick(nn.Module):
+  def __init__(self):
+    super(NaiveDemosaick, self).__init__()
+
+  def forward(self, mosaick):
+    output = funcs.NaiveDemosaick.apply(mosaick)
+    return output
+
 class LearnableDemosaick(nn.Module):
   def __init__(self, gfilt_size=9, grad_filt_size=9):
     super(LearnableDemosaick, self).__init__()
