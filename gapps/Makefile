@@ -4,7 +4,8 @@ AUTO_SCHEDULE = false
 BUILD_TYPE ?= release
 
 CXX ?= g++
-CXXFLAGS += -std=c++11 -fno-rtti -I$(HALIDE_DIR)/include/
+CXXFLAGS += -std=c++11 -fno-rtti 
+INCLUDE=-I$(HALIDE_DIR)/include/
 LDFLAGS ?=
 LDFLAGS += $(HALIDE_DIR)/lib/libHalide.a -lpthread -ldl -lcurses -lz
 
@@ -14,6 +15,7 @@ NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 					-gencode=arch=compute_30,code=\"sm_30,compute_30\" \
 					-expt-relaxed-constexpr -Wno-deprecated-gpu-targets \
 					-ftz=true --ptxas-options=-v -lineinfo 
+CUDA_LDFLAGS= -L/usr/local/cuda/lib64 -lcuda -lcudart
 
 TARGET_FEATURES ?=
 
@@ -22,8 +24,8 @@ TARGET_FEATURES = -profile
 endif
 
 ifeq ($(BUILD_TYPE), debug)
-CXXFLAGS += -g
-NVFLAGS += -g
+CXXFLAGS += -g -rdynamic
+NVFLAGS += -g -G -lineinfo
 else
 CXXFLAGS += -O3
 endif
@@ -46,10 +48,10 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			deconv_cg_init_forward deconv_cg_iter_forward deconv_cg_iter_backward \
-			naive_demosaick_forward naive_demosaick_backward \
 			learnable_demosaick_forward learnable_demosaick_backward \
-			conv1d_forward conv1d_backward conv1d_manual_backward \
+			# naive_demosaick_forward naive_demosaick_backward \
+			# conv1d_forward conv1d_backward conv1d_manual_backward \
+			# deconv_cg_init_forward deconv_cg_iter_forward deconv_cg_iter_backward \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
 
@@ -62,7 +64,7 @@ _ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	@echo Op $(subst $(BUILD_DIR)/,, $@)
-	cd $(BUILD_DIR); \
+	@cd $(BUILD_DIR); \
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(basename $(@F)) -g $(basename $(@F)) \
 										-e static_library,h,pytorch_wrapper,html\
@@ -83,11 +85,15 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) $(BUILD_DIR)
 	@echo Generator $(subst $(BUILD_DIR)/,, $@)
 	@mkdir -p $(BUILD_DIR)
-	@$(CXX) $(HALIDE_GEN) $< $(CXXFLAGS) $(LDFLAGS) -MMD -MP -o $(basename $@)
+	@$(CXX) $(HALIDE_GEN) $< $(CXXFLAGS) $(INCLUDE) $(LDFLAGS) -MMD -MP -o $(basename $@)
 
 $(BUILD_DIR):
 	@echo Making $@ dir
 	@mkdir -p $@
+
+# # C++ target to test the halide code independently of pytorch
+# $(BUILD_DIR)/tester: $(SRC_DIR)/_tester.cpp $(BUILD_DIR)/learnable_demosaick_forward_cuda.a
+# 	$(CXX) $(CXXFLAGS) $(INCLUDE) -I/usr/local/cuda/include -I$(BUILD_DIR) $^ -o $@ $(LDFLAGS) $(CUDA_LDFLAGS)
 
 clean:
 	$(RM) -r $(BUILD_DIR) $(EXT_DIR)
