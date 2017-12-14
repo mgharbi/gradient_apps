@@ -312,9 +312,11 @@ def _test_learnable_demosaick(gpu=False):
   with profiler.profile() as prof:
     for i in range(1):
       output = op(mosaick).view(1, h, w)
-      loss = output.sum()
-      loss.backward()
+      # loss = output.sum()
+      # loss.backward()
   print prof
+
+  print output
 
   output = output.data.cpu().numpy()
   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
