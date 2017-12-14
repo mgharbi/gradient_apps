@@ -327,15 +327,13 @@ def _test_learnable_demosaick(gpu=False):
       os.path.join(out_dir, "learnable_demosaicked.png"), output)
 
 def _test_deconv_cg_iteration(gpu=False):
-  xrp = Variable(th.randn(3, 3, 32, 32))
-  kernel = Variable(th.rand(3, 3))
-  reg_kernel_weights = Variable(th.rand(2), requires_grad=True)
-  reg_kernels = Variable(th.randn(2, 3, 3), requires_grad=True)
+  xrp = Variable(th.randn(3, 1, 16, 16), requires_grad=True)
+  kernel = Variable(th.rand(7, 7))
+  reg_kernel_weights = Variable(th.rand(2), requires_grad=False)
+  reg_kernels = Variable(th.randn(2, 5, 5), requires_grad=False)
   gradcheck(
       funcs.DeconvCGIter.apply,
       (xrp, kernel, reg_kernel_weights, reg_kernels),
       eps=1e-4, atol=5e-2, rtol=5e-4,
        raise_exception=True)
-
-
-  
+ 

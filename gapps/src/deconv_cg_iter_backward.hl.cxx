@@ -31,12 +31,21 @@ public:
              {d_next_xrp.dim(3).min(), d_next_xrp.dim(3).max()}}
         );
         std::map<FuncKey, Func> adjoints = d.adjoints;
-        assert(adjoints.find(FuncKey{xrp_func.name(), -1}) != adjoints.end());
-        assert(adjoints.find(FuncKey{reg_kernel_weights_func.name(), -1}) != adjoints.end());
-        assert(adjoints.find(FuncKey{reg_kernels_func.name(), -1}) != adjoints.end());
-        d_xrp(x, y, c, n) = adjoints[FuncKey{xrp_func.name(), -1}](x, y, c, n);
-        d_reg_kernel_weights(n) = adjoints[FuncKey{reg_kernel_weights_func.name(), -1}](n);
-        d_reg_kernels(x, y, n) = adjoints[FuncKey{reg_kernels_func.name(), -1}](x, y, n);
+        if (adjoints.find(FuncKey{xrp_func.name(), -1}) != adjoints.end()) {
+            d_xrp(x, y, c, n) = adjoints[FuncKey{xrp_func.name(), -1}](x, y, c, n);
+        } else {
+            d_xrp(x, y, c, n) = 0.f;
+        }
+        if (adjoints.find(FuncKey{reg_kernel_weights_func.name(), -1}) != adjoints.end()) {
+            d_reg_kernel_weights(n) = adjoints[FuncKey{reg_kernel_weights_func.name(), -1}](n);
+        } else {
+            d_reg_kernel_weights(n) = 0.f;
+        }
+        if (adjoints.find(FuncKey{reg_kernels_func.name(), -1}) != adjoints.end()) {
+            d_reg_kernels(x, y, n) = adjoints[FuncKey{reg_kernels_func.name(), -1}](x, y, n);
+        } else {
+            d_reg_kernels(x, y, n) = 0.f;
+        }
 
         if (auto_schedule) {
             xrp.dim(0).set_bounds_estimate(0, 320);

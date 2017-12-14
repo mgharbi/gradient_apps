@@ -340,7 +340,7 @@ class DeconvCGIter(Function):
     next_xrp = xrp.new()
     n, ci, h, w = xrp.shape
     assert n == 3
-    assert ci == 3
+    assert ci == 1
 
     next_xrp.resize_(n, ci, h, w)
     ops.deconv_cg_iter_forward(
