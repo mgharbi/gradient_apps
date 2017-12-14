@@ -11,7 +11,7 @@ using std::endl;
 
 using namespace Halide;
 
-std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
+void print_deps(Func F) {
     std::map<std::string, Halide::Internal::Function> flist =
         Halide::Internal::find_transitive_calls(F.function());
     flist.insert(std::make_pair(F.name(), F.function()));
@@ -19,6 +19,16 @@ std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
     for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
         cerr << "  .Func " << fit->first << " " << "\n";
     }
+}
+
+std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
+    std::map<std::string, Halide::Internal::Function> flist =
+        Halide::Internal::find_transitive_calls(F.function());
+    flist.insert(std::make_pair(F.name(), F.function()));
+    // cerr << "Dependencies for " << F.name() << " " << endl;
+    // for (auto fit=flist.begin(); fit!=flist.end(); fit++) {
+    //     cerr << "  .Func " << fit->first << " " << "\n";
+    // }
     return flist;
 }
 
@@ -40,16 +50,16 @@ void compute_all_root(Func F) {
         //   // f.vectorize(inner_most, 4);
         // }
 
-        // Parallel on all other dims
-        if(args.size() > 1) {
-          Var new_var = args[1];
-            // cerr << "arg " << 1 << " " << args[1].name() << "\n";
-          for(int i = 2; i < args.size(); ++i) {
-            // cerr << "arg " << i << " " << args[i].name() << "\n";
-            f.fuse(new_var, args[i], new_var);
-          }
-          f.parallel(new_var);
-        }
+    //     // Parallel on all other dims
+    //     if(args.size() > 1) {
+    //       Var new_var = args[1];
+    //         // cerr << "arg " << 1 << " " << args[1].name() << "\n";
+    //       for(int i = 2; i < args.size(); ++i) {
+    //         // cerr << "arg " << i << " " << args[i].name() << "\n";
+    //         f.fuse(new_var, args[i], new_var);
+    //       }
+    //       f.parallel(new_var);
+    //     }
     }
 }
 

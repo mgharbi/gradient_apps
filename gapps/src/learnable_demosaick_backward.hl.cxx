@@ -44,7 +44,16 @@ public:
         d_green_filts(x, y, n) = f_d_green_filts(x, y, n);
 
         Var xi("xi"), yi("yi"), xy("xy"), xyn("xyn");
-        compute_all_root(d_sel_filts);
+
+        // print_deps(d_sel_filts);
+        // print_deps(d_green_filts);
+        if (get_target().has_gpu_feature()) {
+          cerr << "gpu schedule\n";
+          compute_all_root(d_sel_filts);
+        } else {
+          compute_all_root(d_sel_filts);
+          cerr << "cpu schedule\n";
+        }
     }
 };
 
