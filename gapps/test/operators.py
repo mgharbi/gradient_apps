@@ -59,6 +59,9 @@ def test_learnable_demosaick_cpu():
 
 def test_learnable_demosaick_gpu():
   _test_learnable_demosaick(True)
+
+def test_deconv_cg_iteration_cpu():
+  _test_deconv_cg_iteration(False)
 # ---------------------------------------------------------------------------
 
 def _test_conv1d(gpu=False):
@@ -245,7 +248,7 @@ def _test_naive_demosaick(gpu=False):
   mosaick = mosaick.view(1, 1, h, w)
   if gpu:
     mosaick = mosaick.cuda()
-  print "profiling"
+  print("profiling")
 
   op = modules.NaiveDemosaick()
 
@@ -276,14 +279,14 @@ def test_learnable_demosaick_gradients():
   mosaick = Variable(th.randn(bs, 1, h, w))
   gfilt = Variable(th.randn(fsize), requires_grad=True)
   grad_filt = Variable(th.randn(fsize))
-  print "Testing green filters grad"
+  print("Testing green filters grad")
   gradcheck(
       funcs.LearnableDemosaick.apply,
       (mosaick, gfilt, grad_filt),
       eps=1e-4, atol=5e-2, rtol=5e-4,
        raise_exception=True)
 
-  print "Testing gradient filters grad"
+  print("Testing gradient filters grad")
   gfilt = Variable(th.randn(fsize))
   grad_filt = Variable(th.randn(fsize), requires_grad=True)
   gradcheck(
@@ -308,16 +311,30 @@ def _test_learnable_demosaick(gpu=False):
     mosaick = mosaick.cuda()
     op.cuda()
 
-  print "profiling"
+  print("profiling")
   with profiler.profile() as prof:
     for i in range(1):
       output = op(mosaick).view(1, h, w)
       loss = output.sum()
       loss.backward()
-  print prof
+  print(prof)
 
   output = output.data.cpu().numpy()
   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
   output = np.squeeze(output)
   skimage.io.imsave(
       os.path.join(out_dir, "learnable_demosaicked.png"), output)
+
+def _test_deconv_cg_iteration(gpu=False):
+  xrp = Variable(th.randn(3, 3, 32, 32))
+  kernel = Variable(th.rand(3, 3))
+  reg_kernel_weights = Variable(th.rand(2), requires_grad=True)
+  reg_kernels = Variable(th.randn(2, 3, 3), requires_grad=True)
+  gradcheck(
+      funcs.DeconvCGIter.apply,
+      (xrp, kernel, reg_kernel_weights, reg_kernels),
+      eps=1e-4, atol=5e-2, rtol=5e-4,
+       raise_exception=True)
+
+
+  
