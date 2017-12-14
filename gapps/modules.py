@@ -20,8 +20,9 @@ class LearnableDemosaick(nn.Module):
     self.fsize = fsize
 
     # Register parameters that need gradients as data members
-    self.sel_filts = nn.Parameter(th.zeros(fsize, fsize, num_filters))
-    self.green_filts = nn.Parameter(th.zeros(fsize, fsize, num_filters))
+    # c, y, x order
+    self.sel_filts = nn.Parameter(th.zeros(num_filters, fsize, fsize))
+    self.green_filts = nn.Parameter(th.zeros(num_filters, fsize, fsize))
 
     self.sel_filts.data.normal_(0, 1.0/(fsize*fsize))
     self.green_filts.data.normal_(0, 1.0/(fsize*fsize))
@@ -29,6 +30,7 @@ class LearnableDemosaick(nn.Module):
   def forward(self, mosaick):
     output = funcs.LearnableDemosaick.apply(mosaick, self.sel_filts, self.green_filts)
     return output[:, 1:2, ...]
+
 
 class DeconvCG(nn.Module):
   def __init__(self, reg_kernel_size=3, num_reg_kernels=2):
