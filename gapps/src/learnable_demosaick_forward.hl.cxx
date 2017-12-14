@@ -23,36 +23,68 @@ public:
         if(auto_schedule) {
         } else {
           Var xi("xi"), yi("yi"), xy("xy"), xyn("xyn");
+          Var xo("xo"), yo("yo"), xyk("xyk"), xykn("xykn");
+          // compute_all_root(output);
           if (get_target().has_gpu_feature()) {
-            normalizer
-              .compute_at(output, xyn)
+            cerr << "gpu schedule\n";
+            int ts = 8;
+
+            func_map["selection"]
+              .compute_root()
+              .gpu_tile(x, y, xi, yi, ts, ts)
+              .update()
+              .gpu_tile(x, y, xi, yi, ts, ts)
               ;
-            interp_g
-              .compute_at(output, xyn)
+
+            func_map["normalizer"]
+              .compute_root()
+              .gpu_tile(x, y, xi, yi, ts, ts) 
+              .update()
+              .gpu_tile(x, y, xi, yi, ts, ts)
               ;
-            interpolated_green
-              .compute_at(output, xyn)
+
+            func_map["interp_g"]
+              .compute_root()
+              .gpu_tile(x, y, xi, yi, ts, ts)
+              .update()
+              .gpu_tile(x, y, xi, yi, ts, ts)
               ;
+
+            func_map["interpolated_green"]
+              .compute_root()
+              .gpu_tile(x, y, xi, yi, ts, ts)
+              .update()
+              .gpu_tile(x, y, xi, yi, ts, ts)
+              ;
+
             output
-              .gpu_tile(x, y, xi, yi, 16, 16)
-              ;
-          } else {
-            normalizer
-              .compute_at(output, xyn)
-              ;
-            interp_g
-              .compute_at(output, xyn)
-              ;
-            interpolated_green
-              .compute_at(output, xyn)
-              ;
-            output
-              .tile(x, y, xi, yi, 16, 16)
+              .compute_root()
+              .reorder(c, x, y, n)
+              .bound(c, 0, 3)
+              .unroll(c)
               .fuse(x, y, xy)
               .fuse(xy, n, xyn)
-              .parallel(xyn, 8)
-              .vectorize(xi, 8)
-              ;
+              .gpu_tile(xyn, xi, ts);
+
+          } else {
+            cerr << "cpu schedule\n";
+            compute_all_root(output);
+            // normalizer
+            //   .compute_at(output, xyn)
+            //   ;
+            // interp_g
+            //   .compute_at(output, xyn)
+            //   ;
+            // interpolated_green
+            //   .compute_at(output, xyn)
+            //   ;
+            // output
+            //   .tile(x, y, xi, yi, 16, 16)
+            //   .fuse(x, y, xy)
+            //   .fuse(xy, n, xyn)
+            //   .parallel(xyn, 8)
+            //   .vectorize(xi, 8)
+            //   ;
           }
         }
     }

@@ -97,8 +97,8 @@ std::map<std::string, Func> learnable_demosaick(
 
     Func f_output("f_output");
     f_output(x, y, c, n) = select(c == 0, red(x, y, n),
-                               c == 1, green(x, y, n),
-                               blue(x, y, n));
+                                  c == 1, green(x, y, n),
+                                  blue(x, y, n));
 
     std::map<std::string, Func> func_map;
     func_map["mosaick"]  = f_mosaick;

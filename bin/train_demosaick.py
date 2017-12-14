@@ -119,7 +119,7 @@ def main(args):
   loss_fn = metrics.CroppedMSELoss(crop=5)
   psnr_fn = metrics.PSNR(crop=5)
 
-  checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
+  # checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
   callback = DemosaickCallback(
       model, reference_model, len(loader), val_loader, env="gapps_demosaick")
 
@@ -190,7 +190,7 @@ def main(args):
       callback.on_epoch_end(epoch, logs)
 
     # save
-    checkpointer.on_epoch_end(epoch)
+    # checkpointer.on_epoch_end(epoch)
 
 
 if __name__ == "__main__":
