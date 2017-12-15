@@ -288,66 +288,99 @@ public:
             ;
 
           // Hierarchical reduction --------------------
+          Var r1_i("r1_i");
+          Var r2_i("r2_i");
           Func fsel(l["f_sel_filts_0_d_def__"]);
           std::vector<RVar> fsel_v = fsel.rvars(0);
           fsel
-            .compute_root()
-            ;
+            .compute_root();
 
-          Var r1_i("r1_i");
           Func fsel_1 = fsel.update()
             .rfactor(fsel_v[2], r1_i);
-
-          Var r2_i("r2_i");
           Func fsel_2 = fsel_1.update()
-            .rfactor(fsel_v[1], r2_i);
+            .rfactor(fsel_v[1], r2_i)
+            ;
+
+          fsel
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
+            .update()
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
+            ;
+
           fsel_2
             .compute_at(fsel_1, r1_i)
             .reorder(r2_i, x, y, k)
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
             .gpu_threads(r2_i)
             .update()
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
             .gpu_threads(r2_i)
             ;
-          
+
           fsel_1
-            .compute_at(fsel, x)
+            .compute_at(fsel, xyn)
             .reorder(r1_i, x, y, k)
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
             .gpu_tile(r1_i, yi, ts)
             .update()
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
             .gpu_tile(r1_i, yi, ts)
             ;
+          fsel.print_loop_nest();
+          print_func(fsel, true, 3);
           // -------------------------------------------
 
           // Hierarchical reduction --------------------
           Func fgreen(l["f_green_filts_0_d_def__"]);
           std::vector<RVar> fgreen_v = fgreen.rvars(0);
           fgreen
-            .compute_root()
-            ;
+            .compute_root();
 
           Func fgreen_1 = fgreen.update()
             .rfactor(fgreen_v[2], r1_i);
-
           Func fgreen_2 = fgreen_1.update()
-            .rfactor(fgreen_v[1], r2_i);
+            .rfactor(fgreen_v[1], r2_i)
+            ;
+
+          fgreen
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
+            .update()
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
+            ;
+
           fgreen_2
             .compute_at(fgreen_1, r1_i)
             .reorder(r2_i, x, y, k)
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
             .gpu_threads(r2_i)
             .update()
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
             .gpu_threads(r2_i)
             ;
-          
+
           fgreen_1
-            .compute_at(fgreen, x)
+            .compute_at(fgreen, xyn)
             .reorder(r1_i, x, y, k)
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
             .gpu_tile(r1_i, yi, ts)
             .update()
+            .fuse(x, y, xy)
+            .fuse(xy, k, xyn)
             .gpu_tile(r1_i, yi, ts)
             ;
-          fgreen.print_loop_nest();
-          print_func(fgreen, true, 3);
           // -------------------------------------------
+          
         } else {
           // compute_all_root(d_sel_filts);
           cerr << "cpu schedule\n";
