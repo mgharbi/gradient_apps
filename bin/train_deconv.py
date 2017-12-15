@@ -54,8 +54,8 @@ class DeconvCallback(object):
 
   def on_epoch_begin(self, epoch):
     self.current_epoch = epoch
-    print(self.model.reg_kernels)
-    print(self.model.reg_kernel_weights)
+    #print(self.model.reg_kernels)
+    #print(self.model.reg_kernel_weights)
 
   def on_epoch_end(self, epoch, logs):
     if "loss" in logs.keys():
@@ -104,7 +104,8 @@ def main(args):
 
   smooth_loss = 0
   smooth_psnr = 0
-  ema = 0.9
+  #ema = 0.9
+  ema = 0.0
   for epoch in range(args.num_epochs):
     # Training
     model.train(True)

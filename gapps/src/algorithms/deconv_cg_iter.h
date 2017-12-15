@@ -35,7 +35,7 @@ std::map<std::string, Func> deconv_cg_iter(
     r(x, y, c) = xrp_clamped(x, y, c, 1);
     Func p("p");
     p(x, y, c) = xrp_clamped(x, y, c, 2);
- 
+
     Func rTr("rTr");
     // alpha = r^T * r / p^T A^T A p
     rTr() = 0.f;
@@ -86,12 +86,12 @@ std::map<std::string, Func> deconv_cg_iter(
     alpha() = rTr() / pTATAp();
     // x = x + alpha * p
     Func next_x("next_x");
-    // next_x(x, y, c) = xk(x, y, c) + alpha() * p(x, y, c);
-    next_x(x, y, c) = rKp(x, y, c, 0);
+    next_x(x, y, c) = xk(x, y, c) + alpha() * p(x, y, c);
+    // next_x(x, y, c) = alpha() * p(x, y, c);
     // r = r - alpha * A^TAp
     Func next_r("next_r");
-    //next_r(x, y, c) = r(x, y, c) - alpha() * ATAp(x, y, c);
-    next_r(x, y, c) = r(x, y, c);
+    next_r(x, y, c) = r(x, y, c) - alpha() * ATAp(x, y, c);
+    //next_r(x, y, c) = KTKp(x, y, c);
     // beta = nextR^TnextR / r^Tr
     Func nRTnR("nRTnR");
     nRTnR() = 0.f;
@@ -100,8 +100,7 @@ std::map<std::string, Func> deconv_cg_iter(
     Func beta("beta");
     beta() = nRTnR() / rTr();
     Func next_p("next_p");
-    // next_p(x, y, c) = next_r(x, y, c) + beta() * p(x, y, c);
-    next_p(x, y, c) = p(x, y, c);
+    next_p(x, y, c) = next_r(x, y, c) + beta() * p(x, y, c);
 
     Func next_xrp("next_xrp");
     next_xrp(x, y, c, n) = 0.f;

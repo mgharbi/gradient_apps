@@ -50,8 +50,8 @@ EXT_DIR = _ext
 OPS = \
 			learnable_demosaick_forward learnable_demosaick_backward \
 			naive_demosaick_forward naive_demosaick_backward \
+			deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
 			# conv1d_forward conv1d_backward conv1d_manual_backward \
-			# deconv_cg_init_forward deconv_cg_iter_forward deconv_cg_iter_backward \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
 
