@@ -1,5 +1,6 @@
 import torch as th
 import torch.nn as nn
+import numpy as np
 
 import gapps.functions as funcs
 
@@ -40,13 +41,18 @@ class DeconvCG(nn.Module):
 
     assert reg_kernel_size % 2 == 1
 
-    self.reg_kernels.data.normal_(0, 1.0)
-    self.reg_kernel_weights.data.uniform_(1e-6, 1.0)
+    self.reg_kernels.data.normal_(0, 0.00001)
+    self.reg_kernel_weights.data.normal_(0, 0.00001)
+    self.reg_kernel_weights.data += 0.0
 
   def forward(self, image, kernel):
-    xrp = funcs.DeconvCGInit.apply(image, image, kernel, self.reg_kernels, self.reg_kernel_weights)
-    for iter in range(100):
-      xrp = funcs.DeconvCGIter.apply(xrp, kernel, self.reg_kernels, self.reg_kernel_weights)
+    return image
+    xrp = funcs.DeconvCGInit.apply(image, image, kernel, self.reg_kernel_weights, self.reg_kernels)
+    #print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
+    #for it in range(1):
+    #  xrp = funcs.DeconvCGIter.apply(xrp, kernel, self.reg_kernel_weights, self.reg_kernels)
+    #  print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
+    return xrp[0, :, :, :]
 
 # class CG(nn.Module):
 #   def forward(self, A, b):

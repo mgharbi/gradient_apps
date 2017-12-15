@@ -2,6 +2,7 @@ import logging
 import os
 import struct
 import re
+import random
 
 import numpy as np
 import skimage.io
@@ -18,17 +19,33 @@ class DeconvDataset(Dataset):
   def __init__(self, filelist):
     self.root = os.path.dirname(filelist)
     with open(filelist) as fid:
-      self.files = [l.strip() for l in fid.xreadlines()]
+      self.files = [l.strip() for l in fid.readlines()]
 
   def __len__(self):
     return len(self.files)
 
   def __getitem__(self, idx):
-    reference = skimage.io.read(os.path.join(self.root, self.files[idx]))
+    reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
     reference = reference.astype(np.float32)/255.0
-    kernel = utils.sample_kernel(5)
-    blurred = utils.make_blur(refernece, kernel)
+
+    # Randomly choose a 324x244 crop
+    reference_size = reference.shape
+    left_top = [random.randint(0, reference_size[0] - 245),
+                random.randint(0, reference_size[1] - 325)]
+    left_top = [0, 0]
+    reference = reference[left_top[0]:left_top[0]+244,
+                          left_top[1]:left_top[1]+324,
+                          :]
+
+    kernel = utils.sample_kernel(11)
+    blurred = utils.make_blur(reference, kernel)
     reference = reference.transpose((2, 0, 1))
+    blurred = blurred.transpose((2, 0, 1))
+
+    # Drop the boundaries
+    blurred = blurred[:, 2 : 2 + 240, 2 : 2 + 320]
+    reference = reference[:, 2 : 2 + 240, 2 : 2 + 320]
+
     return blurred, reference, kernel
 
 class DemosaickingDataset(Dataset):
@@ -39,7 +56,7 @@ class DemosaickingDataset(Dataset):
 
     self.root = os.path.dirname(filelist)
     with open(filelist) as fid:
-      self.files = [l.strip() for l in fid.xreadlines()]
+      self.files = [l.strip() for l in fid.readlines()]
 
   def __len__(self):
     return len(self.files)
