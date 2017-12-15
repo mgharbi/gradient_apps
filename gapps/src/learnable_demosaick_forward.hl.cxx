@@ -24,47 +24,66 @@ public:
         } else {
           Var xi("xi"), yi("yi"), xy("xy"), xyn("xyn");
           Var xo("xo"), yo("yo"), xyk("xyk"), xykn("xykn");
-          // compute_all_root(output);
+          Var xiyi("xiyi");
+
           if (get_target().has_gpu_feature()) {
             cerr << "gpu schedule\n";
-            int ts = 8;
+            int ts = 64;
 
             func_map["selection"]
               .compute_root()
-              .gpu_tile(x, y, xi, yi, ts, ts)
+              .reorder(k, x, y, n)
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
               .update()
-              .gpu_tile(x, y, xi, yi, ts, ts)
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
               ;
 
             func_map["normalizer"]
               .compute_root()
-              .gpu_tile(x, y, xi, yi, ts, ts) 
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
               .update()
-              .gpu_tile(x, y, xi, yi, ts, ts)
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
               ;
 
             func_map["interp_g"]
               .compute_root()
-              .gpu_tile(x, y, xi, yi, ts, ts)
+              .reorder(k, x, y, n)
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
               .update()
-              .gpu_tile(x, y, xi, yi, ts, ts)
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
               ;
 
             func_map["interpolated_green"]
               .compute_root()
-              .gpu_tile(x, y, xi, yi, ts, ts)
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
               .update()
-              .gpu_tile(x, y, xi, yi, ts, ts)
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
               ;
+
 
             output
               .compute_root()
               .reorder(c, x, y, n)
-              .bound(c, 0, 3)
-              .unroll(c)
               .fuse(x, y, xy)
               .fuse(xy, n, xyn)
-              .gpu_tile(xyn, xi, ts);
+              .gpu_tile(xyn, xi, ts)
+              ;
 
           } else {
             cerr << "cpu schedule\n";

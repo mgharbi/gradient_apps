@@ -32,6 +32,15 @@ std::map<std::string, Halide::Internal::Function> get_deps(Func F) {
     return flist;
 }
 
+std::map<std::string, Halide::Internal::Function> get_deps(std::vector<Func> v) {
+  std::map<std::string, Halide::Internal::Function> flist;
+  for(Func f : v) {
+    std::map<std::string, Halide::Internal::Function> curr = get_deps(f);
+    flist.insert(curr.begin(), curr.end());
+  }
+  return flist;
+}
+
 void compute_all_root(Func F) {
     std::map<std::string, Halide::Internal::Function> flist =
         Halide::Internal::find_transitive_calls(F.function());

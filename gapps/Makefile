@@ -4,7 +4,7 @@ AUTO_SCHEDULE = false
 BUILD_TYPE ?= release
 
 CXX ?= g++
-CXXFLAGS += -std=c++11 -fno-rtti 
+CXXFLAGS += -std=c++11 -fno-rtti  -DDEBUG_RUNTIME
 INCLUDE=-I$(HALIDE_DIR)/include/
 LDFLAGS ?=
 LDFLAGS += $(HALIDE_DIR)/lib/libHalide.a -lpthread -ldl -lcurses -lz
@@ -78,7 +78,7 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(name) -g $(name) -f $(name)_cuda \
 										-e static_library,h,pytorch_wrapper,html \
-										-o . target=host-cuda$(TARGET_FEATURES) \
+										-o . target=host-cuda-cuda_capability_35$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 
 # Generators
@@ -91,9 +91,11 @@ $(BUILD_DIR):
 	@echo Making $@ dir
 	@mkdir -p $@
 
-# # C++ target to test the halide code independently of pytorch
-# $(BUILD_DIR)/tester: $(SRC_DIR)/_tester.cpp $(BUILD_DIR)/learnable_demosaick_forward_cuda.a
-# 	$(CXX) $(CXXFLAGS) $(INCLUDE) -I/usr/local/cuda/include -I$(BUILD_DIR) $^ -o $@ $(LDFLAGS) $(CUDA_LDFLAGS)
+# C++ target to test the halide code independently of pytorch
+$(BUILD_DIR)/tester: $(SRC_DIR)/_tester.cpp $(BUILD_DIR)/learnable_demosaick_backward_cuda.a
+	# $(BUILD_DIR)/learnable_demosaick_forward_cuda.a $(BUILD_DIR)/learnable_demosaick_forward.a \
+	# $(BUILD_DIR)/learnable_demosaick_backward_cuda.a $(BUILD_DIR)/learnable_demosaick_backward.a
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I/usr/local/cuda/include -I$(BUILD_DIR) $^ -o $@ $(LDFLAGS) $(CUDA_LDFLAGS)
 
 clean:
 	$(RM) -r $(BUILD_DIR) $(EXT_DIR)
