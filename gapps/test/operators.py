@@ -60,6 +60,7 @@ def test_learnable_demosaick_cpu():
 def test_learnable_demosaick_gpu():
   _test_learnable_demosaick(True)
 
+
 def test_deconv_cg_init_cpu():
   _test_deconv_cg_init(False)
 
@@ -332,6 +333,59 @@ def _test_learnable_demosaick(gpu=False):
   output = np.squeeze(output)
   skimage.io.imsave(
       os.path.join(out_dir, "learnable_demosaicked.png"), output)
+
+def test_learnable_demosaick_cpu_gpu():
+  # image = skimage.io.imread(
+  #     os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
+  # h, w, _ = image.shape
+  # mosaick = utils.make_mosaick(image)
+  # skimage.io.imsave(
+  #     os.path.join(out_dir, "learnable_mosaick.png"), mosaick)
+
+  # mosaick = th.from_numpy(mosaick).view(1, 1, h, w)
+
+  h = w = 128
+  mosaick = th.randn(64, 1, h, w)
+  mosaick = Variable(mosaick, requires_grad=True)
+  op = modules.LearnableDemosaick()
+
+  outputs = []
+  grads = []
+  grads2 = []
+  grads3 = []
+  for gpu in [False, True]:
+    if gpu:
+      mosaick = mosaick.cuda()
+      op.cuda()
+
+    output = op(mosaick)
+    loss = output.sum()
+    loss.backward()
+
+    grads.append(op.sel_filts.grad.data.cpu().numpy().copy())
+    grads2.append(op.green_filts.grad.data.cpu().numpy().copy())
+    # grads3.append(mosaick.grad.data.cpu().numpy().copy())
+    op.zero_grad()
+    # mosaick.grad.zero_()
+    outputs.append(output.data.cpu().numpy().copy())
+
+  diff = np.abs(outputs[0]-outputs[1]).max()
+  assert diff < 1e-5
+
+  # diff = np.abs(grads3[0]-grads3[1]).max()
+  # assert diff < 1e-5
+
+
+  diff = np.abs(grads[0]-grads[1])
+  rel_diff = diff / (np.abs(grads[0]) + 1e-5)
+  rel_diff = np.abs(rel_diff).max()
+  assert rel_diff < 1e-2
+
+  diff = np.abs(grads2[0]-grads2[1])
+  rel_diff = diff / (np.abs(grads2[0]) + 1e-5)
+  rel_diff = np.abs(rel_diff).max()
+  assert rel_diff < 1e-2
+
 
 def _test_deconv_cg_init(gpu=False):
   blurred = Variable(th.randn(1, 3, 16, 16), requires_grad=False)

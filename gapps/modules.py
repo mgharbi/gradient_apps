@@ -24,7 +24,7 @@ class LearnableDemosaick(nn.Module):
     self.sel_filts = nn.Parameter(th.zeros(num_filters, fsize, fsize))
     self.green_filts = nn.Parameter(th.zeros(num_filters, fsize, fsize))
 
-    self.sel_filts.data.normal_(0, 1.0/(fsize*fsize))
+    self.sel_filts.data.normal_(0, 1.0)
     self.green_filts.data.normal_(0, 1.0/(fsize*fsize))
 
   def forward(self, mosaick):

@@ -293,9 +293,9 @@ class LearnableDemosaick(Function):
     d_mosaick = mosaick.data.new()
     d_mosaick.resize_as_(mosaick.data)
     d_sel_filts = selection_filters.data.new()
-    d_sel_filts.resize_as_(selection_filters.data)
+    d_sel_filts.resize_as_(selection_filters.data).zero_()
     d_green_filts = green_filters.data.new()
-    d_green_filts.resize_as_(green_filters.data)
+    d_green_filts.resize_as_(green_filters.data).zero_()
 
     bs, ci, h, w = mosaick.shape
 

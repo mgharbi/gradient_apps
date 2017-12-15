@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import logging
 import os
@@ -44,9 +45,11 @@ class DemosaickCallback(object):
   def _get_im_batch(self):
     for b in self.val_loader:
       batchv = Variable(b[0])
+      if next(self.model.parameters()).is_cuda:
+        batchv = batchv.cuda()
       out = self.model(batchv)
       out = out.data.cpu().numpy()
-      ref = self.reference(batchv)
+      ref = self.reference(batchv.cpu())
       ref = ref.data.cpu().numpy()
 
       inp = b[0].cpu().numpy()
@@ -113,13 +116,13 @@ def main(args):
 
   if args.cuda:
     model = model.cuda()
-    reference_model = reference_model.cuda()
+    # reference_model = reference_model.cuda()
 
   optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
   loss_fn = metrics.CroppedMSELoss(crop=5)
   psnr_fn = metrics.PSNR(crop=5)
 
-  # checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
+  checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
   callback = DemosaickCallback(
       model, reference_model, len(loader), val_loader, env="gapps_demosaick")
 
@@ -190,7 +193,7 @@ def main(args):
       callback.on_epoch_end(epoch, logs)
 
     # save
-    # checkpointer.on_epoch_end(epoch)
+    checkpointer.on_epoch_end(epoch)
 
 
 if __name__ == "__main__":
@@ -198,7 +201,7 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="data/demosaick/val/filelist.txt")
   parser.add_argument("--val_dataset", default="data/demosaick/val/filelist.txt")
   parser.add_argument("--output", default="output/demosaick")
-  parser.add_argument("--lr", type=float, default=1e-3)
+  parser.add_argument("--lr", type=float, default=1e-2)
   parser.add_argument("--batch_size", type=int, default=16)
   parser.add_argument("--num_epochs", type=int, default=5)
   parser.add_argument("--cuda", dest="cuda", action="store_true")
