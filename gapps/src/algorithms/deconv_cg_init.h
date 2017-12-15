@@ -71,6 +71,7 @@ std::map<std::string, Func> deconv_cg_init(
     ATAx0(x, y, c) += rKTrKx0(x, y, c, r_reg_kernel_z.x) *
                       reg_kernel_weights_func(r_reg_kernel_z.x) *
                       reg_kernel_weights_func(r_reg_kernel_z.x);
+    ATAx0(x, y, c) += x0(x, y, c) * reg_kernel_weights_func(0);
 
     Func r0("r0");
     r0(x, y, c) = ATb(x, y, c) - ATAx0(x, y, c);

@@ -37,7 +37,7 @@ class DeconvDataset(Dataset):
                           left_top[1]:left_top[1]+324,
                           :]
 
-    kernel = utils.sample_kernel(11)
+    kernel = utils.sample_kernel(7)
     blurred = utils.make_blur(reference, kernel)
     reference = reference.transpose((2, 0, 1))
     blurred = blurred.transpose((2, 0, 1))

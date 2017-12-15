@@ -320,7 +320,6 @@ class DeconvCGInit(Function):
     xrp = blurred.new()
     b, ci, h, w = blurred.shape
     assert b == 1
-    assert ci == 3
 
     xrp.resize_(3, ci, h, w)
     ops.deconv_cg_init_forward(
@@ -339,7 +338,6 @@ class DeconvCGInit(Function):
 
     b, ci, h, w = blurred.shape
     assert b == 1
-    assert ci == 3
 
     ops.deconv_cg_init_backward(
         blurred.data.view(ci, h, w), x0.data, kernel.data, reg_kernel_weights.data, reg_kernels.data, d_xrp.data,
