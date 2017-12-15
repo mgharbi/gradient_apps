@@ -54,6 +54,8 @@ class DeconvCallback(object):
 
   def on_epoch_begin(self, epoch):
     self.current_epoch = epoch
+    print(self.model.reg_kernels)
+    print(self.model.reg_kernel_weights)
 
   def on_epoch_end(self, epoch, logs):
     if "loss" in logs.keys():

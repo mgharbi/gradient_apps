@@ -315,6 +315,8 @@ class DeconvCGInit(Function):
 
   @staticmethod
   def forward(ctx, blurred, x0, kernel, reg_kernel_weights, reg_kernels):
+    ctx.save_for_backward(blurred, x0, kernel, reg_kernel_weights, reg_kernels)
+
     xrp = blurred.new()
     b, ci, h, w = blurred.shape
     assert b == 1
@@ -322,13 +324,31 @@ class DeconvCGInit(Function):
 
     xrp.resize_(3, ci, h, w)
     ops.deconv_cg_init_forward(
-        blurred.view(ci, h, w), x0, kernel, reg_kernel_weights, reg_kernels, xrp)
+        blurred.view(ci, h, w), x0.view(ci, h, w), kernel, reg_kernel_weights, reg_kernels, xrp)
 
     return xrp
 
   @staticmethod
   def backward(ctx, d_xrp):
-    return None, None, None, None, None
+    blurred, x0, kernel, reg_kernel_weights, reg_kernels = ctx.saved_variables
+
+    d_reg_kernel_weights = reg_kernel_weights.data.new()
+    d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
+    d_reg_kernels = reg_kernels.data.new()
+    d_reg_kernels.resize_as_(reg_kernels.data)
+
+    b, ci, h, w = blurred.shape
+    assert b == 1
+    assert ci == 3
+
+    ops.deconv_cg_init_backward(
+        blurred.data.view(ci, h, w), x0.data, kernel.data, reg_kernel_weights.data, reg_kernels.data, d_xrp.data,
+        d_reg_kernel_weights, d_reg_kernels)
+
+    d_reg_kernel_weights = Variable(d_reg_kernel_weights)
+    d_reg_kernels = Variable(d_reg_kernels)
+
+    return None, None, None, d_reg_kernel_weights, d_reg_kernels
 
 class DeconvCGIter(Function):
   """"""
@@ -340,7 +360,7 @@ class DeconvCGIter(Function):
     next_xrp = xrp.new()
     n, ci, h, w = xrp.shape
     assert n == 3
-    assert ci == 1
+    assert ci == 3
 
     next_xrp.resize_(n, ci, h, w)
     ops.deconv_cg_iter_forward(
@@ -358,8 +378,6 @@ class DeconvCGIter(Function):
     d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
-
-    n, ci, h, w = xrp.shape
 
     ops.deconv_cg_iter_backward(
         xrp.data, kernel.data, reg_kernel_weights.data, reg_kernels.data, d_next_xrp.data,

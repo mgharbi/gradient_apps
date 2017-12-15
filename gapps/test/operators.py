@@ -60,8 +60,15 @@ def test_learnable_demosaick_cpu():
 def test_learnable_demosaick_gpu():
   _test_learnable_demosaick(True)
 
+def test_deconv_cg_init_cpu():
+  _test_deconv_cg_init(False)
+
 def test_deconv_cg_iteration_cpu():
   _test_deconv_cg_iteration(False)
+
+def test_deconv_cg_cpu():
+  _test_deconv_cg(False)
+
 # ---------------------------------------------------------------------------
 
 def _test_conv1d(gpu=False):
@@ -326,14 +333,52 @@ def _test_learnable_demosaick(gpu=False):
   skimage.io.imsave(
       os.path.join(out_dir, "learnable_demosaicked.png"), output)
 
+def _test_deconv_cg_init(gpu=False):
+  blurred = Variable(th.randn(1, 3, 16, 16), requires_grad=False)
+  x0 = Variable(th.randn(3, 16, 16), requires_grad=False)
+  kernel = Variable(th.rand(7, 7), requires_grad=False)
+  reg_kernel_weights = Variable(th.rand(2), requires_grad=True)
+  reg_kernels = Variable(th.randn(2, 5, 5), requires_grad=True)
+  gradcheck(
+      funcs.DeconvCGInit.apply,
+      (blurred, x0, kernel, reg_kernel_weights, reg_kernels),
+      eps=1e-4, atol=5e-1, rtol=5e-4,
+       raise_exception=True)
+
 def _test_deconv_cg_iteration(gpu=False):
-  xrp = Variable(th.randn(3, 1, 16, 16), requires_grad=True)
-  kernel = Variable(th.rand(7, 7))
-  reg_kernel_weights = Variable(th.rand(2), requires_grad=False)
-  reg_kernels = Variable(th.randn(2, 5, 5), requires_grad=False)
+  xrp = Variable(th.randn(3, 3, 16, 16), requires_grad=True)
+  kernel = Variable(th.rand(7, 7), requires_grad=False)
+  reg_kernel_weights = Variable(th.rand(2), requires_grad=True)
+  reg_kernels = Variable(th.randn(2, 5, 5), requires_grad=True)
   gradcheck(
       funcs.DeconvCGIter.apply,
       (xrp, kernel, reg_kernel_weights, reg_kernels),
       eps=1e-4, atol=5e-2, rtol=5e-4,
        raise_exception=True)
  
+def _test_deconv_cg(gpu=False):
+  image = skimage.io.imread(
+      os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
+  image = image[:244, :324]
+  kernel = utils.sample_kernel(7)
+  blurred = utils.make_blur(image, kernel)
+  skimage.io.imsave(
+      os.path.join(out_dir, "blurred.png"), blurred)
+
+  blurred = Variable(th.from_numpy(blurred), requires_grad=False)
+  #kernel = Variable(th.from_numpy(kernel), requires_grad=False)
+  #op = modules.DeconvCG()
+
+  #if gpu:
+  #  blurred = blurred.cuda()
+  #  op.cuda()
+
+  #output = op(blurred, kernel).view(3, 244, 324)
+
+  #output = output.data.cpu().numpy()
+  #output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  #output = np.squeeze(output)
+  blurred = np.transpose(blurred.view(3, 244, 324).data.numpy(), [1, 2, 0])
+  skimage.io.imsave(
+      os.path.join(out_dir, "deconv.png"), blurred)
+
