@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.ndimage import correlate2d
+from scipy.signal import correlate2d
 
 def make_mosaick(image):
   # Mosaick in G R format.
