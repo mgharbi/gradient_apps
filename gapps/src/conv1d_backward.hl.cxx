@@ -54,7 +54,6 @@ public:
 
           auto flist_input = get_deps(d_input);
 
-
           // This just does a copy of the repeat_edge, constant_exterior
           Func d_input(flist_input["d_input"]);
           d_input
