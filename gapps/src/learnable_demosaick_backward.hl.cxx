@@ -43,7 +43,7 @@ public:
         d_sel_filts(x, y, n) = f_d_sel_filts(x, y, n);
         d_green_filts(x, y, n) = f_d_green_filts(x, y, n);
 
-        // TODO: remove the need to wrap Halide::Interal::function
+        // TODO: remove the need to wrap Halide::Internal::function
         std::map<std::string, Halide::Internal::Function> l = get_deps({d_sel_filts, d_green_filts, d_mosaick});
 
         Var xi("xi"), yi("yi"), xy("xy"), xyn("xyn"), xynk("xynk");

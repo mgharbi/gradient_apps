@@ -68,7 +68,7 @@ $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(basename $(@F)) -g $(basename $(@F)) \
 										-e static_library,h,pytorch_wrapper,html\
-										-o . target=host$(TARGET_FEATURES) \
+										-o . target=host-debug$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 
 $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/% 
@@ -81,7 +81,9 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 										-o . target=host-cuda-cuda_capability_35$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 
-# Generators
+# # Generators
+# .SECONDARY:
+
 $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) $(BUILD_DIR)
 	@echo Generator $(subst $(BUILD_DIR)/,, $@)
 	@mkdir -p $(BUILD_DIR)
@@ -95,6 +97,9 @@ $(BUILD_DIR):
 $(BUILD_DIR)/tester: $(SRC_DIR)/_tester.cpp $(BUILD_DIR)/learnable_demosaick_backward_cuda.a
 	# $(BUILD_DIR)/learnable_demosaick_forward_cuda.a $(BUILD_DIR)/learnable_demosaick_forward.a \
 	# $(BUILD_DIR)/learnable_demosaick_backward_cuda.a $(BUILD_DIR)/learnable_demosaick_backward.a
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I/usr/local/cuda/include -I$(BUILD_DIR) $^ -o $@ $(LDFLAGS) $(CUDA_LDFLAGS)
+
+$(BUILD_DIR)/tester2: $(SRC_DIR)/_tester2.cpp $(BUILD_DIR)/conv1d_manual_backward.a
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -I/usr/local/cuda/include -I$(BUILD_DIR) $^ -o $@ $(LDFLAGS) $(CUDA_LDFLAGS)
 
 clean:
