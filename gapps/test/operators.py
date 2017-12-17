@@ -66,6 +66,9 @@ def test_deconv_cg_init_cpu():
 def test_deconv_cg_iteration_cpu():
   _test_deconv_cg_iteration(False)
 
+def test_profile_deconv_cg_cpu():
+  _profile_deconv_cg(False)
+
 def test_deconv_cg_cpu():
   _test_deconv_cg(False)
 
@@ -332,6 +335,18 @@ def _test_learnable_demosaick(gpu=False):
   output = np.squeeze(output)
   skimage.io.imsave(
       os.path.join(out_dir, "learnable_demosaicked.png"), output)
+
+def _profile_deconv_cg(gpu=False):
+  x = Variable(th.randn(1, 3, 323, 243), requires_grad=False)
+  kernel = Variable(th.rand(7, 7), requires_grad=False)
+  op = modules.DeconvCG()
+  print("profiling")
+  with profiler.profile() as prof:
+    for i in range(1):
+      y = op(x, kernel)
+      loss = y.sum()
+      loss.backward()
+  print(prof)
 
 def _test_deconv_cg_init(gpu=False):
   blurred = Variable(th.randn(1, 1, 5, 5), requires_grad=False)
