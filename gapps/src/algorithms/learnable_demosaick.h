@@ -36,22 +36,36 @@ std::map<std::string, Func> learnable_demosaick(
     Expr green_filt_h = green_filters.dim(1).extent();
 
     Expr nfilters = green_filters.dim(2).extent();
+    RDom rfilters(0, nfilters);
 
     Func selection("selection");
     RDom rsel(0, sel_filt_w, 0, sel_filt_h);
     selection(x, y, k, n) = 0.0f;
     selection(x, y, k, n) += f_mosaick(x + rsel.x - sel_filt_w/2, y + rsel.y - sel_filt_h/2, n)*f_sel_filts(rsel.x, rsel.y, k);
+    Func abs_selection("abs_selection");
+    abs_selection(x, y, k, n) = abs(selection(x, y, k, n));
 
-    // Softmax
+    // Softmax ----------------
+    Func sel_max("sel_max");
+    sel_max(x, y, n) = 0.0f;
+    sel_max(x, y, n) = max(sel_max(x, y,n), abs_selection(x, y, rfilters, n));
     Func exp_selection("exp_selection");
-    exp_selection(x, y, k, n) = exp(-selection(x, y, k, n)); // TODO: stable softmax (-= max)
+    // stable softmax (-= max)
+    exp_selection(x, y, k, n) = exp((sel_max(x, y, n) - abs_selection(x, y, k, n)));
     Func normalizer("normalizer");
-    RDom rfilters(0, nfilters);
     normalizer(x, y, n) = 0.0f;
     normalizer(x, y, n) += exp_selection(x, y, rfilters, n);
 
     Func weights("weights");
     weights(x, y, k, n) = exp_selection(x, y, k, n) / normalizer(x, y, n);
+    // ------------------------
+    
+    // Hard max -------------------
+    // Func weights("weights");
+    // weights(x, y, k, n) = 0.0f;
+    // weights(x, y, 0, n) = select(abs_selection(x, y, 0, n) > abs_selection(x, y, 1, n), 0.0f, 1.0f);
+    // weights(x, y, 1, n) = select(abs_selection(x, y, 0, n) > abs_selection(x, y, 1, n), 1.0f, 0.0f);
+    // ------------------------
 
     Func interp_g("interp_g");
     RDom r(0, green_filt_w, 0, green_filt_h);
@@ -105,8 +119,9 @@ std::map<std::string, Func> learnable_demosaick(
     func_map["selection_filters"]  = f_sel_filts;
     func_map["green_filters"]  = f_green_filts;
     func_map["selection"]  = selection;
-    func_map["exp_selection"]  = exp_selection;
-    func_map["normalizer"]  = normalizer;
+    // func_map["normalizer"]  = normalizer;
+    // func_map["sel_max"]  = sel_max;
+    // func_map["exp_selection"]  = exp_selection;
     func_map["weights"]  = weights;
     func_map["interp_g"]  = interp_g;
     func_map["interpolated_green"]  = interpolated_green;

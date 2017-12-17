@@ -1,6 +1,7 @@
 import torch as th
 import torch.nn as nn
 import numpy as np
+from torch.autograd import Variable
 
 import gapps.functions as funcs
 
@@ -13,7 +14,7 @@ class NaiveDemosaick(nn.Module):
     return output[:, 1:2, ...]
 
 class LearnableDemosaick(nn.Module):
-  def __init__(self, num_filters=8, fsize=5):
+  def __init__(self, num_filters=8, fsize=5, sigmoid_param=1.0):
     super(LearnableDemosaick, self).__init__()
 
     self.num_filters = num_filters
@@ -23,12 +24,68 @@ class LearnableDemosaick(nn.Module):
     # c, y, x order
     self.sel_filts = nn.Parameter(th.zeros(num_filters, fsize, fsize))
     self.green_filts = nn.Parameter(th.zeros(num_filters, fsize, fsize))
+    # self.register_buffer("softmax_scale", th.ones(1, 1, 1))
+    self.softmax_scale = nn.Parameter(1.0*th.ones(1, 1, 1))
 
-    self.sel_filts.data.normal_(0, 1.0)
-    self.green_filts.data.normal_(0, 1.0/(fsize*fsize))
+    self.reset_weights()
+
+  def reset_weights(self):
+    self.sel_filts.data.uniform_(-1.0, 1.0)
+    self.green_filts.data.uniform_(0.0, 1.0)
+    self.green_filts.data[:, ::2, ::2] = 0
+    self.green_filts.data[:, 1::2, 1::2] = 0
+    self.sel_filts.data[:, ::2, ::2] = 0
+    self.sel_filts.data[:, 1::2, 1::2] = 0
+
+    # self.sel_filts.data[0, self.fsize//2, self.fsize//2-1] = -1
+    # self.sel_filts.data[0, self.fsize//2, self.fsize//2+1] = 1
+    # self.sel_filts.data[1, self.fsize//2-1, self.fsize//2] = -1
+    # self.sel_filts.data[1, self.fsize//2+1, self.fsize//2] = 1
+
+    # self.green_filts.data[0, self.fsize//2, self.fsize//2-1] = 0.5
+    # self.green_filts.data[0, self.fsize//2, self.fsize//2+1] = 0.5
+    # self.green_filts.data[1, self.fsize//2-1, self.fsize//2] = 0.5
+    # self.green_filts.data[1, self.fsize//2+1, self.fsize//2] = 0.5
+    # self.green_filts.data[...] = 1.0
+    
+    # only weigh green values
+    # self.sel_filts.data[:, ::2, ::2] = 0
+    # self.sel_filts.data[:, 1::2, 1::2] = 0
+
+    mask = th.ones_like(self.green_filts.data[0:1, ...])
+    mask[:, ::2, ::2] = 0
+    mask[:, 1::2, 1::2] = 0
+    self.register_buffer("mask", mask)
+
+  def cuda(self, device=None):
+    self.mask = self.mask.cuda()
+    return super(LearnableDemosaick, self).cuda(device)
 
   def forward(self, mosaick):
-    output = funcs.LearnableDemosaick.apply(mosaick, self.sel_filts, self.green_filts)
+    # Normalize green average
+    gfilts = []
+    sfilts = []
+    gg = self.green_filts
+    ss = self.sel_filts
+    for k in range(self.num_filters):
+      m = Variable(self.mask)
+      g = gg[k:k+1, ...]*m
+      s = ss[k:k+1, ...]*m
+      # g = g / g.sum()
+      gfilts.append(g)
+      sfilts.append(s)
+    gfilts = th.cat(gfilts, 0)
+    sfilts = th.cat(sfilts, 0)
+
+    # Zero sum for the selectors
+    # for k in range(self.num_filters):
+    #   sfilts.append(self.sel_filts[k:k+1, ...] - self.sel_filts[k:k+1, ...].sum())
+    # sfilts = th.cat(sfilts, 0)*self.softmax_scale
+    # sfilts = self.sel_filts
+    # sfilts = self.sel_filts*self.softmax_scale
+
+    # sel_filts = self.sel_filts*Variable(self.softmax_scale, requires_grad=False)
+    output = funcs.LearnableDemosaick.apply(mosaick, sfilts, gfilts)
     return output[:, 1:2, ...]
 
 

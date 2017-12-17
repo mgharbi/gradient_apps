@@ -30,6 +30,17 @@ public:
             cerr << "gpu schedule\n";
             int ts = 64;
 
+            func_map["sel_max"]
+              .compute_root()
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
+              .update()
+              .fuse(x, y, xy)
+              .fuse(xy, n, xyn)
+              .gpu_tile(xyn, xi, ts)
+              ;
+
             func_map["selection"]
               .compute_root()
               .reorder(k, x, y, n)
