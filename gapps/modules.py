@@ -24,7 +24,7 @@ class LearnableDemosaick(nn.Module):
     self.sel_filts = nn.Parameter(th.zeros(num_filters, fsize, fsize))
     self.green_filts = nn.Parameter(th.zeros(num_filters, fsize, fsize))
 
-    self.sel_filts.data.normal_(0, 1.0/(fsize*fsize))
+    self.sel_filts.data.normal_(0, 1.0)
     self.green_filts.data.normal_(0, 1.0/(fsize*fsize))
 
   def forward(self, mosaick):
@@ -48,7 +48,7 @@ class DeconvCG(nn.Module):
   def forward(self, image, kernel):
     xrp = funcs.DeconvCGInit.apply(image, image, kernel, self.reg_kernel_weights, self.reg_kernels)
     #print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
-    for it in range(1):
+    for it in range(10):
       xrp = funcs.DeconvCGIter.apply(xrp, kernel, self.reg_kernel_weights, self.reg_kernels)
       #print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
     return xrp[0, :, :, :]
