@@ -28,8 +28,8 @@ public:
             x0.dim(1).set_bounds_estimate(0, 240);
             x0.dim(2).set_bounds_estimate(0, 3);
 
-            kernel.dim(0).set_bounds_estimate(0, 5);
-            kernel.dim(1).set_bounds_estimate(0, 5);
+            kernel.dim(0).set_bounds_estimate(0, 7);
+            kernel.dim(1).set_bounds_estimate(0, 7);
 
             reg_kernel_weights.dim(0).set_bounds_estimate(0, 2);
 
@@ -42,7 +42,35 @@ public:
                .estimate(c, 0, 3)
                .estimate(n, 0, 3);
         } else {
+            int tile_width = 64, tile_height = 16;
+
+            Var xi("xi"), yi("yi"), xo("xo"), yo("yo");
             compute_all_root(xrp);
+            Func Kx0 = func_map["Kx0"];
+            Kx0.update()
+               .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
+               .parallel(yo)
+               .vectorize(xi, 16);
+            Func KTKx0 = func_map["KTKx0"];
+            KTKx0.update()
+                 .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
+                 .parallel(yo)
+                 .vectorize(xi, 16);
+            Func rKx0 = func_map["rKx0"];
+            rKx0.update()
+                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
+                .parallel(yo)
+                .vectorize(xi, 16);
+            Func rKTrKx0 = func_map["rKTrKx0"];
+            rKTrKx0.update()
+                   .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
+                   .parallel(yo)
+                   .vectorize(xi, 16);
+            Func KTb = func_map["KTb"];
+            KTb.update()
+               .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
+               .parallel(yo)
+               .vectorize(xi, 16);
         }
     }
 };

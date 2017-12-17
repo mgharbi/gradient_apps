@@ -14,7 +14,7 @@ NVCC = nvcc -std c++11 #-G  -pg
 NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 					-gencode=arch=compute_30,code=\"sm_30,compute_30\" \
 					-expt-relaxed-constexpr -Wno-deprecated-gpu-targets \
-					-ftz=true --ptxas-options=-v -lineinfo 
+					-ftz=true --ptxas-options=-v -lineinfo
 CUDA_LDFLAGS= -L/usr/local/cuda/lib64 -lcuda -lcudart
 
 TARGET_FEATURES ?=
@@ -48,9 +48,9 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			learnable_demosaick_forward learnable_demosaick_backward \
-			naive_demosaick_forward naive_demosaick_backward \
-			# deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
+			deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
+			# learnable_demosaick_forward learnable_demosaick_backward \
+			# naive_demosaick_forward naive_demosaick_backward \
 			# conv1d_forward conv1d_backward conv1d_manual_backward \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward

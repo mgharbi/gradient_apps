@@ -58,7 +58,7 @@ std::map<std::string, Func> deconv_cg_init(
                                    y + r_reg_kernel_xy.y - reg_kernels.height() / 2,
                                    c) *
                         reg_kernels_func(r_reg_kernel_xy.x, r_reg_kernel_xy.y, n);
-    Func rKTrKx0("rK^TKx0");
+    Func rKTrKx0("rK^TrKx0");
     rKTrKx0(x, y, c, n) = 0.f;
     rKTrKx0(x, y, c, n) += rKx0(x + r_reg_kernel_xy.x - reg_kernels.width()  / 2,
                                 y + r_reg_kernel_xy.y - reg_kernels.height() / 2,

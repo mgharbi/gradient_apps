@@ -105,7 +105,7 @@ class DeconvCG(nn.Module):
   def forward(self, image, kernel):
     xrp = funcs.DeconvCGInit.apply(image, image, kernel, self.reg_kernel_weights, self.reg_kernels)
     #print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
-    for it in range(100):
+    for it in range(10):
       xrp = funcs.DeconvCGIter.apply(xrp, kernel, self.reg_kernel_weights, self.reg_kernels)
       #print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
     return xrp[0, :, :, :]

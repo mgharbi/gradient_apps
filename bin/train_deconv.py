@@ -79,7 +79,6 @@ def main(args):
   if not os.path.exists(args.output):
     os.makedirs(args.output)
 
-
   dset = datasets.DeconvDataset(args.dataset)
   val_dset = datasets.DeconvDataset(args.val_dataset)
 
@@ -98,7 +97,7 @@ def main(args):
   loader = DataLoader(dset, batch_size=1, num_workers=4, shuffle=True)
   val_loader = DataLoader(val_dset, batch_size=1)
 
-  #checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
+  checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
   callback = DeconvCallback(
       model, len(loader), val_loader, env="gapps_deconv")
 
@@ -174,7 +173,7 @@ def main(args):
       callback.on_epoch_end(epoch, logs)
 
     # save
-    #checkpointer.on_epoch_end(epoch)
+    checkpointer.on_epoch_end(epoch)
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
