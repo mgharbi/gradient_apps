@@ -4,7 +4,7 @@ AUTO_SCHEDULE = false
 BUILD_TYPE ?= release
 
 CXX ?= g++
-CXXFLAGS += -std=c++11 -fno-rtti #-DDEBUG_RUNTIME
+CXXFLAGS += -std=c++11 -fno-rtti
 INCLUDE=-I$(HALIDE_DIR)/include/
 LDFLAGS ?=
 LDFLAGS += $(HALIDE_DIR)/lib/libHalide.a -lpthread -ldl -lcurses -lz
@@ -58,7 +58,7 @@ OPS = \
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
-_ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
+_ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS)
 	@echo Python CFFI wrapper
 	@python build.py
 
@@ -81,8 +81,9 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 										-o . target=host-cuda-cuda_capability_35$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 
-# # Generators
-# .SECONDARY:
+# Generators, prevent auto-deletion by make
+GENERATORS = $(addprefix $(BUILD_DIR)/, $(OPS))
+.SECONDARY: $(GENERATORS)
 
 $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) $(BUILD_DIR)
 	@echo Generator $(subst $(BUILD_DIR)/,, $@)

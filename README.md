@@ -33,3 +33,7 @@ See 'dummy' for an example. This is done in 5 steps:
 Run with stdout prints:
 
     cd gapps py.test --capture=no test
+ 
+### Visdom
+
+python3 -m visdom.server
