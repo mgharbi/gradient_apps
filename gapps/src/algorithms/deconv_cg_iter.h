@@ -41,7 +41,6 @@ std::map<std::string, Func> deconv_cg_iter(
     rTr() = 0.f;
     rTr() += r(r_image.x, r_image.y, r_image.z) *
              r(r_image.x, r_image.y, r_image.z);
-    // rTr() = print(rTr());
     Func Kp("Kp");
     Kp(x, y, c) = 0.f;
     Kp(x, y, c) += p(x + r_kernel.x - kernel.width()  / 2,
@@ -87,11 +86,9 @@ std::map<std::string, Func> deconv_cg_iter(
     // x = x + alpha * p
     Func next_x("next_x");
     next_x(x, y, c) = xk(x, y, c) + alpha() * p(x, y, c);
-    // next_x(x, y, c) = alpha() * p(x, y, c);
     // r = r - alpha * A^TAp
     Func next_r("next_r");
     next_r(x, y, c) = r(x, y, c) - alpha() * ATAp(x, y, c);
-    //next_r(x, y, c) = KTKp(x, y, c);
     // beta = nextR^TnextR / r^Tr
     Func nRTnR("nRTnR");
     nRTnR() = 0.f;

@@ -64,7 +64,9 @@ std::map<std::string, Func> deconv_cg_init(
                                 y + r_reg_kernel_xy.y - reg_kernels.height() / 2,
                                 c,
                                 n) *
-                           reg_kernels_func(r_reg_kernel_xy.x, r_reg_kernel_xy.y, n);
+                           reg_kernels_func(reg_kernels.width()  - r_reg_kernel_xy.x - 1,
+                                            reg_kernels.height() - r_reg_kernel_xy.y - 1,
+                                            n);
 
     Func ATAx0("A^TAx0");
     ATAx0(x, y, c) = KTKx0(x, y, c);
