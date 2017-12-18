@@ -1,3 +1,7 @@
+# Hack to avoid launching gtk
+import matplotlib 
+matplotlib.use('Agg') 
+
 import os
 import time
 import unittest

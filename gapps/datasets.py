@@ -37,8 +37,8 @@ class DeconvDataset(Dataset):
                           left_top[1]:left_top[1]+324,
                           :]
 
-    kernel = utils.sample_kernel(7)
-    blurred = utils.make_blur(reference, kernel)
+    psf = utils.sample_psf(11)
+    blurred = utils.make_blur(reference, psf)
     reference = reference.transpose((2, 0, 1))
     blurred = blurred.transpose((2, 0, 1))
 
@@ -46,7 +46,7 @@ class DeconvDataset(Dataset):
     blurred = blurred[:, 2 : 2 + 240, 2 : 2 + 320]
     reference = reference[:, 2 : 2 + 240, 2 : 2 + 320]
 
-    return blurred, reference, kernel
+    return blurred, reference, psf
 
 class DemosaickingDataset(Dataset):
   def __init__(self, filelist, transform=None):

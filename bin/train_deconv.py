@@ -1,3 +1,7 @@
+# Hack to avoid launching gtk
+import matplotlib 
+matplotlib.use('Agg') 
+
 import argparse
 import logging
 import os
@@ -22,26 +26,29 @@ import gapps.metrics as metrics
 
 log = logging.getLogger("gapps_deconvolution")
 
+viz_port = 8888
+
 class DeconvCallback(object):
   def __init__(self, model, num_batches, val_loader, env=None):
     self.model = model
     self.val_loader = val_loader
     self.num_batches = num_batches
 
-    self.viz = viz.BatchVisualizer("deconv", env=env)
+    self.viz = viz.BatchVisualizer("deconv", port=viz_port, env=env)
+    self.psf_viz = viz.BatchVisualizer("psf", port=viz_port, env=env)
 
-    self.loss_viz = viz.ScalarVisualizer("loss", env=env)
-    self.psnr_viz = viz.ScalarVisualizer("psnr", env=env)
-    self.val_loss_viz = viz.ScalarVisualizer("val_loss", env=env)
-    self.val_psnr_viz = viz.ScalarVisualizer("val_psnr", env=env)
+    self.loss_viz = viz.ScalarVisualizer("loss", port=viz_port, env=env)
+    self.psnr_viz = viz.ScalarVisualizer("psnr", port=viz_port, env=env)
+    self.val_loss_viz = viz.ScalarVisualizer("val_loss", port=viz_port, env=env)
+    self.val_psnr_viz = viz.ScalarVisualizer("val_psnr", port=viz_port, env=env)
 
     self.current_epoch = 0
 
   def _get_im_batch(self):
     for b in self.val_loader:
       batchv = Variable(b[0])
-      kernel = Variable(b[2])
-      out = self.model(batchv, kernel)
+      psf = Variable(b[2])
+      out = self.model(batchv, psf)
       out = out.data.cpu().numpy()
 
       inp = b[0].cpu().numpy()
@@ -51,6 +58,11 @@ class DeconvCallback(object):
       batchviz = np.concatenate([inp, gt, out, diff], axis=0)
       batchviz = np.clip(batchviz, 0, 1)
       return batchviz
+
+  def _get_psf_batch(self):
+    for b in self.val_loader:
+      psf = b[2].cpu().numpy()
+      return psf / (np.max(psf) - np.min(psf))
 
   def on_epoch_begin(self, epoch):
     self.current_epoch = epoch
@@ -63,8 +75,12 @@ class DeconvCallback(object):
     if "psnr" in logs.keys():
       self.val_psnr_viz.update(epoch, logs['psnr'])
 
-    self.viz.update(self._get_im_batch(), per_row=self.val_loader.batch_size,
+    im_batch = self._get_im_batch()
+    self.viz.update(im_batch, per_row=self.val_loader.batch_size,
                     caption="input | gt | ours | ref | diff (x4)")
+    psf_batch = self._get_psf_batch()
+    self.psf_viz.update(psf_batch, per_row=self.val_loader.batch_size,
+                        caption="PSF")
 
   def on_batch_end(self, batch, logs):
     frac = self.current_epoch + batch*1.0/self.num_batches
