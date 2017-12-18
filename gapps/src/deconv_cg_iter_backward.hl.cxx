@@ -81,84 +81,133 @@ public:
             compute_all_root(d_reg_kernel_weights);
             compute_all_root(d_reg_kernels);
 
-            int tile_width = 64, tile_height = 16;
+            int tile_width = 32, tile_height = 16;
             Var xi("xi"), yi("yi"), xo("xo"), yo("yo");
             Func KTKp = func_map["KTKp"];
-            KTKp.update()
-                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                .parallel(yo)
-                .vectorize(xi, 16);
+            KTKp.compute_root()
+                .parallel(y)
+                .vectorize(x, 16)
+                .update()
+                .parallel(y)
+                .vectorize(x, 16);
             Func Kp = func_map["Kp"];
-            Kp.update()
-              .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-              .parallel(yo)
-              .vectorize(xi, 16);
+            Kp.compute_root()
+              .parallel(y)
+              .vectorize(x, 16)
+              .update()
+              .parallel(y)
+              .vectorize(x, 16);
             Func rKTrKp = func_map["rKTrKp"];
-            rKTrKp.update()
-                  .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                  .parallel(yo)
-                  .vectorize(xi, 16);
+            rKTrKp.compute_root()
+                  .parallel(y)
+                  .vectorize(x, 16)
+                  .update()
+                  .parallel(y)
+                  .vectorize(x, 16);
             Func rKp = func_map["rKp"];
-            rKp.update()
-               .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-               .parallel(yo)
-               .vectorize(xi, 16);
+            rKp.compute_root()
+               .parallel(y)
+               .vectorize(x, 16)
+               .update()
+               .parallel(y)
+               .vectorize(x, 16);
 
             auto deps = get_deps({d_xrp, d_reg_kernel_weights, d_reg_kernels});
             Func d_Kp_1 = Func(deps["Kp_1_d_def__"]);
-            d_Kp_1.update()
-                  .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                  .parallel(yo)
-                  .vectorize(xi, 16);
+            d_Kp_1.compute_root()
+                  .parallel(y)
+                  .vectorize(x, 16)
+                  .update()
+                  .parallel(y)
+                  .vectorize(x, 16);
             Func d_rKp_1 = Func(deps["rKp_1_d_def__"]);
-            d_rKp_1.update()
-                   .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                   .parallel(yo)
-                   .vectorize(xi, 16);
+            d_rKp_1.compute_root()
+                   .parallel(y)
+                   .vectorize(x, 16)
+                   .update()
+                   .parallel(y)
+                   .vectorize(x, 16);
             Func d_p0 = Func(deps["p_0_d_def__"]);
+            d_p0.compute_root()
+                .parallel(y)
+                .vectorize(x, 16)
+                .update(0)
+                .parallel(y)
+                .vectorize(x, 16);
+            d_p0.update(1)
+                .parallel(y)
+                .vectorize(x, 16);
+            d_p0.update(2)
+                .parallel(y)
+                .vectorize(x, 16);
             d_p0.update(3)
-                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                .parallel(yo)
-                .vectorize(xi, 16);
+                .parallel(y)
+                .vectorize(x, 16);
             d_p0.update(4)
-                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                .parallel(yo)
-                .vectorize(xi, 16);
+                .parallel(y)
+                .vectorize(x, 16);
 
             // wtf is this??
             Func repeat_edge22 = Func(deps["repeat_edge$22"]);
-            repeat_edge22.tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                         .parallel(yo)
-                         .vectorize(xi, 16);
+            repeat_edge22.compute_root()
+                         .parallel(y)
+                         .vectorize(x, 16);
 
             Func d_rKw = Func(deps["reg_kernels_func_0_d_def__"]);
             auto d_rKw_r0 = d_rKw.rvars(0);
             auto d_rKw_r1 = d_rKw.rvars(1);
 
-            RVar rxo("rxo"), ryo("ryo"), rxi("rxi"), ryi("ryi");
-            Var ryo_f("ryo_f"), ryi_f("ryi_f");
-            d_rKw.update(0)
-                 .split(d_rKw_r0[0], rxo, rxi, tile_width)
-                 .split(d_rKw_r0[1], ryo, ryi, tile_height);
+            Var xy("xy"), xyn("xyn");
+            RVar rxo("rxo"), rxi("rxi");
+            Var rxo_f("ryo_f"), rxi_f("ryi_f");
+            d_rKw.compute_root()
+                 .update(0)
+                 .split(d_rKw_r0[0], rxo, rxi, tile_width);
             Func d_rKw0_ryo = d_rKw.update()
-                                   .rfactor({{ryo, ryo_f}, {ryi, ryi_f}});
-            d_rKw0_ryo.compute_at(d_rKw, x)
-                      .update()
-                      .parallel(ryo_f)
-                      .vectorize(ryi_f, 16);
+                                   .rfactor({{rxo, rxo_f}});
             d_rKw.update(1)
-                 .split(d_rKw_r1[0], rxo, rxi, tile_width)
-                 .split(d_rKw_r1[1], ryo, ryi, tile_height);
+                 .split(d_rKw_r1[0], rxo, rxi, tile_width);
             Func d_rKw1_ryo = d_rKw.update(1)
-                                   .rfactor({{ryo, ryo_f}, {ryi, ryi_f}});
-            d_rKw1_ryo.compute_at(d_rKw, x)
-                      .update()
-                      .parallel(ryo_f)
-                      .vectorize(ryi_f, 16);
+                                   .rfactor({{rxo, rxo_f}});
+
+            d_rKw.update(0)
+                 .fuse(x, y, xy)
+                 .fuse(xy, n, xyn)
+                 .parallel(xyn);
+            d_rKw.update(1)
+                 .fuse(x, y, xy)
+                 .fuse(xy, n, xyn)
+                 .parallel(xyn);
 
             // TODO: merge more functions
-            Func xrp_func = func_map["xrp_func"];
-            xrp_func.compute_inline();
+            //Func xrp_func = deps["xrp_func"];
+            Func(deps["xrp_func"]).compute_inline();
+            Func(deps["kernel_im"]).compute_inline();
+            Func(deps["xrp_im"]).compute_inline();
+            Func(deps["repeat_edge"]).compute_inline();
+            Func(deps["p"]).compute_inline();
+            Func(deps["reg_kernel_im"]).compute_inline();
+            Func(deps["reg_kernels_func"]).compute_inline();
+            Func(deps["reg_kernel_weights_im"]).compute_inline();
+            Func(deps["reg_kernel_weights_func"]).compute_inline();
+            Func(deps["r"]).compute_inline();
+            //Func(deps["A^TAp"]).compute_inline();
+            Func(deps["d_next_xrp_im"]).compute_inline();
+            Func(deps["next_xrp_3_d_def__"]).compute_inline();
+            Func(deps["repeat_edge$1"]).compute_inline();
+            Func(deps["next_xrp_3_d_def___ce"]).compute_inline();
+            Func(deps["next_p_0_d_def__"]).compute_inline();
+            Func(deps["repeat_edge$4"]).compute_inline();
+            Func(deps["next_p_0_d_def___ce"]).compute_inline();
+            Func(deps["next_r"]).compute_inline();
+            Func(deps["next_xrp_2_d_def__$1"]).compute_inline();
+            //Func(deps["next_r_0_d_def__"]).compute_inline();
+            //Func(deps["repeat_edge$7"]).compute_inline();
+            //Func(deps["next_r_0_d_def___ce"]).compute_inline();
+            //Func(deps["next_xrp_1_d_def__$1"]).compute_inline();
+            //Func(deps["next_x_0_d_def__"]).compute_inline();
+            //Func(deps["repeat_edge$2"]).compute_inline(); 
+            //Func(deps["next_x_0_d_def___ce"]).compute_inline();
         }
     }
 };

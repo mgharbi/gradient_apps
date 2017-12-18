@@ -126,26 +126,27 @@ public:
             auto d_rKw_r0 = d_rKw.rvars(0);
             auto d_rKw_r1 = d_rKw.rvars(1);
 
-            RVar rxo("rxo"), ryo("ryo"), rxi("rxi"), ryi("ryi");
-            Var ryo_f("ryo_f"), ryi_f("ryi_f");
-            d_rKw.update(0)
-                 .split(d_rKw_r0[0], rxo, rxi, tile_width)
-                 .split(d_rKw_r0[1], ryo, ryi, tile_height);
+            Var xy("xy"), xyn("xyn");
+            RVar rxo("rxo"), rxi("rxi");
+            Var rxo_f("ryo_f"), rxi_f("ryi_f");
+            d_rKw.compute_root()
+                 .update(0)
+                 .split(d_rKw_r0[0], rxo, rxi, tile_width);
             Func d_rKw0_ryo = d_rKw.update()
-                                   .rfactor({{ryo, ryo_f}, {ryi, ryi_f}});
-            d_rKw0_ryo.compute_at(d_rKw, x)
-                      .update()
-                      .parallel(ryo_f)
-                      .vectorize(ryi_f, 16);
+                                   .rfactor({{rxo, rxo_f}});
             d_rKw.update(1)
-                 .split(d_rKw_r1[0], rxo, rxi, tile_width)
-                 .split(d_rKw_r1[1], ryo, ryi, tile_height);
+                 .split(d_rKw_r1[0], rxo, rxi, tile_width);
             Func d_rKw1_ryo = d_rKw.update(1)
-                                   .rfactor({{ryo, ryo_f}, {ryi, ryi_f}});
-            d_rKw1_ryo.compute_at(d_rKw, x)
-                      .update()
-                      .parallel(ryo_f)
-                      .vectorize(ryi_f, 16);
+                                   .rfactor({{rxo, rxo_f}});
+
+            d_rKw.update(0)
+                 .fuse(x, y, xy)
+                 .fuse(xy, n, xyn)
+                 .parallel(xyn);
+            d_rKw.update(1)
+                 .fuse(x, y, xy)
+                 .fuse(xy, n, xyn)
+                 .parallel(xyn);
         }
     }
 };
