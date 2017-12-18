@@ -314,8 +314,8 @@ class DeconvCGInit(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, blurred, x0, kernel, reg_kernel_weights, reg_kernels):
-    ctx.save_for_backward(blurred, x0, kernel, reg_kernel_weights, reg_kernels)
+  def forward(ctx, blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels):
+    ctx.save_for_backward(blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels)
 
     xrp = blurred.new()
     b, ci, h, w = blurred.shape
@@ -323,30 +323,34 @@ class DeconvCGInit(Function):
 
     xrp.resize_(3, ci, h, w)
     ops.deconv_cg_init_forward(
-        blurred.view(ci, h, w), x0.view(ci, h, w), kernel, reg_kernel_weights, reg_kernels, xrp)
+        blurred.view(ci, h, w), x0.view(ci, h, w), kernel, reg_kernel_weights, reg_kernels, reg_target_kernels, xrp)
 
     return xrp
 
   @staticmethod
   def backward(ctx, d_xrp):
-    blurred, x0, kernel, reg_kernel_weights, reg_kernels = ctx.saved_variables
+    blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels = ctx.saved_variables
 
     d_reg_kernel_weights = reg_kernel_weights.data.new()
     d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
+    d_reg_target_kernels = reg_target_kernels.data.new()
+    d_reg_target_kernels.resize_as_(reg_target_kernels.data)
 
     b, ci, h, w = blurred.shape
     assert b == 1
 
     ops.deconv_cg_init_backward(
-        blurred.data.view(ci, h, w), x0.data, kernel.data, reg_kernel_weights.data, reg_kernels.data, d_xrp.data,
-        d_reg_kernel_weights, d_reg_kernels)
+        blurred.data.view(ci, h, w), x0.data, kernel.data,
+        reg_kernel_weights.data, reg_kernels.data, reg_target_kernels.data, d_xrp.data,
+        d_reg_kernel_weights, d_reg_kernels, d_reg_target_kernels)
 
     d_reg_kernel_weights = Variable(d_reg_kernel_weights)
     d_reg_kernels = Variable(d_reg_kernels)
+    d_reg_target_kernels = Variable(d_reg_target_kernels)
 
-    return None, None, None, d_reg_kernel_weights, d_reg_kernels
+    return None, None, None, d_reg_kernel_weights, d_reg_kernels, d_reg_target_kernels
 
 class DeconvCGIter(Function):
   """"""

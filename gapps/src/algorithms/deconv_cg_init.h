@@ -14,7 +14,8 @@ std::map<std::string, Func> deconv_cg_init(
         const Input &x0,
         const Input &kernel,
         const Input &reg_kernel_weights,
-        const Input &reg_kernels) {
+        const Input &reg_kernels,
+        const Input &reg_target_kernels) {
     // Initializing conjugate gradient
     // Want to solve A^TAx = A^Tb
     // A -> correlation with kernel
@@ -24,6 +25,8 @@ std::map<std::string, Func> deconv_cg_init(
     reg_kernel_weights_func(n) = reg_kernel_weights(n);
     Func reg_kernels_func("reg_kernels_func");
     reg_kernels_func(x, y, n) = reg_kernels(x, y, n);
+    Func reg_target_kernels_func("reg_target_kernel_func");
+    reg_target_kernels_func(x, y, n) = reg_target_kernels(x, y, n);
     RDom r_kernel(kernel);
     Func clamped_b = BoundaryConditions::repeat_edge(blurred);
     Func clamped_x0 = BoundaryConditions::repeat_edge(x0);
@@ -36,8 +39,19 @@ std::map<std::string, Func> deconv_cg_init(
                            kernel.height() - r_kernel.y - 1);
     RDom r_reg_kernel_xy(0, reg_kernels.width(), 0, reg_kernels.height());
     RDom r_reg_kernel_z(0, reg_kernels.channels());
+    Func rKTb("rK^Tb");
+    rKTb(x, y, c, n) = 0.f;
+    rKTb(x, y, c, n) += clamped_b(x + r_reg_kernel_xy.x - reg_kernels.width()  / 2,
+                                  y + r_reg_kernel_xy.y - reg_kernels.height() / 2,
+                                  c) *
+                        reg_target_kernels_func(r_reg_kernel_xy.x,
+                                                r_reg_kernel_xy.y,
+                                                n);
     Func ATb("A^Tb");
     ATb(x, y, c) = KTb(x, y, c);
+    ATb(x, y, c) += rKTb(x, y, c, r_reg_kernel_z.x) *
+                    reg_kernel_weights_func(r_reg_kernel_z.x) *
+                    reg_kernel_weights_func(r_reg_kernel_z.x);
 
     Func Kx0("Kx0");
     Kx0(x, y, c)  = 0.f;
@@ -87,7 +101,9 @@ std::map<std::string, Func> deconv_cg_init(
     std::map<std::string, Func> func_map;
     func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
     func_map["reg_kernels_func"] = reg_kernels_func;
+    func_map["reg_target_kernels_func"] = reg_target_kernels_func;
     func_map["KTb"] = KTb;
+    func_map["rKTb"] = rKTb;
     func_map["ATb"] = ATb;
     func_map["Kx0"] = Kx0;
     func_map["KTKx0"] = KTKx0;
@@ -99,3 +115,4 @@ std::map<std::string, Func> deconv_cg_init(
     func_map["xrp"] = xrp;
     return func_map;
 }
+

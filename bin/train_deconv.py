@@ -70,7 +70,7 @@ class DeconvCallback(object):
     reg_kernel = self.model.reg_kernels.data.cpu().numpy()
     n_reg_kernel = reg_kernel - np.min(reg_kernel)
     n_reg_kernel /= (np.max(reg_kernel) - np.min(reg_kernel))
-    return n_reg_kernel
+    return n_reg_kernel[0:1, :, :]
 
   def on_epoch_begin(self, epoch):
     self.current_epoch = epoch
@@ -89,7 +89,8 @@ class DeconvCallback(object):
     psf_batch = self._get_psf_batch()
     self.psf_viz.update(psf_batch, per_row=self.val_loader.batch_size,
                         caption="PSF")
-    self.reg_kernel_viz.update(self._get_reg_kernel(), caption="Regularization kernel")
+    self.reg_kernel_viz.update(self._get_reg_kernel(), per_row=self.model.reg_kernels.shape[0],
+                               caption="Regularization kernel")
     self.reg_kernel_weight_viz.update(epoch, self.model.reg_kernel_weights.data[0])
 
   def on_batch_end(self, batch, logs):
@@ -212,7 +213,7 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="images/filelist.txt")
   parser.add_argument("--val_dataset", default="images/filelist.txt")
   parser.add_argument("--output", default="output/deconv")
-  parser.add_argument("--lr", type=float, default=1e-4)
+  parser.add_argument("--lr", type=float, default=1e-2)
   parser.add_argument("--num_epochs", type=int, default=10000)
   parser.add_argument("--cuda", type=bool, default=False)
   parser.add_argument("--batch_size", type=int, default=1)

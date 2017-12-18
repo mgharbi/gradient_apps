@@ -12,15 +12,18 @@ public:
     Input<Buffer<float>>  kernel{"kernel", 2};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
+    Input<Buffer<float>>  reg_target_kernels{"reg_target_kernels", 3};
     Input<Buffer<float>>  d_xrp{"d_xrp", 4};
     Output<Buffer<float>> d_reg_kernel_weights{"d_reg_kernel_weights", 1};
     Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
+    Output<Buffer<float>> d_reg_target_kernels{"d_reg_target_kernels", 3};
 
     void generate() {
-        auto func_map = deconv_cg_init(blurred, x0, kernel, reg_kernel_weights, reg_kernels);
+        auto func_map = deconv_cg_init(blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels);
         Func xrp = func_map["xrp"];
         Func reg_kernel_weights_func = func_map["reg_kernel_weights_func"];
         Func reg_kernels_func = func_map["reg_kernels_func"];
+        Func reg_target_kernels_func = func_map["reg_target_kernels_func"];
         Derivative d = propagate_adjoints(
             xrp,
             d_xrp,
@@ -39,6 +42,12 @@ public:
             d_reg_kernels(x, y, n) = adjoints[FuncKey{reg_kernels_func.name(), -1}](x, y, n);
         } else {
             d_reg_kernels(x, y, n) = 0.f;
+        }
+        if (adjoints.find(FuncKey{reg_target_kernels_func.name(), -1}) != adjoints.end()) {
+            d_reg_target_kernels(x, y, n) = adjoints[FuncKey{reg_kernels_func.name(), -1}](x, y, n);
+        } else {
+            assert(false);
+            d_reg_target_kernels(x, y, n) = 0.f;
         }
 
         if (auto_schedule) {
@@ -100,6 +109,11 @@ public:
                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
                .parallel(yo)
                .vectorize(xi, 16);
+            Func rKTb = func_map["rKTb"];
+            rKTb.update()
+                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
+                .parallel(yo)
+                .vectorize(xi, 16);
 
             auto deps = get_deps({d_reg_kernel_weights, d_reg_kernels});
             Func d_rKx0_1 = Func(deps["rKx0_1_d_def__"]);
@@ -132,7 +146,6 @@ public:
                       .update()
                       .parallel(ryo_f)
                       .vectorize(ryi_f, 16);
-
         }
     }
 };

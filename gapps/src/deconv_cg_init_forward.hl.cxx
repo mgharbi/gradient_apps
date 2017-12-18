@@ -12,10 +12,11 @@ public:
     Input<Buffer<float>>  kernel{"kernel", 2};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
+    Input<Buffer<float>>  reg_target_kernels{"reg_target_kernels", 3};
     Output<Buffer<float>> xrp{"xrp", 4};
 
     void generate() {
-        auto func_map = deconv_cg_init(blurred, x0, kernel, reg_kernel_weights, reg_kernels);
+        auto func_map = deconv_cg_init(blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels);
         assert(func_map.find("xrp") != func_map.end());
         xrp(x, y, c, n) = func_map["xrp"](x, y, c, n);
 
@@ -71,6 +72,12 @@ public:
                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
                .parallel(yo)
                .vectorize(xi, 16);
+            Func rKTb = func_map["rKTb"];
+            rKTb.update()
+                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
+                .parallel(yo)
+                .vectorize(xi, 16);
+
         }
     }
 };

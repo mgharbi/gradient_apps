@@ -90,26 +90,28 @@ class LearnableDemosaick(nn.Module):
 
 
 class DeconvCG(nn.Module):
-  def __init__(self, reg_kernel_size=5, num_reg_kernels=1):
+  def __init__(self, reg_kernel_size=5, num_reg_kernels=5):
     super(DeconvCG, self).__init__()
 
     self.reg_kernels = nn.Parameter(th.zeros(num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_kernel_weights = nn.Parameter(th.zeros(num_reg_kernels))
+    self.reg_target_kernels = nn.Parameter(th.zeros(num_reg_kernels, reg_kernel_size, reg_kernel_size))
 
     assert reg_kernel_size % 2 == 1
 
-    self.reg_kernels.data.normal_(0, 0.05)
-    self.reg_kernel_weights.data.normal_(0, 0.01)
+    self.reg_kernels.data.normal_(0, 0.01)
+    self.reg_kernel_weights.data.normal_(0.5, 0.01)
+    self.reg_target_kernels.data.normal_(0, 0.01)
 
     #self.reg_kernels.data[0, 2, 2] += -1.0
     #self.reg_kernels.data[0, 3, 2] += 1.0
     #self.reg_kernels.data[0, 2, 2] += -1.0
     #self.reg_kernels.data[0, 2, 3] += 1.0
 
-    self.reg_kernel_weights.data[0] += 1.0
+    #self.reg_kernel_weights.data[0] += 1.0
 
   def forward(self, image, kernel):
-    xrp = funcs.DeconvCGInit.apply(image, image, kernel, self.reg_kernel_weights, self.reg_kernels)
+    xrp = funcs.DeconvCGInit.apply(image, image, kernel, self.reg_kernel_weights, self.reg_kernels, self.reg_target_kernels)
     # print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
     for it in range(50):
       xrp = funcs.DeconvCGIter.apply(xrp, kernel, self.reg_kernel_weights, self.reg_kernels)
