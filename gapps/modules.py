@@ -98,13 +98,13 @@ class DeconvCG(nn.Module):
 
     assert reg_kernel_size % 2 == 1
 
-    self.reg_kernels.data.normal_(0, 0.01)
+    self.reg_kernels.data.normal_(0, 0.05)
     self.reg_kernel_weights.data.normal_(0, 0.01)
 
-    self.reg_kernels.data[0, 1, 1] += -1.0
-    self.reg_kernels.data[0, 2, 1] += 1.0
-    self.reg_kernels.data[0, 1, 1] += -1.0
-    self.reg_kernels.data[0, 1, 2] += 1.0
+    #self.reg_kernels.data[0, 2, 2] += -1.0
+    #self.reg_kernels.data[0, 3, 2] += 1.0
+    #self.reg_kernels.data[0, 2, 2] += -1.0
+    #self.reg_kernels.data[0, 2, 3] += 1.0
 
     self.reg_kernel_weights.data[0] += 1.0
 
@@ -113,7 +113,9 @@ class DeconvCG(nn.Module):
     # print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
     for it in range(50):
       xrp = funcs.DeconvCGIter.apply(xrp, kernel, self.reg_kernel_weights, self.reg_kernels)
-      # print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
+      r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
+      if r < 1e-10:
+          break
     return xrp[0, :, :, :]
 
 # class CG(nn.Module):

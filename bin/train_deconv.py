@@ -36,6 +36,8 @@ class DeconvCallback(object):
 
     self.viz = viz.BatchVisualizer("deconv", port=viz_port, env=env)
     self.psf_viz = viz.BatchVisualizer("psf", port=viz_port, env=env)
+    self.reg_kernel_viz = viz.BatchVisualizer("reg_kernel", port=viz_port, env=env)
+    self.reg_kernel_weight_viz = viz.ScalarVisualizer("reg_kernel_weight", port=viz_port, env=env)
 
     self.loss_viz = viz.ScalarVisualizer("loss", port=viz_port, env=env)
     self.psnr_viz = viz.ScalarVisualizer("psnr", port=viz_port, env=env)
@@ -64,6 +66,12 @@ class DeconvCallback(object):
       psf = b[2].cpu().numpy()
       return psf / (np.max(psf) - np.min(psf))
 
+  def _get_reg_kernel(self):
+    reg_kernel = self.model.reg_kernels.data.cpu().numpy()
+    n_reg_kernel = reg_kernel - np.min(reg_kernel)
+    n_reg_kernel /= (np.max(reg_kernel) - np.min(reg_kernel))
+    return n_reg_kernel
+
   def on_epoch_begin(self, epoch):
     self.current_epoch = epoch
     #print(self.model.reg_kernels)
@@ -81,6 +89,8 @@ class DeconvCallback(object):
     psf_batch = self._get_psf_batch()
     self.psf_viz.update(psf_batch, per_row=self.val_loader.batch_size,
                         caption="PSF")
+    self.reg_kernel_viz.update(self._get_reg_kernel(), caption="Regularization kernel")
+    self.reg_kernel_weight_viz.update(epoch, self.model.reg_kernel_weights.data[0])
 
   def on_batch_end(self, batch, logs):
     frac = self.current_epoch + batch*1.0/self.num_batches
@@ -119,8 +129,10 @@ def main(args):
 
   smooth_loss = 0
   smooth_psnr = 0
-  #ema = 0.9
-  ema = 0.0
+  smooth_val_loss = 0
+  smooth_val_psnr = 0
+  ema = 0.9
+  #ema = 0.0
   for epoch in range(args.num_epochs):
     # Training
     model.train(True)
@@ -184,7 +196,11 @@ def main(args):
 
       total_loss /= n_seen
       total_psnr /= n_seen
-      logs = {"loss": total_loss, "psnr": total_psnr}
+
+      smooth_val_loss = ema*smooth_val_loss + (1-ema)*total_loss
+      smooth_val_psnr = ema*smooth_val_psnr + (1-ema)*total_psnr
+
+      logs = {"loss": smooth_val_loss, "psnr": smooth_val_psnr}
       pbar.set_postfix(logs)
       callback.on_epoch_end(epoch, logs)
 

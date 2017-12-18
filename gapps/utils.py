@@ -47,9 +47,10 @@ def sample_trajectory(psf_size):
     x[t + 1] = x[t] + v
 
   # centere the motion
-  x += complex(real=-np.min(x.real), imag=-np.min(x.imag))
-  x.real *= (psf_size / (np.max(x.real) - np.min(x.real)))
-  x.imag *= (psf_size / (np.max(x.imag) - np.min(x.imag)))
+  border = 4.0 / psf_size
+  x.real *= ((psf_size - border) / (np.max(x.real) - np.min(x.real)))
+  x.imag *= ((psf_size - border) / (np.max(x.imag) - np.min(x.imag)))
+  x += complex(real=-np.min(x.real) + 0.5 * border, imag=-np.min(x.imag) + 0.5 * border)
 
   return x
 

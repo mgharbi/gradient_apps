@@ -28,13 +28,15 @@ class DeconvDataset(Dataset):
     reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
     reference = reference.astype(np.float32)/255.0
 
+    kernel_size = 11
+    crop_size = [240 + kernel_size, 320 + kernel_size]
     # Randomly choose a 324x244 crop
     reference_size = reference.shape
-    left_top = [random.randint(0, reference_size[0] - 245),
-                random.randint(0, reference_size[1] - 325)]
-    left_top = [0, 0]
-    reference = reference[left_top[0]:left_top[0]+244,
-                          left_top[1]:left_top[1]+324,
+    left_top = [random.randint(0, reference_size[0] - crop_size[0]),
+                random.randint(0, reference_size[1] - crop_size[1])]
+    # left_top = [0, 0]
+    reference = reference[left_top[0]:left_top[0]+crop_size[0]-1,
+                          left_top[1]:left_top[1]+crop_size[1]-1,
                           :]
 
     psf = utils.sample_psf(11)
@@ -43,8 +45,9 @@ class DeconvDataset(Dataset):
     blurred = blurred.transpose((2, 0, 1))
 
     # Drop the boundaries
-    blurred = blurred[:, 2 : 2 + 240, 2 : 2 + 320]
-    reference = reference[:, 2 : 2 + 240, 2 : 2 + 320]
+    r = int(kernel_size/2)
+    blurred = blurred[:, r : crop_size[0] - r, r : crop_size[1] - r]
+    reference = reference[:, r : crop_size[0] - r, r : crop_size[1] - r]
 
     return blurred, reference, psf
 
