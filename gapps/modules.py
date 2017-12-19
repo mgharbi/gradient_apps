@@ -96,12 +96,14 @@ class DeconvCG(nn.Module):
     self.reg_kernels = nn.Parameter(th.zeros(num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_kernel_weights = nn.Parameter(th.zeros(num_reg_kernels))
     self.reg_target_kernels = nn.Parameter(th.zeros(num_reg_kernels, reg_kernel_size, reg_kernel_size))
+    self.reg_powers = nn.Parameter(th.zeros(num_reg_kernels))
 
     assert reg_kernel_size % 2 == 1
 
     self.reg_kernels.data.normal_(0, 0.01)
     self.reg_kernel_weights.data.normal_(0.5, 0.01)
     self.reg_target_kernels.data.normal_(0, 0.01)
+    self.reg_powers.data += 2.0
 
     #self.reg_kernels.data[0, 2, 2] += -1.0
     #self.reg_kernels.data[0, 3, 2] += 1.0
@@ -110,19 +112,25 @@ class DeconvCG(nn.Module):
 
     #self.reg_kernel_weights.data[0] += 1.0
 
-  def forward(self, image, kernel):
-    w_kernel = Variable(th.ones(image.shape[1], image.shape[2], image.shape[3]))
-    w_reg_kernels = Variable(th.ones(self.reg_kernels.shape[0], image.shape[1], image.shape[2], image.shape[3]))
-    xrp = funcs.DeconvCGInit.apply(image, image, kernel,
-            self.reg_kernel_weights, self.reg_kernels, self.reg_target_kernels, w_kernel, w_reg_kernels)
-    # print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
-    for it in range(50):
-      xrp = funcs.DeconvCGIter.apply(xrp, kernel,
-              self.reg_kernel_weights, self.reg_kernels, w_kernel, w_reg_kernels)
-      r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
-      if r < 1e-10:
-          break
-    return xrp[0, :, :, :]
+  def forward(self, blurred, kernel, num_irls_iter, num_cg_iter):
+    w_kernel = Variable(th.ones(blurred.shape[1], blurred.shape[2], blurred.shape[3]))
+    w_reg_kernels = Variable(
+      th.ones(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]))
+    x0 = blurred
+    for irls_it in range(num_irls_iter):
+      xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
+              self.reg_kernel_weights, self.reg_kernels, self.reg_target_kernels, w_kernel, w_reg_kernels)
+      # print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
+      for cg_it in range(num_cg_iter):
+        xrp = funcs.DeconvCGIter.apply(xrp, kernel,
+                self.reg_kernel_weights, self.reg_kernels, w_kernel, w_reg_kernels)
+        r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
+        if r < 1e-10:
+            break
+      x0 = xrp[0, :, :, :]
+      w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x0,
+        self.reg_kernels, self.reg_target_kernels, self.reg_powers)
+    return x0
 
 # class CG(nn.Module):
 #   def forward(self, A, b):

@@ -98,7 +98,7 @@ void assign_gradient(std::map<FuncKey, Func> &adjoints,
     if (adjoints.find(FuncKey{func.name(), -1}) != adjoints.end()) {
         output(_) = adjoints[FuncKey{func.name(), -1}](_);
     } else {
-        std::cerr << "func.name()" << func.name() << std::endl;
+        std::cerr << "func.name():" << func.name() << std::endl;
         assert(false);
         output(_) = 0.f;
     }

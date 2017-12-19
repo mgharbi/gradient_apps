@@ -418,3 +418,47 @@ class DeconvCGIter(Function):
 
     return d_xrp, None, d_reg_kernel_weights, d_reg_kernels, d_w_kernel, d_w_reg_kernels
 
+class DeconvCGWeight(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, blurred, current, reg_kernels, reg_target_kernels, reg_powers):
+    ctx.save_for_backward(blurred, current, reg_kernels, reg_target_kernels, reg_powers)
+
+    weights = blurred.new()
+    b, ci, h, w = blurred.shape
+    n, = reg_powers.shape
+    assert b == 1
+    assert ci == 3
+
+    weights.resize_(n, ci, h, w)
+    ops.deconv_cg_weight_forward(
+        blurred, current, reg_kernels, reg_target_kernels, reg_powers, weights)
+
+    return weights
+
+  @staticmethod
+  def backward(ctx, d_weights):
+    blurred, current, reg_kernels, reg_target_kernels, reg_powers = ctx.saved_variables
+
+    d_current = current.data.new()
+    d_current.resize_as_(current.data)
+    d_reg_kernels = reg_kernels.data.new()
+    d_reg_kernels.resize_as_(reg_kernels.data)
+    d_reg_target_kernels = reg_target_kernels.data.new()
+    d_reg_target_kernels.resize_as_(reg_target_kernels.data)
+    d_reg_powers = reg_powers.data.new()
+    d_reg_powers.resize_as_(reg_powers.data)
+
+    ops.deconv_cg_weight_backward(
+        blurred.data, current.data, reg_kernels.data,
+        reg_target_kernels.data, reg_powers.data, d_weights.data,
+        d_current, d_reg_kernels, d_reg_target_kernels, d_reg_powers)
+
+    d_current = Variable(d_current)
+    d_reg_kernels = Variable(d_reg_kernels)
+    d_reg_target_kernels = Variable(d_reg_target_kernels)
+    d_reg_powers = Variable(d_reg_powers)
+
+    return None, d_current, d_reg_kernels, d_reg_target_kernels, d_reg_powers
+

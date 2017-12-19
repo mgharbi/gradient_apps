@@ -348,7 +348,7 @@ def _profile_deconv_cg(gpu=False):
   print("profiling")
   with profiler.profile() as prof:
     for i in range(1):
-      y = op(x, kernel)
+      y = op(x, kernel, 5, 10)
       loss = y.sum()
       loss.backward()
   print(prof)

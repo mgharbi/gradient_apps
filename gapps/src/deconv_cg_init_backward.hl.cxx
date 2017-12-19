@@ -131,7 +131,7 @@ public:
 
             Var xy("xy"), xyn("xyn");
             RVar rxo("rxo"), rxi("rxi");
-            Var rxi_f("ryi_f");
+            Var rxi_f("rxi_f");
             d_rKw.compute_root()
                  .update(0)
                  .split(d_rKw_r0[0], rxo, rxi, 16);
@@ -165,7 +165,7 @@ public:
             d_rtk.compute_root()
                  .update(0)
                  .split(d_rtk_r0[0], rxo, rxi, 16);
-            Func d_rtk_ryo = d_rtk.update()
+            Func d_rtk_rxo = d_rtk.update()
                                   .rfactor({{rxi, rxi_f}});
 
             d_rtk.update(0)
@@ -173,7 +173,7 @@ public:
                  .fuse(xy, n, xyn)
                  .parallel(xyn);
 
-            d_rtk_ryo.compute_at(d_rtk, xyn)
+            d_rtk_rxo.compute_at(d_rtk, xyn)
                      .update()
                      .vectorize(rxi_f, 16);
 
@@ -186,38 +186,6 @@ public:
             d_wrkb.update()
                   .parallel(y)
                   .vectorize(x, 16);
-#if 0
-            Func d_rKx0_1 = Func(deps["rKx0_1_d_def__"]);
-            d_rKx0_1.update()
-                    .parallel(y)
-                    .vectorize(x, 16);
-
-            Func d_rKw = Func(deps["reg_kernels_func_0_d_def__"]);
-            auto d_rKw_r0 = d_rKw.rvars(0);
-            auto d_rKw_r1 = d_rKw.rvars(1);
-
-            Var xy("xy"), xyn("xyn");
-            RVar rxo("rxo"), rxi("rxi");
-            Var rxo_f("ryo_f"), rxi_f("ryi_f");
-            d_rKw.compute_root()
-                 .update(0)
-                 .split(d_rKw_r0[0], rxo, rxi, tile_width);
-            Func d_rKw0_ryo = d_rKw.update()
-                                   .rfactor({{rxo, rxo_f}});
-            d_rKw.update(1)
-                 .split(d_rKw_r1[0], rxo, rxi, tile_width);
-            Func d_rKw1_ryo = d_rKw.update(1)
-                                   .rfactor({{rxo, rxo_f}});
-
-            d_rKw.update(0)
-                 .fuse(x, y, xy)
-                 .fuse(xy, n, xyn)
-                 .parallel(xyn);
-            d_rKw.update(1)
-                 .fuse(x, y, xy)
-                 .fuse(xy, n, xyn)
-                 .parallel(xyn);
-#endif
         }
     }
 };
