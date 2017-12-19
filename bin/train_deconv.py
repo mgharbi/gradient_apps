@@ -50,7 +50,7 @@ class DeconvCallback(object):
     for b in self.val_loader:
       batchv = Variable(b[0])
       psf = Variable(b[2])
-      out = self.model(batchv, psf)
+      out = self.model(batchv, psf, 5, 10)
       out = out.data.cpu().numpy()
 
       inp = b[0].cpu().numpy()
@@ -87,8 +87,9 @@ class DeconvCallback(object):
     self.viz.update(im_batch, per_row=self.val_loader.batch_size,
                     caption="input | gt | ours | ref | diff (x4)")
     psf_batch = self._get_psf_batch()
-    self.psf_viz.update(psf_batch, per_row=self.val_loader.batch_size,
-                        caption="PSF")
+    if (epoch % 10 == 0):
+      self.psf_viz.update(psf_batch, per_row=self.val_loader.batch_size,
+                          caption="PSF")
     self.reg_kernel_viz.update(self._get_reg_kernel(), per_row=self.model.reg_kernels.shape[0],
                                caption="Regularization kernel")
     self.reg_kernel_weight_viz.update(epoch, self.model.reg_kernel_weights.data[0])
@@ -151,7 +152,7 @@ def main(args):
           reference = reference.cuda()
           kernel = kernel.cuda()
 
-        output = model(blurred, kernel)
+        output = model(blurred, kernel, 5, 10)
 
         optimizer.zero_grad()
         loss = loss_fn(output, reference)
@@ -170,40 +171,41 @@ def main(args):
     model.train(False)
 
     # Validation
-    with tqdm(total=len(val_loader), unit=' batches') as pbar:
-      pbar.set_description("Epoch {}/{} (val)".format(epoch+1, args.num_epochs))
-      total_loss = 0
-      total_psnr = 0
-      n_seen = 0
-      for batch_id, batch in enumerate(val_loader):
-        blurred, reference, kernel = batch
-        blurred = Variable(blurred, requires_grad=False)
-        reference = Variable(reference, requires_grad=False)
-        kernel = Variable(kernel, requires_grad=False)
-
-        if args.cuda:
-          blurred = blurred.cuda()
-          reference = reference.cuda()
-          kernel = kernel.cuda()
-
-        output = model(blurred, kernel)
-        loss = loss_fn(output, reference)
-        psnr = psnr_fn(output, reference)
-
-        total_loss += loss.data[0]*args.batch_size
-        total_psnr += psnr.data[0]*args.batch_size
-        n_seen += args.batch_size
-        pbar.update(1)
-
-      total_loss /= n_seen
-      total_psnr /= n_seen
-
-      smooth_val_loss = ema*smooth_val_loss + (1-ema)*total_loss
-      smooth_val_psnr = ema*smooth_val_psnr + (1-ema)*total_psnr
-
-      logs = {"loss": smooth_val_loss, "psnr": smooth_val_psnr}
-      pbar.set_postfix(logs)
-      callback.on_epoch_end(epoch, logs)
+    if (epoch % 10 == 0):
+      with tqdm(total=len(val_loader), unit=' batches') as pbar:
+        pbar.set_description("Epoch {}/{} (val)".format(epoch+1, args.num_epochs))
+        total_loss = 0
+        total_psnr = 0
+        n_seen = 0
+        for batch_id, batch in enumerate(val_loader):
+          blurred, reference, kernel = batch
+          blurred = Variable(blurred, requires_grad=False)
+          reference = Variable(reference, requires_grad=False)
+          kernel = Variable(kernel, requires_grad=False)
+  
+          if args.cuda:
+            blurred = blurred.cuda()
+            reference = reference.cuda()
+            kernel = kernel.cuda()
+  
+          output = model(blurred, kernel, 10, 25)
+          loss = loss_fn(output, reference)
+          psnr = psnr_fn(output, reference)
+  
+          total_loss += loss.data[0]*args.batch_size
+          total_psnr += psnr.data[0]*args.batch_size
+          n_seen += args.batch_size
+          pbar.update(1)
+  
+        total_loss /= n_seen
+        total_psnr /= n_seen
+  
+        smooth_val_loss = ema*smooth_val_loss + (1-ema)*total_loss
+        smooth_val_psnr = ema*smooth_val_psnr + (1-ema)*total_psnr
+  
+        logs = {"loss": smooth_val_loss, "psnr": smooth_val_psnr}
+        pbar.set_postfix(logs)
+        callback.on_epoch_end(epoch, logs)
 
     # save
     checkpointer.on_epoch_end(epoch)
@@ -213,7 +215,7 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="images/filelist.txt")
   parser.add_argument("--val_dataset", default="images/filelist.txt")
   parser.add_argument("--output", default="output/deconv")
-  parser.add_argument("--lr", type=float, default=1e-2)
+  parser.add_argument("--lr", type=float, default=1e-3)
   parser.add_argument("--num_epochs", type=int, default=10000)
   parser.add_argument("--cuda", type=bool, default=False)
   parser.add_argument("--batch_size", type=int, default=1)

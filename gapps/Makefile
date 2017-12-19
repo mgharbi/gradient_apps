@@ -1,4 +1,4 @@
-TORCH_INC ?= `python -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
+TORCH_INC ?= `python3 -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
 HALIDE_DIR ?=
 AUTO_SCHEDULE = false
 BUILD_TYPE ?= release
@@ -60,7 +60,7 @@ CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
 _ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS)
 	@echo Python CFFI wrapper
-	@python build.py
+	@python3 build.py
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	@echo Op $(subst $(BUILD_DIR)/,, $@)
