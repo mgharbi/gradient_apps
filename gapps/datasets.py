@@ -39,7 +39,7 @@ class DeconvDataset(Dataset):
                           left_top[1]:left_top[1]+crop_size[1]-1,
                           :]
 
-    psf = utils.sample_psf(11)
+    psf = utils.sample_psf(kernel_size)
     blurred = utils.make_blur(reference, psf)
     reference = reference.transpose((2, 0, 1))
     blurred = blurred.transpose((2, 0, 1))

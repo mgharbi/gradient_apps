@@ -13,10 +13,14 @@ public:
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
     Input<Buffer<float>>  reg_target_kernels{"reg_target_kernels", 3};
+    Input<Buffer<float>>  w_kernel{"w_kernel", 3};
+    Input<Buffer<float>>  w_reg_kernels{"w_reg_kernels", 4};
     Output<Buffer<float>> xrp{"xrp", 4};
 
     void generate() {
-        auto func_map = deconv_cg_init(blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels);
+        auto func_map = deconv_cg_init(blurred, x0, kernel,
+            reg_kernel_weights, reg_kernels, reg_target_kernels,
+            w_kernel, w_reg_kernels);
         assert(func_map.find("xrp") != func_map.end());
         xrp(x, y, c, n) = func_map["xrp"](x, y, c, n);
 
@@ -43,41 +47,32 @@ public:
                .estimate(c, 0, 3)
                .estimate(n, 0, 3);
         } else {
-            int tile_width = 64, tile_height = 16;
-
-            Var xi("xi"), yi("yi"), xo("xo"), yo("yo");
+            auto func_map = get_deps(xrp);
             compute_all_root(xrp);
-            Func Kx0 = func_map["Kx0"];
+            Func Kx0 = Func(func_map["Kx0"]);
             Kx0.update()
-               .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-               .parallel(yo)
-               .vectorize(xi, 16);
-            Func KTKx0 = func_map["KTKx0"];
-            KTKx0.update()
-                 .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                 .parallel(yo)
-                 .vectorize(xi, 16);
-            Func rKx0 = func_map["rKx0"];
+               .parallel(y)
+               .vectorize(x, 16);
+            Func KTWKx0 = Func(func_map["K^TWKx0"]);
+            KTWKx0.update()
+                  .parallel(y)
+                  .vectorize(x, 16);
+            Func rKx0 = Func(func_map["rKx0"]);
             rKx0.update()
-                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                .parallel(yo)
-                .vectorize(xi, 16);
-            Func rKTrKx0 = func_map["rKTrKx0"];
-            rKTrKx0.update()
-                   .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                   .parallel(yo)
-                   .vectorize(xi, 16);
-            Func KTb = func_map["KTb"];
-            KTb.update()
-               .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-               .parallel(yo)
-               .vectorize(xi, 16);
-            Func rKTb = func_map["rKTb"];
-            rKTb.update()
-                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                .parallel(yo)
-                .vectorize(xi, 16);
-
+                .parallel(y)
+                .vectorize(x, 16);
+            Func rKTWrKx0 = Func(func_map["rK^TWrKx0"]);
+            rKTWrKx0.update()
+                    .parallel(y)
+                    .vectorize(x, 16);
+            Func KTWb = Func(func_map["K^TWb"]);
+            KTWb.update()
+                .parallel(y)
+                .vectorize(x, 16);
+            Func rKTWb = Func(func_map["rK^TWb"]);
+            rKTWb.update()
+                 .parallel(y)
+                 .vectorize(x, 16);
         }
     }
 };

@@ -84,7 +84,7 @@ def sample_psf(psf_size):
   # For now return a box kernel
   # return np.ones([kernel_size, kernel_size], dtype=np.float32) / float(kernel_size * kernel_size)
 
-def make_blur(ref, kernel, stddev = 0.05):
+def make_blur(ref, kernel, stddev = 0.01):
   blurred = correlate(ref, np.reshape(kernel, [kernel.shape[0], kernel.shape[1], 1]))
   blurred += np.random.normal(scale = stddev, size = blurred.shape)
   return blurred

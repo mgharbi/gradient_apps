@@ -11,10 +11,13 @@ public:
     Input<Buffer<float>>  kernel{"kernel", 2};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
+    Input<Buffer<float>>  w_kernel{"w_kernel", 3};
+    Input<Buffer<float>>  w_reg_kernels{"w_reg_kernels", 4};
     Output<Buffer<float>> next_xrp{"next_xrp", 4};
 
     void generate() {
-        auto func_map = deconv_cg_iter(xrp, kernel, reg_kernel_weights, reg_kernels);
+        auto func_map = deconv_cg_iter(xrp, kernel,
+            reg_kernel_weights, reg_kernels, w_kernel, w_reg_kernels);
         next_xrp(x, y, c, n) = func_map["next_xrp"](x, y, c, n);
 
         if (auto_schedule) {
@@ -37,30 +40,24 @@ public:
                     .estimate(c, 0, 3)
                     .estimate(n, 0, 3);
         } else {
-            //Var xi("xi"), xo("xo"), yi("yi"), yo("yo");
-            int tile_width = 64, tile_height = 16;
+            auto func_map = get_deps(next_xrp);
             compute_all_root(next_xrp);
-            Var xi("xi"), yi("yi"), xo("xo"), yo("yo");
-            Func Kp = func_map["Kp"];
+            Func Kp = Func(func_map["Kp"]);
             Kp.update()
-              .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-              .parallel(yo)
-              .vectorize(xi, 16);
-            Func KTKp = func_map["KTKp"];
-            KTKp.update()
-                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                .parallel(yo)
-                .vectorize(xi, 16);
-            Func rKp = func_map["rKp"];
+              .parallel(y)
+              .vectorize(x, 16);
+            Func KTWKp = Func(func_map["K^TWKp"]);
+            KTWKp.update()
+                 .parallel(y)
+                 .vectorize(x, 16);
+            Func rKp = Func(func_map["rKp"]);
             rKp.update()
-               .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-               .parallel(yo)
-               .vectorize(xi, 16);
-            Func rKTrKp = func_map["rKTrKp"];
-            rKTrKp.update()
-                  .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                  .parallel(yo)
-                  .vectorize(xi, 16);
+               .parallel(y)
+               .vectorize(x, 16);
+            Func rKTWrKp = Func(func_map["rK^TWrKp"]);
+            rKTWrKp.update()
+                   .parallel(y)
+                   .vectorize(x, 16);
         }
     }
 };

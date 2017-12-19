@@ -91,4 +91,17 @@ void print_adjoints(std::map<FuncKey, Func> adjoints) {
   }
 }
 
+template <typename Output>
+void assign_gradient(std::map<FuncKey, Func> &adjoints,
+                     const Func &func,
+                     Output &output) {
+    if (adjoints.find(FuncKey{func.name(), -1}) != adjoints.end()) {
+        output(_) = adjoints[FuncKey{func.name(), -1}](_);
+    } else {
+        std::cerr << "func.name()" << func.name() << std::endl;
+        assert(false);
+        output(_) = 0.f;
+    }
+}
+
 #endif /* end of include guard: GRADIENT_HELPERS_H_FSA3FYYR */

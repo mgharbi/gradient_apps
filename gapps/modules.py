@@ -111,10 +111,14 @@ class DeconvCG(nn.Module):
     #self.reg_kernel_weights.data[0] += 1.0
 
   def forward(self, image, kernel):
-    xrp = funcs.DeconvCGInit.apply(image, image, kernel, self.reg_kernel_weights, self.reg_kernels, self.reg_target_kernels)
+    w_kernel = Variable(th.ones(image.shape[1], image.shape[2], image.shape[3]))
+    w_reg_kernels = Variable(th.ones(self.reg_kernels.shape[0], image.shape[1], image.shape[2], image.shape[3]))
+    xrp = funcs.DeconvCGInit.apply(image, image, kernel,
+            self.reg_kernel_weights, self.reg_kernels, self.reg_target_kernels, w_kernel, w_reg_kernels)
     # print(np.linalg.norm(xrp.data.numpy()[1, :, :, :]))
     for it in range(50):
-      xrp = funcs.DeconvCGIter.apply(xrp, kernel, self.reg_kernel_weights, self.reg_kernels)
+      xrp = funcs.DeconvCGIter.apply(xrp, kernel,
+              self.reg_kernel_weights, self.reg_kernels, w_kernel, w_reg_kernels)
       r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
       if r < 1e-10:
           break

@@ -13,17 +13,26 @@ public:
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
     Input<Buffer<float>>  reg_target_kernels{"reg_target_kernels", 3};
+    Input<Buffer<float>>  w_kernel{"w_kernel", 3};
+    Input<Buffer<float>>  w_reg_kernels{"w_reg_kernels", 4};
     Input<Buffer<float>>  d_xrp{"d_xrp", 4};
+    Output<Buffer<float>> d_x0{"d_x0", 3};
     Output<Buffer<float>> d_reg_kernel_weights{"d_reg_kernel_weights", 1};
     Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
     Output<Buffer<float>> d_reg_target_kernels{"d_reg_target_kernels", 3};
+    Output<Buffer<float>> d_w_kernel{"d_w_kernel"};
+    Output<Buffer<float>> d_w_reg_kernels{"d_w_reg_kernels"};
 
     void generate() {
-        auto func_map = deconv_cg_init(blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels);
+        auto func_map = deconv_cg_init(blurred, x0, kernel,
+            reg_kernel_weights, reg_kernels, reg_target_kernels, w_kernel, w_reg_kernels);
         Func xrp = func_map["xrp"];
+        Func x0_func = func_map["x0_func"];
         Func reg_kernel_weights_func = func_map["reg_kernel_weights_func"];
         Func reg_kernels_func = func_map["reg_kernels_func"];
         Func reg_target_kernels_func = func_map["reg_target_kernels_func"];
+        Func w_kernel_func = func_map["w_kernel_func"];
+        Func w_reg_kernels_func = func_map["w_reg_kernels_func"];
         Derivative d = propagate_adjoints(
             xrp,
             d_xrp,
@@ -33,22 +42,12 @@ public:
              {d_xrp.dim(3).min(), d_xrp.dim(3).max()}}
         );
         std::map<FuncKey, Func> adjoints = d.adjoints;
-        if (adjoints.find(FuncKey{reg_kernel_weights_func.name(), -1}) != adjoints.end()) {
-            d_reg_kernel_weights(n) = adjoints[FuncKey{reg_kernel_weights_func.name(), -1}](n);
-        } else {
-            d_reg_kernel_weights(n) = 0.f;
-        }
-        if (adjoints.find(FuncKey{reg_kernels_func.name(), -1}) != adjoints.end()) {
-            d_reg_kernels(x, y, n) = adjoints[FuncKey{reg_kernels_func.name(), -1}](x, y, n);
-        } else {
-            d_reg_kernels(x, y, n) = 0.f;
-        }
-        if (adjoints.find(FuncKey{reg_target_kernels_func.name(), -1}) != adjoints.end()) {
-            d_reg_target_kernels(x, y, n) = adjoints[FuncKey{reg_kernels_func.name(), -1}](x, y, n);
-        } else {
-            assert(false);
-            d_reg_target_kernels(x, y, n) = 0.f;
-        }
+        assign_gradient(adjoints, x0_func, d_x0);
+        assign_gradient(adjoints, reg_kernel_weights_func, d_reg_kernel_weights);
+        assign_gradient(adjoints, reg_kernels_func, d_reg_kernels);
+        assign_gradient(adjoints, reg_target_kernels_func, d_reg_target_kernels);
+        assign_gradient(adjoints, w_kernel_func, d_w_kernel);
+        assign_gradient(adjoints, w_reg_kernels_func, d_w_reg_kernels);
 
         if (auto_schedule) {
             blurred.dim(0).set_bounds_estimate(0, 320);
@@ -78,49 +77,120 @@ public:
                          .estimate(y, 0, 3)
                          .estimate(n, 0, 2);
         } else {
-            int tile_width = 64, tile_height = 16;
-
+            auto func_map = get_deps({d_x0,
+                                      d_reg_kernel_weights,
+                                      d_reg_kernels,
+                                      d_reg_target_kernels,
+                                      d_w_kernel,
+                                      d_w_reg_kernels});
+            compute_all_root(d_x0);
             compute_all_root(d_reg_kernel_weights);
             compute_all_root(d_reg_kernels);
+            compute_all_root(d_reg_target_kernels);
+            compute_all_root(d_w_kernel);
+            compute_all_root(d_w_reg_kernels);
 
-            Var xi("xi"), yi("yi"), xo("xo"), yo("yo");
-            Func Kx0 = func_map["Kx0"];
+            Func Kx0 = Func(func_map["Kx0"]);
             Kx0.update()
-               .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-               .parallel(yo)
-               .vectorize(xi, 16);
-            Func KTKx0 = func_map["KTKx0"];
-            KTKx0.update()
-                 .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                 .parallel(yo)
-                 .vectorize(xi, 16);
-            Func rKx0 = func_map["rKx0"];
+               .parallel(y)
+               .vectorize(x, 16);
+            assert(func_map.find("rKx0") != func_map.end());
+            Func rKx0 = Func(func_map["rKx0"]);
             rKx0.update()
-                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                .parallel(yo)
-                .vectorize(xi, 16);
-            Func rKTrKx0 = func_map["rKTrKx0"];
-            rKTrKx0.update()
-                   .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                   .parallel(yo)
-                   .vectorize(xi, 16);
-            Func KTb = func_map["KTb"];
-            KTb.update()
-               .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-               .parallel(yo)
-               .vectorize(xi, 16);
-            Func rKTb = func_map["rKTb"];
-            rKTb.update()
-                .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                .parallel(yo)
-                .vectorize(xi, 16);
+                .parallel(y)
+                .vectorize(x, 16);
+            assert(func_map.find("rK^TWrKx0") != func_map.end());
+            Func rKTWrKx0 = Func(func_map["rK^TWrKx0"]);
+            rKTWrKx0.update()
+                    .parallel(y)
+                    .vectorize(x, 16);
+            assert(func_map.find("rK^TWb") != func_map.end());
+            Func rKTWb = Func(func_map["rK^TWb"]);
+            rKTWb.update()
+                 .parallel(y)
+                 .vectorize(x, 16);
+            Func d_WKx0 = Func(func_map["WKx0_0_d_def__"]);
+            d_WKx0.update()
+                  .parallel(y)
+                  .vectorize(x, 16);
+            Func d_WrKx0 = Func(func_map["WrKx0_0_d_def__"]);
+            d_WrKx0.update()
+                   .parallel(y)
+                   .vectorize(x, 16);
+            Func d_repeat_edge_1 = Func(func_map["repeat_edge$1_0_d_def__"]);
+            d_repeat_edge_1.update(0)
+                           .parallel(y)
+                           .vectorize(x, 16);
+            d_repeat_edge_1.update(1)
+                           .parallel(y)
+                           .vectorize(x, 16);
+            
+            Func d_rKw = Func(func_map["reg_kernels_func_0_d_def__"]);
+            auto d_rKw_r0 = d_rKw.rvars(0);
+            auto d_rKw_r1 = d_rKw.rvars(1);
 
-            auto deps = get_deps({d_reg_kernel_weights, d_reg_kernels});
+            Var xy("xy"), xyn("xyn");
+            RVar rxo("rxo"), rxi("rxi");
+            Var rxi_f("ryi_f");
+            d_rKw.compute_root()
+                 .update(0)
+                 .split(d_rKw_r0[0], rxo, rxi, 16);
+            Func d_rKw0_rxi = d_rKw.update()
+                                   .rfactor({{rxi, rxi_f}});
+            d_rKw.update(1)
+                 .split(d_rKw_r1[0], rxo, rxi, 16);
+            Func d_rKw1_rxi = d_rKw.update(1)
+                                   .rfactor({{rxi, rxi_f}});
+
+            d_rKw.update(0)
+                 .fuse(x, y, xy)
+                 .fuse(xy, n, xyn)
+                 .parallel(xyn);
+            d_rKw.update(1)
+                 .fuse(x, y, xy)
+                 .fuse(xy, n, xyn)
+                 .parallel(xyn);
+
+            d_rKw0_rxi.compute_at(d_rKw, xyn)
+                      .update()
+                      .vectorize(rxi_f, 16);
+
+            d_rKw1_rxi.compute_at(d_rKw, xyn)
+                      .update()
+                      .vectorize(rxi_f, 16);
+
+            Func d_rtk = Func(func_map["reg_target_kernel_func_0_d_def__"]);
+            auto d_rtk_r0 = d_rtk.rvars(0);
+
+            d_rtk.compute_root()
+                 .update(0)
+                 .split(d_rtk_r0[0], rxo, rxi, 16);
+            Func d_rtk_ryo = d_rtk.update()
+                                  .rfactor({{rxi, rxi_f}});
+
+            d_rtk.update(0)
+                 .fuse(x, y, xy)
+                 .fuse(xy, n, xyn)
+                 .parallel(xyn);
+
+            d_rtk_ryo.compute_at(d_rtk, xyn)
+                     .update()
+                     .vectorize(rxi_f, 16);
+
+            Func d_wkb = Func(func_map["wkb_0_d_def__"]);
+            d_wkb.update()
+                 .parallel(y)
+                 .vectorize(x, 16);
+
+            Func d_wrkb = Func(func_map["wrkb_0_d_def__"]);
+            d_wrkb.update()
+                  .parallel(y)
+                  .vectorize(x, 16);
+#if 0
             Func d_rKx0_1 = Func(deps["rKx0_1_d_def__"]);
             d_rKx0_1.update()
-                    .tile(x, y, xo, yo, xi, yi, tile_width, tile_height)
-                    .parallel(yo)
-                    .vectorize(xi, 16);
+                    .parallel(y)
+                    .vectorize(x, 16);
 
             Func d_rKw = Func(deps["reg_kernels_func_0_d_def__"]);
             auto d_rKw_r0 = d_rKw.rvars(0);
@@ -147,6 +217,7 @@ public:
                  .fuse(x, y, xy)
                  .fuse(xy, n, xyn)
                  .parallel(xyn);
+#endif
         }
     }
 };
