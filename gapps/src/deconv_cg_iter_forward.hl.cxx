@@ -11,13 +11,15 @@ public:
     Input<Buffer<float>>  kernel{"kernel", 2};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
+    Input<Buffer<float>>  precond_kernel{"precond_kernel", 2};
     Input<Buffer<float>>  w_kernel{"w_kernel", 3};
     Input<Buffer<float>>  w_reg_kernels{"w_reg_kernels", 4};
     Output<Buffer<float>> next_xrp{"next_xrp", 4};
 
     void generate() {
         auto func_map = deconv_cg_iter(xrp, kernel,
-            reg_kernel_weights, reg_kernels, w_kernel, w_reg_kernels);
+            reg_kernel_weights, reg_kernels,
+            precond_kernel, w_kernel, w_reg_kernels);
         next_xrp(x, y, c, n) = func_map["next_xrp"](x, y, c, n);
 
         if (auto_schedule) {
@@ -58,6 +60,14 @@ public:
             rKTWrKp.update()
                    .parallel(y)
                    .vectorize(x, 16);
+            Func Pr = Func(func_map["Pr"]);
+            Pr.update()
+              .parallel(y)
+              .vectorize(x, 16);
+            Func next_z = Func(func_map["next_z"]);
+            next_z.update()
+                  .parallel(y)
+                  .vectorize(x, 16);
         }
     }
 };

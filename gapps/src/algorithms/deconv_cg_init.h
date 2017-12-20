@@ -16,7 +16,7 @@ std::map<std::string, Func> deconv_cg_init(
         const Input &reg_kernel_weights,
         const Input &reg_kernels,
         const Input &reg_target_kernels,
-	const Input &precond_kernel,
+        const Input &precond_kernel,
         const Input &w_kernel,
         const Input &w_reg_kernels) {
     // Initializing conjugate gradient
@@ -130,16 +130,18 @@ std::map<std::string, Func> deconv_cg_init(
                  {Expr(), Expr()}});
     RDom r_precond_kernel(precond_kernel);
     Func Pr0("Pr0");
-    Pr0(x, y, c) = clamped_r0(x + r_precond_kernel.x - precond_kernel.width() / 2,
-                              y + r_precond_kernel.y - precond_kernel.height() / 2,
-			      c) *
-	           precond_kernel_func(r_precond_kernel.x, r_precond_kernel.y);
+    Pr0(x, y, c) = 0.f;
+    Pr0(x, y, c) += clamped_r0(x + r_precond_kernel.x - precond_kernel.width() / 2,
+                               y + r_precond_kernel.y - precond_kernel.height() / 2,
+			                   c) *
+	                precond_kernel_func(r_precond_kernel.x, r_precond_kernel.y);
     Func z0("z0");
-    z0(x, y, c) = Pr0(x + r_precond_kernel.x - precond_kernel.width() / 2,
-                      y + r_precond_kernel.y - precond_kernel.height() / 2,
-	  	      c) *
-  	          precond_kernel_func(precond_kernel.width()  - r_precond_kernel.x - 1
-                                      precond_kernel.height() - r_precond_kernel.y - 1);
+    z0(x, y, c) = 0.f;
+    z0(x, y, c) += Pr0(x + r_precond_kernel.x - precond_kernel.width() / 2,
+                       y + r_precond_kernel.y - precond_kernel.height() / 2,
+        	  	       c) *
+  	               precond_kernel_func(precond_kernel.width()  - r_precond_kernel.x - 1,
+                                       precond_kernel.height() - r_precond_kernel.y - 1);
 
     Func p0("p0");
     p0(x, y, c) = z0(x, y, c);
@@ -156,6 +158,7 @@ std::map<std::string, Func> deconv_cg_init(
     func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
     func_map["reg_kernels_func"] = reg_kernels_func;
     func_map["reg_target_kernels_func"] = reg_target_kernels_func;
+    func_map["precond_kernel_func"] = precond_kernel_func;
     func_map["w_kernel_func"] = w_kernel_func;
     func_map["w_reg_kernels_func"] = w_reg_kernels_func;
     func_map["xrp"] = xrp;

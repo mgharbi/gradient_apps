@@ -90,13 +90,14 @@ class LearnableDemosaick(nn.Module):
 
 
 class DeconvCG(nn.Module):
-  def __init__(self, reg_kernel_size=5, num_reg_kernels=5, ref=False):
+  def __init__(self, precond_kernel_size=11, reg_kernel_size=5, num_reg_kernels=5, ref=False):
     super(DeconvCG, self).__init__()
 
     self.reg_kernels = nn.Parameter(th.zeros(num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_kernel_weights = nn.Parameter(th.zeros(num_reg_kernels))
     self.reg_target_kernels = nn.Parameter(th.zeros(num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_powers = nn.Parameter(th.zeros(num_reg_kernels))
+    self.precond_kernel = nn.Parameter(th.zeros(precond_kernel_size, precond_kernel_size))
 
     assert reg_kernel_size % 2 == 1
 
@@ -106,12 +107,16 @@ class DeconvCG(nn.Module):
       self.reg_kernel_weights.data.normal_(0, 0.1)
       #self.reg_target_kernels.data.normal_(0, 0.1)
       self.reg_powers.data.normal_(1.0, 0.02)
+      self.precond_kernel.data.normal_(0, 0.1)
 
-    self.reg_kernels.data[0, 2, 2] += -2.0
-    self.reg_kernels.data[0, 3, 2] += 1.0
-    self.reg_kernels.data[0, 2, 3] += 1.0
+    reg_kernel_center = int(reg_kernel_size / 2)
+    self.reg_kernels.data[0, reg_kernel_center, reg_kernel_center] += -2.0
+    self.reg_kernels.data[0, reg_kernel_center + 1, reg_kernel_center] += 1.0
+    self.reg_kernels.data[0, reg_kernel_center, reg_kernel_center + 1] += 1.0
 
     self.reg_kernel_weights.data[0] += 1.0
+    precond_kernel_center = int(precond_kernel_size / 2)
+    self.precond_kernel.data[precond_kernel_center, precond_kernel_center] += 1.0
 
   def forward(self, blurred, kernel, num_irls_iter, num_cg_iter):
     w_kernel = Variable(th.ones(blurred.shape[1], blurred.shape[2], blurred.shape[3]))
@@ -120,7 +125,8 @@ class DeconvCG(nn.Module):
     x0 = blurred.clone()
     for irls_it in range(num_irls_iter):
       xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
-              self.reg_kernel_weights, self.reg_kernels, self.reg_target_kernels, w_kernel, w_reg_kernels).clone()
+              self.reg_kernel_weights, self.reg_kernels, self.reg_target_kernels,
+              self.precond_kernel, w_kernel, w_reg_kernels).clone()
       assert(not np.isnan(xrp.data).any())
       r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
       if r < 1e-10:
@@ -128,7 +134,8 @@ class DeconvCG(nn.Module):
 
       for cg_it in range(num_cg_iter):
         xrp = funcs.DeconvCGIter.apply(xrp, kernel,
-                self.reg_kernel_weights, self.reg_kernels, w_kernel, w_reg_kernels).clone()
+                self.reg_kernel_weights, self.reg_kernels,
+                self.precond_kernel, w_kernel, w_reg_kernels).clone()
         assert(not np.isnan(xrp.data).any())
         r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
         if r < 1e-10:
