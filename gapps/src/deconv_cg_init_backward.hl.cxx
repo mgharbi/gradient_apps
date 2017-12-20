@@ -48,7 +48,7 @@ public:
         assign_gradient(adjoints, reg_target_kernels_func, d_reg_target_kernels);
         assign_gradient(adjoints, w_kernel_func, d_w_kernel);
         assign_gradient(adjoints, w_reg_kernels_func, d_w_reg_kernels);
-        print_func(d_reg_target_kernels);
+        print_func(d_x0);
 
         if (auto_schedule) {
             blurred.dim(0).set_bounds_estimate(0, 320);

@@ -414,14 +414,14 @@ def _test_deconv_cg_init(gpu=False):
   #reg_target_kernels = Variable(th.randn(2, 3, 3), requires_grad=True)
   #w_kernel = Variable(th.randn(1, 5, 5), requires_grad=False)
   #w_reg_kernels = Variable(th.randn(2, 1, 5, 5), requires_grad=False)
-  blurred = Variable(th.randn(1, 1, 3, 3), requires_grad=False)
-  x0 = Variable(th.randn(1, 1, 3, 3), requires_grad=False)
+  blurred = Variable(th.randn(1, 1, 1, 1), requires_grad=False)
+  x0 = Variable(th.randn(1, 1, 1, 1), requires_grad=True)
   kernel = Variable(th.rand(1, 1), requires_grad=False)
-  reg_kernel_weights = Variable(th.rand(2), requires_grad=False)
-  reg_kernels = Variable(th.randn(2, 1, 1), requires_grad=False)
-  reg_target_kernels = Variable(th.randn(2, 3, 3), requires_grad=True)
-  w_kernel = Variable(th.randn(1, 3, 3), requires_grad=False)
-  w_reg_kernels = Variable(th.randn(2, 1, 5, 5), requires_grad=False)
+  reg_kernel_weights = Variable(th.rand(1), requires_grad=False)
+  reg_kernels = Variable(th.randn(1, 1, 1), requires_grad=False)
+  reg_target_kernels = Variable(th.randn(1, 1, 1), requires_grad=False)
+  w_kernel = Variable(th.randn(1, 1, 1), requires_grad=False)
+  w_reg_kernels = Variable(th.randn(1, 1, 1, 1), requires_grad=False)
   gradcheck(
       funcs.DeconvCGInit.apply,
       (blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels, w_kernel, w_reg_kernels),

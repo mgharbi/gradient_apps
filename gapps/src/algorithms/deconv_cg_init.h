@@ -124,7 +124,7 @@ std::map<std::string, Func> deconv_cg_init(
     p0(x, y, c) = r0(x, y, c);
     Func xrp("xrp");
     xrp(x, y, c, n) = 0.f;
-    xrp(x, y, c, 0) = x0(x, y, c);
+    xrp(x, y, c, 0) = x0_func(x, y, c);
     xrp(x, y, c, 1) = r0(x, y, c);
     xrp(x, y, c, 2) = p0(x, y, c);
 
