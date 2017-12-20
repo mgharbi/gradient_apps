@@ -34,12 +34,12 @@ class DeconvDataset(Dataset):
     reference_size = reference.shape
     left_top = [random.randint(0, reference_size[0] - crop_size[0]),
                 random.randint(0, reference_size[1] - crop_size[1])]
-    left_top = [0, 0]
+    #left_top = [0, 0]
+    #np.random.seed(1234)
     reference = reference[left_top[0]:left_top[0]+crop_size[0]-1,
                           left_top[1]:left_top[1]+crop_size[1]-1,
                           :]
 
-    np.random.seed(1234)
     psf = utils.sample_psf(kernel_size)
     blurred = utils.make_blur(reference, psf)
     reference = reference.transpose((2, 0, 1))

@@ -14,6 +14,7 @@ std::map<std::string, Func> deconv_cg_iter(
         const Input &kernel,
         const Input &reg_kernel_weights,
         const Input &reg_kernels,
+	const Input &precond_kernel,
         const Input &w_kernel,
         const Input &w_reg_kernels) {
     // A single iteration of conjugate gradient, takes X, R, P and updates them
@@ -23,10 +24,13 @@ std::map<std::string, Func> deconv_cg_iter(
     reg_kernel_weights_func(n) = reg_kernel_weights(n);
     Func reg_kernels_func("reg_kernels_func");
     reg_kernels_func(x, y, n) = reg_kernels(x, y, n);
+    Func precond_kernel_func("precond_kernel_func");
+    precond_kernel_func(x, y) = precond_kernel(x, y);
     Func w_kernel_func("w_kernel_func");
     w_kernel_func(x, y, c) = w_kernel(x, y, c);
     Func w_reg_kernels_func("w_reg_kernels_func");
     w_reg_kernels_func(x, y, c, n) = w_reg_kernels(x, y, c, n);
+
     RDom r_image(0, xrp.width(), 0, xrp.height(), 0, xrp.channels());
     RDom r_kernel(kernel);
     Func xrp_clamped = BoundaryConditions::repeat_edge(xrp_func,
@@ -50,12 +54,14 @@ std::map<std::string, Func> deconv_cg_iter(
     r(x, y, c) = xrp_clamped(x, y, c, 1);
     Func p("p");
     p(x, y, c) = xrp_clamped(x, y, c, 2);
+    Func z("z");
+    z(x, y, c) = xrp_clamped(x, y, c, 3);
 
-    Func rTr("rTr");
-    // alpha = r^T * r / p^T A^T W A p
-    rTr() = 0.f;
-    rTr() += r(r_image.x, r_image.y, r_image.z) *
-             r(r_image.x, r_image.y, r_image.z);
+    Func rTz("rTz");
+    // alpha = r^T * z / p^T A^T W A p
+    rTz() = 0.f;
+    rTz() += r(r_image.x, r_image.y, r_image.z) *
+             z(r_image.x, r_image.y, r_image.z);
     Func Kp("Kp");
     Kp(x, y, c) = 0.f;
     Kp(x, y, c) += p(x + r_kernel.x - kernel.width()  / 2,
@@ -101,13 +107,14 @@ std::map<std::string, Func> deconv_cg_iter(
                  ATWAp(r_image.x, r_image.y, r_image.z);
 
     Func alpha("alpha");
-    alpha() = rTr() / pTATWAp();
+    alpha() = rTz() / pTATWAp();
     // x = x + alpha * p
     Func next_x("next_x");
     next_x(x, y, c) = xk(x, y, c) + alpha() * p(x, y, c);
     // r = r - alpha * A^TAp
     Func next_r("next_r");
     next_r(x, y, c) = r(x, y, c) - alpha() * ATWAp(x, y, c);
+
     // beta = nextR^TnextR / r^Tr
     Func nRTnR("nRTnR");
     nRTnR() = 0.f;

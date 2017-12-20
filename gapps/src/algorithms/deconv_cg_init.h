@@ -16,6 +16,7 @@ std::map<std::string, Func> deconv_cg_init(
         const Input &reg_kernel_weights,
         const Input &reg_kernels,
         const Input &reg_target_kernels,
+	const Input &precond_kernel,
         const Input &w_kernel,
         const Input &w_reg_kernels) {
     // Initializing conjugate gradient
@@ -29,12 +30,15 @@ std::map<std::string, Func> deconv_cg_init(
     reg_kernels_func(x, y, n) = reg_kernels(x, y, n);
     Func reg_target_kernels_func("reg_target_kernel_func");
     reg_target_kernels_func(x, y, n) = reg_target_kernels(x, y, n);
+    Func precond_kernel_func("precond_kernel_func");
+    precond_kernel_func(x, y) = precond_kernel(x, y);
     Func w_kernel_func("w_kernel_func");
     w_kernel_func(x, y, c) = w_kernel(x, y, c);
     Func w_reg_kernels_func("w_reg_kernels_func");
     w_reg_kernels_func(x, y, c, n) = w_reg_kernels(x, y, c, n);
     Func x0_func("x0_func");
     x0_func(x, y, c) = x0(x, y, c);
+
     RDom r_kernel(kernel);
     Func clamped_b = BoundaryConditions::repeat_edge(blurred);
     Func clamped_x0 = BoundaryConditions::repeat_edge(x0_func,
@@ -120,13 +124,31 @@ std::map<std::string, Func> deconv_cg_init(
 
     Func r0("r0");
     r0(x, y, c) = ATWb(x, y, c) - ATWAx0(x, y, c);
+    Func clamped_r0 = BoundaryConditions::repeat_edge(r0,
+                {{Expr(0), Expr(x0.width())},
+                 {Expr(0), Expr(x0.height())},
+                 {Expr(), Expr()}});
+    RDom r_precond_kernel(precond_kernel);
+    Func Pr0("Pr0");
+    Pr0(x, y, c) = clamped_r0(x + r_precond_kernel.x - precond_kernel.width() / 2,
+                              y + r_precond_kernel.y - precond_kernel.height() / 2,
+			      c) *
+	           precond_kernel_func(r_precond_kernel.x, r_precond_kernel.y);
+    Func z0("z0");
+    z0(x, y, c) = Pr0(x + r_precond_kernel.x - precond_kernel.width() / 2,
+                      y + r_precond_kernel.y - precond_kernel.height() / 2,
+	  	      c) *
+  	          precond_kernel_func(precond_kernel.width()  - r_precond_kernel.x - 1
+                                      precond_kernel.height() - r_precond_kernel.y - 1);
+
     Func p0("p0");
-    p0(x, y, c) = r0(x, y, c);
+    p0(x, y, c) = z0(x, y, c);
     Func xrp("xrp");
     xrp(x, y, c, n) = 0.f;
     xrp(x, y, c, 0) = x0_func(x, y, c);
     xrp(x, y, c, 1) = r0(x, y, c);
     xrp(x, y, c, 2) = p0(x, y, c);
+    xrp(x, y, c, 3) = z0(x, y, c);
 
     std::map<std::string, Func> func_map;
 
