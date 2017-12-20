@@ -13,7 +13,7 @@ public:
     Input<Buffer<float>>  reg_target_kernels{"reg_target_kernels", 3};
     Input<Buffer<float>>  reg_powers{"reg_powers", 1};
     Input<Buffer<float>>  d_weights{"d_weights", 4};
-    Output<Buffer<float>> d_current{"weights", 3};
+    Output<Buffer<float>> d_current{"d_current", 3};
     Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
     Output<Buffer<float>> d_reg_target_kernels{"d_reg_target_kernels", 3};
     Output<Buffer<float>> d_reg_powers{"d_reg_powers", 1};

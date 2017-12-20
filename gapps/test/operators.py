@@ -406,14 +406,25 @@ def test_learnable_demosaick_cpu_gpu():
   assert rel_diff < 1e-2
 
 def _test_deconv_cg_init(gpu=False):
-  blurred = Variable(th.randn(1, 1, 5, 5), requires_grad=False)
-  x0 = Variable(th.randn(1, 5, 5), requires_grad=False)
-  kernel = Variable(th.rand(3, 3), requires_grad=False)
-  reg_kernel_weights = Variable(th.rand(1), requires_grad=True)
-  reg_kernels = Variable(th.randn(1, 3, 3), requires_grad=False)
+  #blurred = Variable(th.randn(1, 1, 5, 5), requires_grad=False)
+  #x0 = Variable(th.randn(1, 5, 5), requires_grad=False)
+  #kernel = Variable(th.rand(3, 3), requires_grad=False)
+  #reg_kernel_weights = Variable(th.rand(2), requires_grad=False)
+  #reg_kernels = Variable(th.randn(2, 3, 3), requires_grad=False)
+  #reg_target_kernels = Variable(th.randn(2, 3, 3), requires_grad=True)
+  #w_kernel = Variable(th.randn(1, 5, 5), requires_grad=False)
+  #w_reg_kernels = Variable(th.randn(2, 1, 5, 5), requires_grad=False)
+  blurred = Variable(th.randn(1, 1, 3, 3), requires_grad=False)
+  x0 = Variable(th.randn(1, 1, 3, 3), requires_grad=False)
+  kernel = Variable(th.rand(1, 1), requires_grad=False)
+  reg_kernel_weights = Variable(th.rand(2), requires_grad=False)
+  reg_kernels = Variable(th.randn(2, 1, 1), requires_grad=False)
+  reg_target_kernels = Variable(th.randn(2, 3, 3), requires_grad=True)
+  w_kernel = Variable(th.randn(1, 3, 3), requires_grad=False)
+  w_reg_kernels = Variable(th.randn(2, 1, 5, 5), requires_grad=False)
   gradcheck(
       funcs.DeconvCGInit.apply,
-      (blurred, x0, kernel, reg_kernel_weights, reg_kernels),
+      (blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_target_kernels, w_kernel, w_reg_kernels),
       eps=1e-6, atol=1e-5, rtol=1e-2,
        raise_exception=True)
 

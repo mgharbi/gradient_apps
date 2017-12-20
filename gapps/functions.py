@@ -1,6 +1,7 @@
 import inspect
 import re
 
+import numpy as np
 import torch
 from torch.autograd import Function
 from torch.autograd import Variable
@@ -459,6 +460,8 @@ class DeconvCGWeight(Function):
     d_reg_kernels = Variable(d_reg_kernels)
     d_reg_target_kernels = Variable(d_reg_target_kernels)
     d_reg_powers = Variable(d_reg_powers)
+
+    assert(not np.isnan(d_reg_powers.data).any())
 
     return None, d_current, d_reg_kernels, d_reg_target_kernels, d_reg_powers
 

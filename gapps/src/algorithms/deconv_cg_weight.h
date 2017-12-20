@@ -49,7 +49,7 @@ std::map<std::string, Func> deconv_cg_weight(
 
     Func weights("weights");
     weights(x, y, c, n) =
-        1.f / (max(1e-4f, pow(abs(rKc(x, y, c, n) - rtKb(x, y, c, n)),
+        1.f / (max(1e-4f, pow(max(abs(rKc(x, y, c, n) - rtKb(x, y, c, n)), 1e-4f),
                 reg_powers_func(n) - 2.f)));
 
     std::map<std::string, Func> func_map;
