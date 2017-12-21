@@ -1,7 +1,7 @@
 TORCH_INC ?= `python3 -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
 HALIDE_DIR ?=
 AUTO_SCHEDULE = false
-BUILD_TYPE ?= release
+BUILD_TYPE ?= profile
 
 CXX ?= g++
 CXXFLAGS += -std=c++11 -fno-rtti
@@ -48,8 +48,9 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
-			deconv_cg_weight_forward deconv_cg_weight_backward \
+	  	bilateral_grid_forward
+			#deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
+			#deconv_cg_weight_forward deconv_cg_weight_backward bilateral_grid_forward bilateral_grid_backward \
 			# learnable_demosaick_forward learnable_demosaick_backward \
 			# naive_demosaick_forward naive_demosaick_backward \
 			# conv1d_forward conv1d_backward conv1d_manual_backward \

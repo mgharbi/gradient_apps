@@ -104,4 +104,14 @@ void assign_gradient(std::map<FuncKey, Func> &adjoints,
     }
 }
 
+Func get_func(const std::map<std::string, Halide::Internal::Function> &func_map,
+              const std::string &name) {
+    auto it = func_map.find(name);
+    if (it == func_map.end()) {
+        std::cerr << "Can't find function " << name << " in func_map" << std::endl;
+        assert(false);
+    }
+    return Func(it->second);
+}
+
 #endif /* end of include guard: GRADIENT_HELPERS_H_FSA3FYYR */

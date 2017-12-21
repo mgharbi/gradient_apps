@@ -90,12 +90,11 @@ class LearnableDemosaick(nn.Module):
 
 
 class DeconvCG(nn.Module):
-  def __init__(self, precond_kernel_size=11, reg_kernel_size=5, num_reg_kernels=5, ref=False):
+  def __init__(self, precond_kernel_size=11, reg_kernel_size=3, num_reg_kernels=5, ref=False):
     super(DeconvCG, self).__init__()
 
     self.reg_kernels = nn.Parameter(th.zeros(num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_kernel_weights = nn.Parameter(th.zeros(num_reg_kernels))
-    self.reg_target_kernels = nn.Parameter(th.zeros(num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_powers = nn.Parameter(th.zeros(num_reg_kernels))
     self.precond_kernel = nn.Parameter(th.zeros(precond_kernel_size, precond_kernel_size))
 
@@ -105,7 +104,6 @@ class DeconvCG(nn.Module):
     if not ref:
       self.reg_kernels.data.normal_(0, 0.1)
       self.reg_kernel_weights.data.normal_(0, 0.1)
-      #self.reg_target_kernels.data.normal_(0, 0.1)
       self.reg_powers.data.normal_(1.0, 0.02)
       self.precond_kernel.data.normal_(0, 0.1)
 
@@ -125,7 +123,7 @@ class DeconvCG(nn.Module):
     x0 = blurred.clone()
     for irls_it in range(num_irls_iter):
       xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
-              self.reg_kernel_weights, self.reg_kernels, self.reg_target_kernels,
+              self.reg_kernel_weights, self.reg_kernels,
               self.precond_kernel, w_kernel, w_reg_kernels).clone()
       assert(not np.isnan(xrp.data).any())
       r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
@@ -142,7 +140,7 @@ class DeconvCG(nn.Module):
             break
       x0 = xrp[0, :, :, :].clone()
       w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x0,
-        self.reg_kernels, self.reg_target_kernels, self.reg_powers)
+        self.reg_kernels, self.reg_powers)
       assert(not np.isnan(w_reg_kernels.data).any())
     return x0
 

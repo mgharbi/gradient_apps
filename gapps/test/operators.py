@@ -40,6 +40,9 @@ def test_bilateral_layer_cpu():
 def test_bilateral_layer_gpu():
   _test_bilateral_layer_(gpu=True)
 
+def test_bilateral_grid_cpu():
+  _test_bilateral_grid_(gpu=False)
+
 def test_histogram_cpu():
   _test_histogram(False)
 
@@ -201,6 +204,66 @@ def _test_bilateral_layer_(gpu=False):
     o = np.squeeze(o)
     skimage.io.imsave(
         os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), o)
+
+  # print "testing gradient"
+  # gradcheck(
+  #     funcs.BilateralLayer.apply,
+  #     (image, guide, kernels, sx, sy, sz),
+  #     eps=1e-4, atol=5e-2, rtol=5e-4,
+  #      raise_exception=True)
+
+def _test_bilateral_grid_(gpu=False):
+  bs = 1
+  c = 3
+  sigma_s, sigma_r = 1, 8
+
+  image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
+  sz = 256
+  image = image[:sz, :sz, :]
+
+  h, w, _ = image.shape
+  image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
+
+  image = Variable(th.from_numpy(image), requires_grad=False)
+  filter_s = Variable(th.zeros(5), requires_grad=True)
+  filter_s.data[0] = 1.0
+  filter_s.data[1] = 4.0
+  filter_s.data[2] = 6.0
+  filter_s.data[3] = 4.0
+  filter_s.data[4] = 1.0
+  filter_r = Variable(th.zeros(5), requires_grad=True)
+  filter_r.data[0] = 1.0
+  filter_r.data[1] = 4.0
+  filter_r.data[2] = 6.0
+  filter_r.data[3] = 4.0
+  filter_r.data[4] = 1.0
+
+  if gpu:
+    image = image.cuda()
+    filter_s = filter_s.cuda()
+    filter_r = filter_r.cuda()
+
+  print("profiling")
+  with profiler.profile() as prof:
+    output = funcs.BilateralGrid.apply(
+        sigma_s, sigma_r, image, filter_s, filter_r)
+    #loss = output.sum()
+    #loss.backward()
+
+  print(prof)
+
+  print("testing dimensions")
+  assert output.shape[0] == bs
+  assert output.shape[1] == c
+  assert output.shape[2] == h
+  assert output.shape[3] == w
+
+  print("testing forward")
+  output = output.data[0].cpu().numpy()
+  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  output = np.squeeze(output)
+  skimage.io.imsave(
+      os.path.join(out_dir, "bilateral_grid_output.png"), output)
 
   # print "testing gradient"
   # gradcheck(

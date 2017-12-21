@@ -15,7 +15,6 @@ std::map<std::string, Func> deconv_cg_init(
         const Input &kernel,
         const Input &reg_kernel_weights,
         const Input &reg_kernels,
-        const Input &reg_target_kernels,
         const Input &precond_kernel,
         const Input &w_kernel,
         const Input &w_reg_kernels) {
@@ -28,8 +27,6 @@ std::map<std::string, Func> deconv_cg_init(
     reg_kernel_weights_func(n) = reg_kernel_weights(n);
     Func reg_kernels_func("reg_kernels_func");
     reg_kernels_func(x, y, n) = reg_kernels(x, y, n);
-    Func reg_target_kernels_func("reg_target_kernel_func");
-    reg_target_kernels_func(x, y, n) = reg_target_kernels(x, y, n);
     Func precond_kernel_func("precond_kernel_func");
     precond_kernel_func(x, y) = precond_kernel(x, y);
     Func w_kernel_func("w_kernel_func");
@@ -68,20 +65,8 @@ std::map<std::string, Func> deconv_cg_init(
     RDom r_reg_kernel_z(0, reg_kernels.channels());
     Func wrkb("wrkb");
     wrkb(x, y, c, n) = clamped_w_reg_kernels(x, y, c, n) * clamped_b(x, y, c);
-    Func rKTWb("rK^TWb");
-    rKTWb(x, y, c, n) = 0.f;
-    rKTWb(x, y, c, n) += wrkb(x + r_reg_kernel_xy.x - reg_kernels.width()  / 2,
-                              y + r_reg_kernel_xy.y - reg_kernels.height() / 2,
-                              c,
-                              n) *
-                         reg_target_kernels_func(r_reg_kernel_xy.x,
-                                                 r_reg_kernel_xy.y,
-                                                 n);
     Func ATWb("A^TWb");
     ATWb(x, y, c) = KTWb(x, y, c);
-    ATWb(x, y, c) += rKTWb(x, y, c, r_reg_kernel_z.x) *
-                     reg_kernel_weights_func(r_reg_kernel_z.x) *
-                     reg_kernel_weights_func(r_reg_kernel_z.x);
 
     Func Kx0("Kx0");
     Kx0(x, y, c) = 0.f;
@@ -157,7 +142,6 @@ std::map<std::string, Func> deconv_cg_init(
     func_map["x0_func"] = x0_func;
     func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
     func_map["reg_kernels_func"] = reg_kernels_func;
-    func_map["reg_target_kernels_func"] = reg_target_kernels_func;
     func_map["precond_kernel_func"] = precond_kernel_func;
     func_map["w_kernel_func"] = w_kernel_func;
     func_map["w_reg_kernels_func"] = w_reg_kernels_func;
