@@ -215,7 +215,7 @@ def _test_bilateral_layer_(gpu=False):
 def _test_bilateral_grid_(gpu=False):
   bs = 1
   c = 3
-  sigma_s, sigma_r = 1, 8
+  sigma_s, sigma_r = 4, 8
 
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
   sz = 256

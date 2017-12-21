@@ -30,20 +30,21 @@ std::map<std::string, Func> bilateral_grid(
                   f_input(x, y, 1) * 0.587f +
                   f_input(x, y, 2) * 0.114f;
 
-    Expr guide_pos = clamp(guide(x, y) * cast<float>(sigma_r),
+    // Downsample grid
+    RDom rgrid(0, sigma_s, 0, sigma_s);
+    Expr guide_pos = clamp(guide(x * sigma_s + rgrid.x,
+                                 y * sigma_s + rgrid.y) * cast<float>(sigma_r),
                            0.f,
                            cast<float>(sigma_r));
     Expr lower_bin = cast<int>(floor(guide_pos));
-    Expr upper_bin = cast<int>(ceil(guide_pos));
+    Expr upper_bin = lower_bin + 1;
     Expr w = guide_pos - lower_bin;
 
-    // Downsample grid
-    RDom rgrid(0, sigma_s, 0, sigma_s);
     Expr val = select(c < input.channels(),
                       f_input(x * sigma_s + rgrid.x,
                               y * sigma_s + rgrid.y,
                               c),
-                      1.f);
+                      1.f) / cast<float>(sigma_s * sigma_s);
     Func f_grid("f_grid");
     f_grid(x, y, z, c) = 0.f;
     f_grid(x, y, lower_bin, c) += val * (1.f - w);
@@ -66,21 +67,24 @@ std::map<std::string, Func> bilateral_grid(
                           f_filter_s(rs.x);
 
     // Enclosing voxel
-    Expr gx = (x + 0.5f) / cast<float>(sigma_s);
-    Expr gy = (y + 0.5f) / cast<float>(sigma_s);
-    Expr gz = guide_pos;
-    Expr fx = cast<int>(floor(gx-0.5f));
-    Expr fy = cast<int>(floor(gy-0.5f));
+    Expr gx = x / cast<float>(sigma_s);
+    Expr gy = y / cast<float>(sigma_s);
+    Expr gz = clamp(guide(x, y) * cast<float>(sigma_r),
+                    0.f,
+                    cast<float>(sigma_r));
+    Expr fx = cast<int>(floor(gx));
+    Expr fy = cast<int>(floor(gy));
     Expr fz = cast<int>(floor(gz));
     Expr cx = fx + 1;
     Expr cy = fy + 1;
-    Expr cz = cast<int>(ceil(gz));
-    Expr wx = gx - 0.5f - fx;
-    Expr wy = gy - 0.5f - fy;
+    Expr cz = fz + 1;
+    Expr wx = gx - fx;
+    Expr wy = gy - fy;
     Expr wz = gz - fz;
 
     // trilerp
     Func unnormalized_output("unnormalized_output");
+    RDom rz(0, sigma_r);
     unnormalized_output(x, y, c) =
          blur_x(fx, fy, fz, c)*(1.f - wx)*(1.f - wy)*(1.f - wz)
        + blur_x(fx, fy, cz, c)*(1.f - wx)*(1.f - wy)*(      wz)
