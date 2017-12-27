@@ -114,4 +114,8 @@ Func get_func(const std::map<std::string, Halide::Internal::Function> &func_map,
     return Func(it->second);
 }
 
+void simple_auto_schedule(std::vector<Func> &outputs) {
+
+}
+
 #endif /* end of include guard: GRADIENT_HELPERS_H_FSA3FYYR */

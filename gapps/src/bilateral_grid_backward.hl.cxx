@@ -19,7 +19,7 @@ public:
 
     void generate() {
         std::map<std::string, Func> func_map = bilateral_grid(
-            input, filter_s, filter_r, sigma_s, sigma_r);
+            input, filter_s, filter_r, sigma_r);
         Func f_output = func_map["output"];
         Func f_input = func_map["f_input"];
         Func f_filter_s = func_map["f_filter_s"];
@@ -41,9 +41,31 @@ public:
             auto func_map = get_deps({d_input,
                                       d_filter_s,
                                       d_filter_r});
-            compute_all_root(d_input);
-            compute_all_root(d_filter_s);
-            compute_all_root(d_filter_r);
+            std::vector<Func> funcs{d_input, d_filter_s, d_filter_r};
+            simple_autoschedule(funcs,
+                                {{"input.min.0", 0},
+                                 {"input.min.1", 0},
+                                 {"input.min.2", 0},
+                                 {"input.extent.0", 256},
+                                 {"input.extent.1", 256},
+                                 {"input.extent.2", 3},
+                                 {"filter_s.min.0", 0},
+                                 {"filter_s.extent.0", 4},
+                                 {"filter_r.min.0", 0},
+                                 {"filter_r.extent.0", 4},
+                                 {"d_output.min.0", 0},
+                                 {"d_output.min.1", 0},
+                                 {"d_output.min.2", 0},
+                                 {"d_output.extent.0", 256},
+                                 {"d_output.extent.1", 256},
+                                 {"d_output.extent.2", 3},
+                                 {"sigma_s", 4},
+                                 {"sigma_r", 4}},
+                                {{{0, 255},
+                                  {0, 255},
+                                  {0, 2}},
+                                 {{0, 4}},
+                                 {{0, 4}}});
         }
     }
 };
