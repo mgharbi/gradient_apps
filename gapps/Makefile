@@ -1,4 +1,10 @@
+ifeq ($(USER), gharbi)
+TORCH_INC ?= `python -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
+PYTHON=python
+else
 TORCH_INC ?= `python3 -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
+PYTHON=python3
+endif
 HALIDE_DIR ?=
 AUTO_SCHEDULE = false
 BUILD_TYPE ?= profile
@@ -62,7 +68,7 @@ CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
 _ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS)
 	@echo Python CFFI wrapper
-	@python3 build.py
+	@$(PYTHON) build.py
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	@echo Op $(subst $(BUILD_DIR)/,, $@)
@@ -80,7 +86,7 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(name) -g $(name) -f $(name)_cuda \
 										-e static_library,h,pytorch_wrapper,html \
-										-o . target=host-cuda-cuda_capability_35$(TARGET_FEATURES) \
+										-o . target=host-cuda-cuda_capability_35-user_context$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 
 # Generators, prevent auto-deletion by make
