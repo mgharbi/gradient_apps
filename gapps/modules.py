@@ -117,11 +117,11 @@ class DeconvCG(nn.Module):
     self.precond_kernel.data[precond_kernel_center, precond_kernel_center] += 1.0
 
   def forward(self, blurred, kernel, num_irls_iter, num_cg_iter):
-    w_kernel = Variable(th.ones(blurred.shape[1], blurred.shape[2], blurred.shape[3]))
+    w_kernel = Variable(blurred.new(blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(1.0))
     w_reg_kernels = Variable(
-      th.ones(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]))
+      blurred.new(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(1.0))
     reg_targets = Variable(
-      th.zeros(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]))
+      blurred.new(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(1.0))
     x0 = blurred.clone()
     for irls_it in range(num_irls_iter):
       xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
