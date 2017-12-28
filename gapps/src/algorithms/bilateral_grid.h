@@ -13,8 +13,10 @@ template <typename Input>
 std::map<std::string, Func> bilateral_grid(
         const Input &input,
         const Input &filter_s,
-        const Input &filter_r,
-        Expr sigma_r) {
+        const Input &filter_r) {
+    int sigma_s = 4;
+    int sigma_r = 8;
+
     Func f_input("f_input");
     f_input(x, y, c) =
       Halide::BoundaryConditions::repeat_edge(input)(x, y, c);
@@ -22,8 +24,6 @@ std::map<std::string, Func> bilateral_grid(
     f_filter_s(x) = filter_s(x);
     Func f_filter_r("f_filter_r");
     f_filter_r(x) = filter_r(x);
-
-    int sigma_s = 4;
 
     // Maybe also learn the luminance parameters?
     Func guide("guide");

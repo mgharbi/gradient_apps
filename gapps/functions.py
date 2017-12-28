@@ -316,10 +316,10 @@ class DeconvCGInit(Function):
 
   @staticmethod
   def forward(ctx, blurred, x0, kernel,
-              reg_kernel_weights, reg_kernels,
+              reg_kernel_weights, reg_kernels, reg_targets,
               precond_kernel, w_kernel, w_reg_kernels):
     ctx.save_for_backward(blurred, x0, kernel,
-      reg_kernel_weights, reg_kernels, reg_target_kernels,
+      reg_kernel_weights, reg_kernels, reg_targets,
       precond_kernel, w_kernel, w_reg_kernels)
 
     xrp = blurred.new()
@@ -329,7 +329,7 @@ class DeconvCGInit(Function):
     xrp.resize_(4, ci, h, w)
     ops.deconv_cg_init_forward(
         blurred.view(ci, h, w), x0.view(ci, h, w), kernel,
-        reg_kernel_weights, reg_kernels, reg_target_kernels,
+        reg_kernel_weights, reg_kernels, reg_targets,
         precond_kernel, w_kernel, w_reg_kernels, xrp)
 
     return xrp
@@ -337,7 +337,7 @@ class DeconvCGInit(Function):
   @staticmethod
   def backward(ctx, d_xrp):
     blurred, x0, kernel, \
-        reg_kernel_weights, reg_kernels, \
+        reg_kernel_weights, reg_kernels, reg_targets, \
         precond_kernel, w_kernel, w_reg_kernels = ctx.saved_variables
 
     d_x0 = x0.data.new()
@@ -346,6 +346,8 @@ class DeconvCGInit(Function):
     d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
+    d_reg_targets = reg_targets.data.new()
+    d_reg_targets.resize_as_(reg_targets.data)
     d_precond_kernel = precond_kernel.data.new()
     d_precond_kernel.resize_as_(precond_kernel.data)
     d_w_kernel = w_kernel.data.new()
@@ -358,20 +360,21 @@ class DeconvCGInit(Function):
 
     ops.deconv_cg_init_backward(
         blurred.data.view(ci, h, w), x0.data, kernel.data,
-        reg_kernel_weights.data, reg_kernels.data,
+        reg_kernel_weights.data, reg_kernels.data, reg_targets.data,
         precond_kernel.data, w_kernel.data, w_reg_kernels.data, d_xrp.data,
-        d_x0, d_reg_kernel_weights, d_reg_kernels, d_reg_target_kernels,
+        d_x0, d_reg_kernel_weights, d_reg_kernels, d_reg_targets,
         d_precond_kernel, d_w_kernel, d_w_reg_kernels)
 
     d_x0 = Variable(d_x0)
     d_reg_kernel_weights = Variable(d_reg_kernel_weights)
     d_reg_kernels = Variable(d_reg_kernels)
+    d_reg_targets = Variable(d_reg_targets)
     d_precond_kernel = Variable(d_precond_kernel)
     d_w_kernel = Variable(d_w_kernel)
     d_w_reg_kernels = Variable(d_w_reg_kernels)
 
     return None, d_x0, None, \
-           d_reg_kernel_weights, d_reg_kernels, \
+           d_reg_kernel_weights, d_reg_kernels, d_reg_targets, \
            d_precond_kernel, d_w_kernel, d_w_reg_kernels
 
 class DeconvCGIter(Function):
@@ -429,8 +432,8 @@ class DeconvCGWeight(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, blurred, current, reg_kernels, reg_target_kernels, reg_powers):
-    ctx.save_for_backward(blurred, current, reg_kernels, reg_target_kernels, reg_powers)
+  def forward(ctx, blurred, current, reg_kernels, reg_targets, reg_powers):
+    ctx.save_for_backward(blurred, current, reg_kernels, reg_targets, reg_powers)
 
     weights = blurred.new()
     b, ci, h, w = blurred.shape
@@ -440,45 +443,43 @@ class DeconvCGWeight(Function):
 
     weights.resize_(n, ci, h, w)
     ops.deconv_cg_weight_forward(
-        blurred, current, reg_kernels, reg_target_kernels, reg_powers, weights)
+        blurred, current, reg_kernels, reg_targets, reg_powers, weights)
 
     return weights
 
   @staticmethod
   def backward(ctx, d_weights):
-    blurred, current, reg_kernels, reg_target_kernels, reg_powers = ctx.saved_variables
+    blurred, current, reg_kernels, reg_targets, reg_powers = ctx.saved_variables
 
     d_current = current.data.new()
     d_current.resize_as_(current.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
-    d_reg_target_kernels = reg_target_kernels.data.new()
-    d_reg_target_kernels.resize_as_(reg_target_kernels.data)
+    d_reg_targets = reg_targets.data.new()
+    d_reg_targets.resize_as_(reg_targets.data)
     d_reg_powers = reg_powers.data.new()
     d_reg_powers.resize_as_(reg_powers.data)
 
     ops.deconv_cg_weight_backward(
         blurred.data, current.data, reg_kernels.data,
-        reg_target_kernels.data, reg_powers.data, d_weights.data,
-        d_current, d_reg_kernels, d_reg_target_kernels, d_reg_powers)
+        reg_targets.data, reg_powers.data, d_weights.data,
+        d_current, d_reg_kernels, d_reg_targets, d_reg_powers)
 
     d_current = Variable(d_current)
     d_reg_kernels = Variable(d_reg_kernels)
-    d_reg_target_kernels = Variable(d_reg_target_kernels)
+    d_reg_targets = Variable(d_reg_targets)
     d_reg_powers = Variable(d_reg_powers)
 
     assert(not np.isnan(d_reg_powers.data).any())
 
-    return None, d_current, d_reg_kernels, d_reg_target_kernels, d_reg_powers
+    return None, d_current, d_reg_kernels, d_reg_targets, d_reg_powers
 
 class BilateralGrid(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, sigma_s, sigma_r, input, filter_s, filter_r):
+  def forward(ctx, input, filter_s, filter_r):
     ctx.save_for_backward(input, filter_s, filter_r)
-    ctx.sigma_s = sigma_s
-    ctx.sigma_r = sigma_r
 
     b, c, h, w = input.shape
     assert b == 1
@@ -487,7 +488,6 @@ class BilateralGrid(Function):
     output.resize_(b, c, h, w);
 
     ops.bilateral_grid_forward(
-        sigma_s, sigma_r,
         input, filter_s, filter_r, output)
 
     return output
@@ -495,9 +495,6 @@ class BilateralGrid(Function):
   @staticmethod
   def backward(ctx, d_output):
     input, filter_s, filter_r = ctx.saved_variables
-
-    sigma_s = ctx.sigma_s
-    sigma_r = ctx.sigma_r
 
     d_input = input.data.new()
     d_input.resize_as_(input.data)
@@ -507,7 +504,6 @@ class BilateralGrid(Function):
     d_filter_r.resize_as_(filter_r.data)
 
     ops.bilateral_grid_backward(
-        sigma_s, sigma_r,
         input.data, filter_s.data, filter_r.data, d_output.data,
         d_input, d_filter_s, d_filter_r)
 

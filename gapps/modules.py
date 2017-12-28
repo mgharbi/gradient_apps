@@ -120,10 +120,12 @@ class DeconvCG(nn.Module):
     w_kernel = Variable(th.ones(blurred.shape[1], blurred.shape[2], blurred.shape[3]))
     w_reg_kernels = Variable(
       th.ones(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]))
+    reg_targets = Variable(
+      th.zeros(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]))
     x0 = blurred.clone()
     for irls_it in range(num_irls_iter):
       xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
-              self.reg_kernel_weights, self.reg_kernels,
+              self.reg_kernel_weights, self.reg_kernels, reg_targets,
               self.precond_kernel, w_kernel, w_reg_kernels).clone()
       assert(not np.isnan(xrp.data).any())
       r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
@@ -140,8 +142,9 @@ class DeconvCG(nn.Module):
             break
       x0 = xrp[0, :, :, :].clone()
       w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x0,
-        self.reg_kernels, self.reg_powers)
+        self.reg_kernels, reg_targets, self.reg_powers)
       assert(not np.isnan(w_reg_kernels.data).any())
+
     return x0
 
 # class CG(nn.Module):

@@ -5,9 +5,6 @@ namespace gradient_apps {
 
 class BilateralGridBackwardGenerator : public Generator<BilateralGridBackwardGenerator> {
 public:
-    Input<int> sigma_s{"sigma_s"}; // block_size in spatial
-    Input<int> sigma_r{"sigma_r"}; // number of guide discrete levels
-
     Input<Buffer<float>>  input{"input", 3};       // x, y, channel
     Input<Buffer<float>>  filter_s{"filter_s", 1};
     Input<Buffer<float>>  filter_r{"filter_r", 1};
@@ -19,7 +16,7 @@ public:
 
     void generate() {
         std::map<std::string, Func> func_map = bilateral_grid(
-            input, filter_s, filter_r, sigma_r);
+            input, filter_s, filter_r);
         Func f_output = func_map["output"];
         Func f_input = func_map["f_input"];
         Func f_filter_s = func_map["f_filter_s"];
@@ -38,9 +35,6 @@ public:
 
         if(auto_schedule) {
         } else {
-            auto func_map = get_deps({d_input,
-                                      d_filter_s,
-                                      d_filter_r});
             std::vector<Func> funcs{d_input, d_filter_s, d_filter_r};
             simple_autoschedule(funcs,
                                 {{"input.min.0", 0},
@@ -58,9 +52,7 @@ public:
                                  {"d_output.min.2", 0},
                                  {"d_output.extent.0", 256},
                                  {"d_output.extent.1", 256},
-                                 {"d_output.extent.2", 3},
-                                 {"sigma_s", 4},
-                                 {"sigma_r", 4}},
+                                 {"d_output.extent.2", 3}},
                                 {{{0, 255},
                                   {0, 255},
                                   {0, 2}},

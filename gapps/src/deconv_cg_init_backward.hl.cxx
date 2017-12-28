@@ -11,7 +11,8 @@ public:
     Input<Buffer<float>>  x0{"x0", 3};
     Input<Buffer<float>>  kernel{"kernel", 2};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
-    Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
+    Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
+    Input<Buffer<float>>  reg_targets{"reg_targets", 4};
     Input<Buffer<float>>  precond_kernel{"precond_kernel", 2};
     Input<Buffer<float>>  w_kernel{"w_kernel", 3};
     Input<Buffer<float>>  w_reg_kernels{"w_reg_kernels", 4};
@@ -19,18 +20,20 @@ public:
     Output<Buffer<float>> d_x0{"d_x0", 3};
     Output<Buffer<float>> d_reg_kernel_weights{"d_reg_kernel_weights", 1};
     Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
+    Output<Buffer<float>> d_reg_targets{"d_reg_targets", 4};
     Output<Buffer<float>> d_precond_kernel{"d_precond_kernel", 2};
     Output<Buffer<float>> d_w_kernel{"d_w_kernel", 3};
     Output<Buffer<float>> d_w_reg_kernels{"d_w_reg_kernels", 4};
 
     void generate() {
         auto func_map = deconv_cg_init(blurred, x0, kernel,
-            reg_kernel_weights, reg_kernels,
+            reg_kernel_weights, reg_kernels, reg_targets,
             precond_kernel, w_kernel, w_reg_kernels);
         Func xrp = func_map["xrp"];
         Func x0_func = func_map["x0_func"];
         Func reg_kernel_weights_func = func_map["reg_kernel_weights_func"];
         Func reg_kernels_func = func_map["reg_kernels_func"];
+        Func reg_targets_func = func_map["reg_targets_func"];
         Func precond_kernel_func = func_map["precond_kernel_func"];
         Func w_kernel_func = func_map["w_kernel_func"];
         Func w_reg_kernels_func = func_map["w_reg_kernels_func"];
@@ -46,38 +49,103 @@ public:
         assign_gradient(adjoints, x0_func, d_x0);
         assign_gradient(adjoints, reg_kernel_weights_func, d_reg_kernel_weights);
         assign_gradient(adjoints, reg_kernels_func, d_reg_kernels);
+        assign_gradient(adjoints, reg_targets_func, d_reg_targets);
         assign_gradient(adjoints, precond_kernel_func, d_precond_kernel);
         assign_gradient(adjoints, w_kernel_func, d_w_kernel);
         assign_gradient(adjoints, w_reg_kernels_func, d_w_reg_kernels);
 
-        if (auto_schedule) {
-            blurred.dim(0).set_bounds_estimate(0, 320);
-            blurred.dim(1).set_bounds_estimate(0, 240);
-            blurred.dim(2).set_bounds_estimate(0, 3);
-
-            x0.dim(0).set_bounds_estimate(0, 320);
-            x0.dim(1).set_bounds_estimate(0, 240);
-            x0.dim(2).set_bounds_estimate(0, 3);
-
-            kernel.dim(0).set_bounds_estimate(0, 7);
-            kernel.dim(1).set_bounds_estimate(0, 7);
-
-            reg_kernel_weights.dim(0).set_bounds_estimate(0, 2);
-
-            reg_kernels.dim(0).set_bounds_estimate(0, 3);
-            reg_kernels.dim(1).set_bounds_estimate(0, 3);
-            reg_kernels.dim(2).set_bounds_estimate(0, 2);
-
-            d_xrp.dim(0).set_bounds_estimate(0, 320);
-            d_xrp.dim(1).set_bounds_estimate(0, 240);
-            d_xrp.dim(2).set_bounds_estimate(0, 3);
-            d_xrp.dim(3).set_bounds_estimate(0, 3);
-
-            d_reg_kernel_weights.estimate(n, 0, 2);
-            d_reg_kernels.estimate(x, 0, 3)
-                         .estimate(y, 0, 3)
-                         .estimate(n, 0, 2);
-        } else {
+        if (auto_schedule) {} else {
+            std::vector<Func> funcs{d_x0,
+                                    d_reg_kernel_weights,
+                                    d_reg_kernels,
+                                    d_reg_targets,
+                                    d_precond_kernel,
+                                    d_w_kernel,
+                                    d_w_reg_kernels};
+            SimpleAutoscheduleOptions options;
+            options.gpu = get_target().has_gpu_feature();
+            simple_autoschedule(funcs,
+                                {{"blurred.min.0", 0},
+                                 {"blurred.min.1", 0},
+                                 {"blurred.min.2", 0},
+                                 {"blurred.extent.0", 256},
+                                 {"blurred.extent.1", 256},
+                                 {"blurred.extent.2", 3},
+                                 {"x0.min.0", 0},
+                                 {"x0.min.1", 0},
+                                 {"x0.min.2", 0},
+                                 {"x0.extent.0", 256},
+                                 {"x0.extent.1", 256},
+                                 {"x0.extent.2", 3},
+                                 {"kernel.min.0", 0},
+                                 {"kernel.min.1", 0},
+                                 {"kernel.extent.0", 11},
+                                 {"kernel.extent.1", 11},
+                                 {"reg_kernel_weights.min.0", 0},
+                                 {"reg_kernel_weights.extent.0", 5},
+                                 {"reg_kernels.min.0", 0},
+                                 {"reg_kernels.min.1", 0},
+                                 {"reg_kernels.min.2", 0},
+                                 {"reg_kernels.extent.0", 5},
+                                 {"reg_kernels.extent.1", 5},
+                                 {"reg_kernels.extent.2", 5},
+                                 {"reg_targets.min.0", 0},
+                                 {"reg_targets.min.1", 0},
+                                 {"reg_targets.min.2", 0},
+                                 {"reg_targets.min.3", 0},
+                                 {"reg_targets.extent.0", 256},
+                                 {"reg_targets.extent.1", 256},
+                                 {"reg_targets.extent.2", 3},
+                                 {"reg_targets.extent.3", 5},
+                                 {"precond_kernel.min.0", 0},
+                                 {"precond_kernel.min.1", 0},
+                                 {"precond_kernel.extent.0", 11},
+                                 {"precond_kernel.extent.1", 11},
+                                 {"w_kernel.min.0", 0},
+                                 {"w_kernel.min.1", 0},
+                                 {"w_kernel.min.2", 0},
+                                 {"w_kernel.extent.0", 256},
+                                 {"w_kernel.extent.1", 256},
+                                 {"w_kernel.extent.2", 3},
+                                 {"w_reg_kernels.min.0", 0},
+                                 {"w_reg_kernels.min.1", 0},
+                                 {"w_reg_kernels.min.2", 0},
+                                 {"w_reg_kernels.min.3", 0},
+                                 {"w_reg_kernels.extent.0", 256},
+                                 {"w_reg_kernels.extent.1", 256},
+                                 {"w_reg_kernels.extent.2", 3},
+                                 {"w_reg_kernels.extent.3", 5},
+                                 {"d_xrp.min.0", 0},
+                                 {"d_xrp.min.1", 0},
+                                 {"d_xrp.min.2", 0},
+                                 {"d_xrp.min.3", 0},
+                                 {"d_xrp.extent.0", 256},
+                                 {"d_xrp.extent.1", 256},
+                                 {"d_xrp.extent.2", 3},
+                                 {"d_xrp.extent.3", 3}
+                                },
+                                {{{0, 255},
+                                  {0, 255},
+                                  {0, 2}},
+                                 {{0, 4}},
+                                 {{0, 4},
+                                  {0, 4},
+                                  {0, 4}},
+                                 {{0, 255},
+                                  {0, 255},
+                                  {0, 2},
+                                  {0, 4}},
+                                 {{0, 10},
+                                  {0, 10}},
+                                 {{0, 255},
+                                  {0, 255},
+                                  {0, 2}},
+                                 {{0, 255},
+                                  {0, 255},
+                                  {0, 2},
+                                  {0, 4}}},
+                                  options);
+#if 0
             auto func_map = get_deps({d_x0,
                                       d_reg_kernel_weights,
                                       d_reg_kernels,
@@ -111,7 +179,7 @@ public:
             Pr0.update()
                .parallel(y)
                .vectorize(x, 16);
-            
+
             Func d_WKx0 = get_func(func_map, "WKx0_0_d_def__");
             d_WKx0.update()
                   .parallel(y)
@@ -206,7 +274,7 @@ public:
             d_pk1_rxi.compute_at(d_pk, xy)
                      .update()
                      .vectorize(rxi_f, 16);
-
+#endif
         }
     }
 };

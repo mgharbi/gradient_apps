@@ -1,6 +1,6 @@
 # Hack to avoid launching gtk
-import matplotlib 
-matplotlib.use('Agg') 
+import matplotlib
+matplotlib.use('Agg')
 
 import os
 import time
@@ -76,6 +76,9 @@ def test_deconv_cg_iteration_cpu():
 
 def test_profile_deconv_cg_cpu():
   _profile_deconv_cg(False)
+
+def test_profile_deconv_cg_gpu():
+  _profile_deconv_cg(True)
 
 def test_deconv_cg_cpu():
   _test_deconv_cg(False)
@@ -245,10 +248,11 @@ def _test_bilateral_grid_(gpu=False):
 
   print("profiling")
   with profiler.profile() as prof:
-    output = funcs.BilateralGrid.apply(
-        sigma_s, sigma_r, image, filter_s, filter_r)
-    #loss = output.sum()
-    #loss.backward()
+    for i in range(20):
+      output = funcs.BilateralGrid.apply(
+          image, filter_s, filter_r)
+      loss = output.sum()
+      loss.backward()
 
   print(prof)
 
@@ -405,9 +409,15 @@ def _test_learnable_demosaick(gpu=False):
       os.path.join(out_dir, "learnable_demosaicked.png"), output)
 
 def _profile_deconv_cg(gpu=False):
-  x = Variable(th.randn(1, 3, 240+11, 320+11), requires_grad=False)
+  x = Variable(th.randn(1, 3, 256, 256), requires_grad=False)
   kernel = Variable(th.rand(11, 11), requires_grad=False)
   op = modules.DeconvCG()
+
+  if gpu:
+    x = x.cuda()
+    kernel = kernel.cuda()
+    op.cuda()
+
   print("profiling")
   with profiler.profile() as prof:
     for i in range(1):
@@ -505,14 +515,14 @@ def _test_deconv_cg_iteration(gpu=False):
 def _test_deconv_cg(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
-  image = image[:244, :324, :]
-  kernel = utils.sample_kernel(7)
+  image = image[:256, :256, :]
+  kernel = utils.sample_kernel(11)
   blurred = utils.make_blur(image, kernel)
   skimage.io.imsave(
       os.path.join(out_dir, "blurred.png"), blurred)
   blurred = blurred.transpose((2, 0, 1))
 
-  blurred = Variable(th.from_numpy(blurred), requires_grad=False).contiguous().view(1, 3, 244, 324)
+  blurred = Variable(th.from_numpy(blurred), requires_grad=False).contiguous().view(1, 3, 256, 256)
   kernel = Variable(th.from_numpy(kernel), requires_grad=False)
   op = modules.DeconvCG()
 
@@ -520,7 +530,7 @@ def _test_deconv_cg(gpu=False):
     blurred = blurred.cuda()
     op.cuda()
 
-  output = op(blurred, kernel).view(3, 244, 324)
+  output = op(blurred, kernel).view(3, 256, 256)
 
   output = output.data.cpu().numpy()
   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
