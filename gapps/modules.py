@@ -118,17 +118,18 @@ class DeconvCG(nn.Module):
 
   def forward(self, blurred, kernel, num_irls_iter, num_cg_iter):
     w_kernel = blurred.new(blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(1.0)
-    w_reg_kernels =
+    w_reg_kernels = \
       blurred.new(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(1.0)
-    reg_targets =
+    reg_targets = \
       blurred.new(self.reg_kernels.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(0.0)
     x0 = blurred.clone()
     for irls_it in range(num_irls_iter):
       xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
               self.reg_kernel_weights, self.reg_kernels, reg_targets,
               self.precond_kernel, w_kernel, w_reg_kernels).clone()
-      assert(not np.isnan(xrp.data).any())
-      r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
+      assert(not np.isnan(xrp.data.cpu()).any())
+      r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
+      print('r: {}'.format(r))
       if r < 1e-10:
         break
 
@@ -137,13 +138,13 @@ class DeconvCG(nn.Module):
                 self.reg_kernel_weights, self.reg_kernels,
                 self.precond_kernel, w_kernel, w_reg_kernels).clone()
         assert(not np.isnan(xrp.data).any())
-        r = np.linalg.norm(xrp.data.numpy()[1, :, :, :])
+        r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
         if r < 1e-10:
             break
       x0 = xrp[0, :, :, :].clone()
       w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x0,
         self.reg_kernels, reg_targets, self.reg_powers)
-      assert(not np.isnan(w_reg_kernels.data).any())
+      assert(not np.isnan(w_reg_kernels.data.cpu()).any())
 
     return x0
 
