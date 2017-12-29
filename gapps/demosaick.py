@@ -85,8 +85,9 @@ class DemosaickCallback(object):
         batchv = batchv.cuda()
       out = self.model(batchv)
       out = out.data.cpu().numpy()
-      ref = self.reference(batchv.cpu())
-      ref = ref.data.cpu().numpy()
+      # ref = self.reference(batchv.cpu())
+      # ref = ref.data.cpu().numpy()
+      ref = np.zeros_like(out)
 
       inp = b[0].cpu().numpy()
       gt = b[1].cpu().numpy()
