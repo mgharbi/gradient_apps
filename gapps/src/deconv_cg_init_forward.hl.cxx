@@ -23,13 +23,13 @@ public:
             reg_kernel_weights, reg_kernels, reg_targets,
             precond_kernel, w_kernel, w_reg_kernels);
         assert(func_map.find("xrp") != func_map.end());
-        Func xrp_func = func_map["xrp"];
-        xrp(x, y, c, n) = xrp_func(x, y, c, n);
+        xrp(x, y, c, n) = func_map["xrp"](x, y, c, n);
 
         if (auto_schedule) {
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            Func xrp_func = xrp;
             simple_autoschedule(xrp_func,
                                 {
                                  {"blurred.min.0", 0},
