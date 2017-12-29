@@ -6,48 +6,51 @@
 // #include "learnable_demosaick_forward_cuda.h"
 // #include "learnable_demosaick_forward.h"
 
-#include "learnable_demosaick_backward_cuda.h"
+// #include "learnable_demosaick_backward_cuda.h"
 // #include "learnable_demosaick_backward.h"
+
+#include "deconv_cg_init_forward_cuda.h"
 
 using Halide::Runtime::Buffer;
 
 int main(int argc, char *argv[])
 {
-  int w = 128;
-  int h = 128;
-  int n = 64;
+  int w = 256;
+  int h = 256;
 
-  int ksize = 5;
-  int k = 8;
+  int ksize = 11;
 
   int ret = 0;
 
-  Buffer<float> mosaick(w, h, n);
-  Buffer<float> f1(ksize, ksize, k);
-  Buffer<float> f2(ksize, ksize, k);
-  Buffer<float> output(w, h, 3, n);
+  Buffer<float> blurred(w, h, 3);
+  Buffer<float> x0(w, h, 3);
+  Buffer<float> kernel(ksize, ksize);
+  Buffer<float> reg_kernel_weights(5);
+  Buffer<float> reg_kernels(5, 5, 5);
+  Buffer<float> reg_targets(w, h, 3, 5);
+  Buffer<float> precond_kernel(ksize, ksize);
+  Buffer<float> w_kernel(w, h, 3);
+  Buffer<float> w_reg_kernels(w, h, 3, 5);
+  Buffer<float> xrp(w, h, 3, 4);
 
-  Buffer<float> d_mosaick(w, h, n);
-  Buffer<float> d_f1(ksize, ksize, k);
-  Buffer<float> d_f2(ksize, ksize, k);
-  Buffer<float> d_output(w, h, 3, n);
-
-  // printf("running forward\n");
-  // ret = learnable_demosaick_forward_cuda(mosaick, f1, f2, output);
-  // printf("done gpu %d\n", ret);
-  // ret = learnable_demosaick_forward(mosaick, f1, f2, output);
-  // printf("done cpu %d\n", ret);
-
+  for (int n = 0; n < 4; n++) {
+      for (int c = 0; c < 3; c++) {
+          for (int y = 0; y < h; y++) {
+              for (int x = 0; x < w; x++) {
+                  xrp(x, y, c, n) = 10.f;
+              }
+          }
+      }
+  }
+  x0(0, 0, 0) = 50.f;
 
   printf("running backward\n");
-  ret = learnable_demosaick_backward_cuda(
-      mosaick, f1, f2, d_output,
-      d_mosaick, d_f1, d_f2);
+  ret = deconv_cg_init_forward_cuda(
+          nullptr, blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_targets, precond_kernel, w_kernel, w_reg_kernels, xrp);
   printf("done gpu %d\n", ret);
-  // ret = learnable_demosaick_backward(
-  //     mosaick, f1, f2, d_output,
-  //     d_mosaick, d_f1, d_f2);
-  // printf("done cpu %d\n", ret);
-  
+  for (int i = 0; i < 10; i++) {
+      printf("xrp %f\n", xrp(i, 0, 0, 0));
+  }
+ 
   return 0;
 }

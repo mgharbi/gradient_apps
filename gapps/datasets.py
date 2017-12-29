@@ -25,20 +25,21 @@ class DeconvDataset(Dataset):
     return len(self.files)
 
   def __getitem__(self, idx):
-    reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
+    reference = skimage.io.imread(os.path.join(os.path.join(self.root, "imagenet_rescale"), self.files[idx]))
     reference = reference.astype(np.float32)/255.0
 
     kernel_size = 11
     crop_size = [240 + kernel_size, 320 + kernel_size]
-    # Randomly choose a 324x244 crop
+    # Randomly choose a 320x240 crop if reference is larger than this
     reference_size = reference.shape
-    left_top = [random.randint(0, reference_size[0] - crop_size[0]),
-                random.randint(0, reference_size[1] - crop_size[1])]
-    #left_top = [0, 0]
-    #np.random.seed(1234)
-    reference = reference[left_top[0]:left_top[0]+crop_size[0]-1,
-                          left_top[1]:left_top[1]+crop_size[1]-1,
-                          :]
+    if reference.shape[0] > crop_size[0] and reference.shape[1] > crop_size[1]:
+      left_top = [random.randint(0, reference_size[0] - crop_size[0]),
+                  random.randint(0, reference_size[1] - crop_size[1])]
+      # left_top = [0, 0]
+      # np.random.seed(1234)
+      reference = reference[left_top[0]:left_top[0]+crop_size[0]-1,
+                            left_top[1]:left_top[1]+crop_size[1]-1,
+                            :]
 
     psf = utils.sample_psf(kernel_size)
     blurred = utils.make_blur(reference, psf)

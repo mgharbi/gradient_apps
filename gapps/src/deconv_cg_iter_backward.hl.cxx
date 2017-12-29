@@ -10,7 +10,7 @@ public:
     Input<Buffer<float>>  xrp{"xrp", 4};
     Input<Buffer<float>>  kernel{"kernel", 2};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
-    Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
+    Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
     Input<Buffer<float>>  precond_kernel{"precond_kernel", 2};
     Input<Buffer<float>>  w_kernel{"w_kernel", 3};
     Input<Buffer<float>>  w_reg_kernels{"w_reg_kernels", 4};
@@ -49,35 +49,90 @@ public:
         assign_gradient(adjoints, w_reg_kernels_func, d_w_reg_kernels);
 
         if (auto_schedule) {
-            xrp.dim(0).set_bounds_estimate(0, 320);
-            xrp.dim(1).set_bounds_estimate(0, 240);
-            xrp.dim(2).set_bounds_estimate(0, 3);
-            xrp.dim(3).set_bounds_estimate(0, 3);
-
-            kernel.dim(0).set_bounds_estimate(0, 7);
-            kernel.dim(1).set_bounds_estimate(0, 7);
-
-            reg_kernel_weights.dim(0).set_bounds_estimate(0, 2);
-
-            reg_kernels.dim(0).set_bounds_estimate(0, 3);
-            reg_kernels.dim(1).set_bounds_estimate(0, 3);
-            reg_kernels.dim(2).set_bounds_estimate(0, 2);
-
-            d_next_xrp.dim(0).set_bounds_estimate(0, 320);
-            d_next_xrp.dim(1).set_bounds_estimate(0, 240);
-            d_next_xrp.dim(2).set_bounds_estimate(0, 3);
-            d_next_xrp.dim(3).set_bounds_estimate(0, 3);
-
-            d_xrp.estimate(x, 0, 320)
-                 .estimate(y, 0, 240)
-                 .estimate(c, 0, 3)
-                 .estimate(n, 0, 3);
-
-            d_reg_kernel_weights.estimate(n, 0, 2);
-            d_reg_kernels.estimate(x, 0, 3)
-                         .estimate(y, 0, 3)
-                         .estimate(n, 0, 2);
         } else {
+            std::vector<Func> funcs{d_xrp,
+                                    d_reg_kernel_weights,
+                                    d_reg_kernels,
+                                    d_precond_kernel,
+                                    d_w_kernel,
+                                    d_w_reg_kernels};
+            SimpleAutoscheduleOptions options;
+            options.gpu = get_target().has_gpu_feature();
+            simple_autoschedule(funcs,
+                                {{"xrp.min.0", 0},
+                                 {"xrp.min.1", 0},
+                                 {"xrp.min.2", 0},
+                                 {"xrp.min.3", 0},
+                                 {"xrp.extent.0", 256},
+                                 {"xrp.extent.1", 256},
+                                 {"xrp.extent.2", 3},
+                                 {"xrp.extent.3", 3},
+                                 {"kernel.min.0", 0},
+                                 {"kernel.min.1", 0},
+                                 {"kernel.extent.0", 11},
+                                 {"kernel.extent.1", 11},
+                                 {"reg_kernel_weights.min.0", 0},
+                                 {"reg_kernel_weights.extent.0", 5},
+                                 {"reg_kernels.min.0", 0},
+                                 {"reg_kernels.min.1", 0},
+                                 {"reg_kernels.min.2", 0},
+                                 {"reg_kernels.extent.0", 5},
+                                 {"reg_kernels.extent.1", 5},
+                                 {"reg_kernels.extent.2", 5},
+                                 {"reg_targets.min.0", 0},
+                                 {"reg_targets.min.1", 0},
+                                 {"reg_targets.min.2", 0},
+                                 {"reg_targets.min.3", 0},
+                                 {"reg_targets.extent.0", 256},
+                                 {"reg_targets.extent.1", 256},
+                                 {"reg_targets.extent.2", 3},
+                                 {"reg_targets.extent.3", 5},
+                                 {"precond_kernel.min.0", 0},
+                                 {"precond_kernel.min.1", 0},
+                                 {"precond_kernel.extent.0", 11},
+                                 {"precond_kernel.extent.1", 11},
+                                 {"w_kernel.min.0", 0},
+                                 {"w_kernel.min.1", 0},
+                                 {"w_kernel.min.2", 0},
+                                 {"w_kernel.extent.0", 256},
+                                 {"w_kernel.extent.1", 256},
+                                 {"w_kernel.extent.2", 3},
+                                 {"w_reg_kernels.min.0", 0},
+                                 {"w_reg_kernels.min.1", 0},
+                                 {"w_reg_kernels.min.2", 0},
+                                 {"w_reg_kernels.min.3", 0},
+                                 {"w_reg_kernels.extent.0", 256},
+                                 {"w_reg_kernels.extent.1", 256},
+                                 {"w_reg_kernels.extent.2", 3},
+                                 {"w_reg_kernels.extent.3", 5},
+                                 {"d_next_xrp.min.0", 0},
+                                 {"d_next_xrp.min.1", 0},
+                                 {"d_next_xrp.min.2", 0},
+                                 {"d_next_xrp.min.3", 0},
+                                 {"d_next_xrp.extent.0", 256},
+                                 {"d_next_xrp.extent.1", 256},
+                                 {"d_next_xrp.extent.2", 3},
+                                 {"d_next_xrp.extent.3", 3}
+                                },
+                                {{{0, 255},
+                                  {0, 255},
+                                  {0, 2},
+                                  {0, 2}},
+                                 {{0, 4}},
+                                 {{0, 4},
+                                  {0, 4},
+                                  {0, 4}},
+                                 {{0, 10},
+                                  {0, 10}},
+                                 {{0, 255},
+                                  {0, 255},
+                                  {0, 2}},
+                                 {{0, 255},
+                                  {0, 255},
+                                  {0, 2},
+                                  {0, 4}}},
+                                 options);
+#if 0
             auto func_map = get_deps({
                 d_xrp,
                 d_reg_kernel_weights,
@@ -241,6 +296,7 @@ public:
                      .vectorize(rxi_f, 16);
 
             // TODO: merge functions
+#endif
         }
     }
 };

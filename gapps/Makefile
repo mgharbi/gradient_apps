@@ -54,9 +54,8 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-	  	bilateral_grid_forward
-			#deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
-			#deconv_cg_weight_forward deconv_cg_weight_backward bilateral_grid_forward bilateral_grid_backward \
+			deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
+			deconv_cg_weight_forward deconv_cg_weight_backward bilateral_grid_forward bilateral_grid_backward \
 			# learnable_demosaick_forward learnable_demosaick_backward \
 			# naive_demosaick_forward naive_demosaick_backward \
 			# conv1d_forward conv1d_backward conv1d_manual_backward \
@@ -66,7 +65,7 @@ OPS = \
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
-_ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS)
+_ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
 	@echo Python CFFI wrapper
 	@$(PYTHON) build.py
 
@@ -85,7 +84,7 @@ $(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/%
 	@cd $(BUILD_DIR); \
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(name) -g $(name) -f $(name)_cuda \
-										-e static_library,h,pytorch_wrapper,html \
+										-e static_library,pytorch_wrapper,h,html \
 										-o . target=host-cuda-cuda_capability_35-user_context$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 
@@ -103,7 +102,7 @@ $(BUILD_DIR):
 	@mkdir -p $@
 
 # C++ target to test the halide code independently of pytorch
-$(BUILD_DIR)/tester: $(SRC_DIR)/_tester.cpp $(BUILD_DIR)/learnable_demosaick_backward_cuda.a
+$(BUILD_DIR)/tester: $(SRC_DIR)/_tester.cpp $(BUILD_DIR)/deconv_cg_init_forward_cuda.a
 	# $(BUILD_DIR)/learnable_demosaick_forward_cuda.a $(BUILD_DIR)/learnable_demosaick_forward.a \
 	# $(BUILD_DIR)/learnable_demosaick_backward_cuda.a $(BUILD_DIR)/learnable_demosaick_backward.a
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -I/usr/local/cuda/include -I$(BUILD_DIR) $^ -o $@ $(LDFLAGS) $(CUDA_LDFLAGS)

@@ -13,11 +13,12 @@ template <typename Input>
 std::map<std::string, Func> bilateral_grid(
         const Input &input,
         const Input &filter_s,
-        const Input &filter_r,
-        Expr sigma_s,
-        Expr sigma_r) {
+        const Input &filter_r) {
+    int sigma_s = 4;
+    int sigma_r = 8;
+
     Func f_input("f_input");
-    f_input(x, y, c) = 
+    f_input(x, y, c) =
       Halide::BoundaryConditions::repeat_edge(input)(x, y, c);
     Func f_filter_s("f_filter_s");
     f_filter_s(x) = filter_s(x);
@@ -37,12 +38,12 @@ std::map<std::string, Func> bilateral_grid(
                            0.f,
                            cast<float>(sigma_r));
     Expr lower_bin = cast<int>(floor(guide_pos));
-    Expr upper_bin = lower_bin + 1;
+    Expr upper_bin = cast<int>(ceil(guide_pos));
     Expr w = guide_pos - lower_bin;
 
     Expr val = select(c < input.channels(),
-                      f_input(x * sigma_s + rgrid.x,
-                              y * sigma_s + rgrid.y,
+                      f_input(cast<int>(x * sigma_s + rgrid.x),
+                              cast<int>(y * sigma_s + rgrid.y),
                               c),
                       1.f) / cast<float>(sigma_s * sigma_s);
     Func f_grid("f_grid");
@@ -67,8 +68,8 @@ std::map<std::string, Func> bilateral_grid(
                           f_filter_s(rs.x);
 
     // Enclosing voxel
-    Expr gx = x / cast<float>(sigma_s);
-    Expr gy = y / cast<float>(sigma_s);
+    Expr gx = x / sigma_s;
+    Expr gy = y / sigma_s;
     Expr gz = clamp(guide(x, y) * cast<float>(sigma_r),
                     0.f,
                     cast<float>(sigma_r));
@@ -77,14 +78,13 @@ std::map<std::string, Func> bilateral_grid(
     Expr fz = cast<int>(floor(gz));
     Expr cx = fx + 1;
     Expr cy = fy + 1;
-    Expr cz = fz + 1;
+    Expr cz = cast<int>(ceil(gz));
     Expr wx = gx - fx;
     Expr wy = gy - fy;
     Expr wz = gz - fz;
 
     // trilerp
     Func unnormalized_output("unnormalized_output");
-    RDom rz(0, sigma_r);
     unnormalized_output(x, y, c) =
          blur_x(fx, fy, fz, c)*(1.f - wx)*(1.f - wy)*(1.f - wz)
        + blur_x(fx, fy, cz, c)*(1.f - wx)*(1.f - wy)*(      wz)

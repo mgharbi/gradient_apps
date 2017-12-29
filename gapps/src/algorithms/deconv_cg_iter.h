@@ -72,11 +72,10 @@ std::map<std::string, Func> deconv_cg_iter(
     WKp(x, y, c) = Kp(x, y, c) * clamped_w_kernel(x, y, c);
     Func KTWKp("K^TWKp");
     KTWKp(x, y, c) = 0.f;
-    KTWKp(x, y, c) += WKp(x + r_kernel.x - kernel.width()  / 2,
-                          y + r_kernel.y - kernel.height() / 2,
+    KTWKp(x, y, c) += WKp(x - r_kernel.x + kernel.width()  / 2,
+                          y - r_kernel.y + kernel.height() / 2,
                           c) *
-                       kernel(kernel.width()  - r_kernel.x - 1,
-                              kernel.height() - r_kernel.y - 1);
+                       kernel(r_kernel.x, r_kernel.y);
     RDom r_reg_kernel_xy(0, reg_kernels.width(), 0, reg_kernels.height());
     RDom r_reg_kernel_z(0, reg_kernels.channels());
     Func rKp("rKp");
@@ -89,12 +88,12 @@ std::map<std::string, Func> deconv_cg_iter(
     WrKp(x, y, c, n) = rKp(x, y, c, n) * clamped_w_reg_kernels(x, y, c, n);
     Func rKTWrKp("rK^TWrKp");
     rKTWrKp(x, y, c, n) = 0.f;
-    rKTWrKp(x, y, c, n) += WrKp(x + r_reg_kernel_xy.x - reg_kernels.width()  / 2,
-                                y + r_reg_kernel_xy.y - reg_kernels.height() / 2,
+    rKTWrKp(x, y, c, n) += WrKp(x - r_reg_kernel_xy.x + reg_kernels.width()  / 2,
+                                y - r_reg_kernel_xy.y + reg_kernels.height() / 2,
                                 c,
                                 n) *
-                           reg_kernels_func(reg_kernels.width()  - r_reg_kernel_xy.x - 1,
-                                            reg_kernels.height() - r_reg_kernel_xy.y - 1,
+                           reg_kernels_func(r_reg_kernel_xy.x,
+                                            r_reg_kernel_xy.y,
                                             n);
     Func ATWAp("A^TWAp");
     ATWAp(x, y, c) = KTWKp(x, y, c);
@@ -124,11 +123,11 @@ std::map<std::string, Func> deconv_cg_iter(
                    precond_kernel_func(r_precond_kernel.x, r_precond_kernel.y);
     Func next_z("next_z");
     next_z(x, y, c) = 0.f;
-    next_z(x, y, c) += Pr(x + r_precond_kernel.x - precond_kernel.width() / 2,
-                          y + r_precond_kernel.y - precond_kernel.height() / 2,
+    next_z(x, y, c) += Pr(x - r_precond_kernel.x + precond_kernel.width() / 2,
+                          y - r_precond_kernel.y + precond_kernel.height() / 2,
         	  	          c) *
-  	                   precond_kernel_func(precond_kernel.width()  - r_precond_kernel.x - 1,
-                                           precond_kernel.height() - r_precond_kernel.y - 1);
+  	                   precond_kernel_func(r_precond_kernel.x,
+                                           r_precond_kernel.y);
 
     // beta = nextZ^TnextR / r^Tr
     Func nRTnZ("nRTnZ");
