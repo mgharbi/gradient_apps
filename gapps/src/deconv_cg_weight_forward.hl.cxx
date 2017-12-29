@@ -9,7 +9,7 @@ class DeconvCgWeightForwardGenerator
 public:
     Input<Buffer<float>>  blurred{"blurred", 3};
     Input<Buffer<float>>  current{"current", 3};
-    Input<Buffer<float>>  reg_kernels{"reg_kernel", 3};
+    Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
     Input<Buffer<float>>  reg_targets{"reg_target_kernels", 4};
     Input<Buffer<float>>  reg_powers{"reg_powers", 1};
     Output<Buffer<float>> weights{"weights", 4};
