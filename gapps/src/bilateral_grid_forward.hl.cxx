@@ -27,9 +27,9 @@ public:
                                  {"input.extent.1", 256},
                                  {"input.extent.2", 3},
                                  {"filter_s.min.0", 0},
-                                 {"filter_s.extent.0", 4},
+                                 {"filter_s.extent.0", 5},
                                  {"filter_r.min.0", 0},
-                                 {"filter_r.extent.0", 4}},
+                                 {"filter_r.extent.0", 5}},
                                 {{0, 255},
                                  {0, 255},
                                  {0, 2}});
