@@ -509,18 +509,19 @@ class BilateralGrid(Function):
     d_filter_s = Variable(d_filter_s)
     d_filter_r = Variable(d_filter_r)
 
-    return None, None, d_input, d_filter_s, d_filter_r
+    return d_input, d_filter_s, d_filter_r
 
 class DeconvPrior(Function):
   """"""
 
   @staticmethod
   def forward(ctx, f, reg_kernels, thresholds):
-    ctx.save_for_backward(blurred, f, reg_kernels, thresholds)
+    ctx.save_for_backward(f, reg_kernels, thresholds)
 
     weights = f.new()
-    ci, h, w = f.shape
-    n, = reg_kernels.shape
+    b, ci, h, w = f.shape
+    n, _, _ = reg_kernels.shape
+    assert b == 1
     assert ci == 3
 
     weights.resize_(n, ci, h, w)
@@ -537,6 +538,8 @@ class DeconvPrior(Function):
     d_f.resize_as_(f.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
+    d_thresholds = thresholds.data.new()
+    d_thresholds.resize_as_(thresholds.data)
 
     ops.deconv_prior_backward(
         f.data, reg_kernels.data, thresholds.data,
@@ -547,5 +550,5 @@ class DeconvPrior(Function):
     d_reg_kernels = Variable(d_reg_kernels)
     d_thresholds = Variable(d_thresholds)
 
-    return d_f, d_reg_kernels, d_reg_kernels, d_thresholdss
+    return d_f, d_reg_kernels, d_thresholds
 

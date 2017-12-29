@@ -431,18 +431,18 @@ def test_deconv_cg_match():
   kernel = Variable(th.rand(11, 11), requires_grad=False)
   op = modules.DeconvCG()
 
-  print "CPU pass"
+  print("CPU pass")
   y_cpu = op(x, kernel, 5, 10)
 
   x = x.cuda()
   kernel = kernel.cuda()
   op.cuda()
 
-  print "GPU pass"
+  print("GPU pass")
   y = op(x, kernel, 5, 10)
 
   diff = (y.cpu()-y_cpu).data.abs().max()
-  print diff
+  print(diff)
   assert diff < 1e-2
 
 

@@ -36,8 +36,11 @@ std::map<std::string, Func> deconv_prior(
                                  c) *
                        reg_kernels_func(r_reg_kernel_xy.x, r_reg_kernel_xy.y, n);
     Func weights("weights");
-    weights(x, y, c, n) = rKf(x, y, c, n) /
-            (pow(thresholds_func(n) / (abs(rKf(x, y, c, n)) + 1e-3f), 4.f) + 1.f);
+    Expr f2 = rKf(x, y, c, n) * rKf(x, y, c, n);
+    Expr f4 = f2 * f2;
+    Expr t2 = thresholds_func(n) * thresholds_func(n);
+    Expr t4 = t2 * t2;
+    weights(x, y, c, n) = f4 * rKf(x, y, c, n) / (t4 + f4);
 
     std::map<std::string, Func> func_map;
     func_map["f_func"] = f_func;
