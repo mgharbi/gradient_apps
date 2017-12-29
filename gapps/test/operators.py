@@ -409,7 +409,7 @@ def _test_learnable_demosaick(gpu=False):
       os.path.join(out_dir, "learnable_demosaicked.png"), output)
 
 def _profile_deconv_cg(gpu=False):
-  x = Variable(th.randn(1, 3, 256, 256), requires_grad=False)
+  x = Variable(th.randn(1, 3, 256, 256), requires_grad=True)
   kernel = Variable(th.rand(11, 11), requires_grad=False)
   op = modules.DeconvCG()
 
