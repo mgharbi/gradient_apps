@@ -426,6 +426,26 @@ def _profile_deconv_cg(gpu=False):
       loss.backward()
   print(prof)
 
+def test_deconv_cg_match():
+  x = Variable(th.randn(1, 3, 256, 256), requires_grad=True)
+  kernel = Variable(th.rand(11, 11), requires_grad=False)
+  op = modules.DeconvCG()
+
+  print "CPU pass"
+  y_cpu = op(x, kernel, 5, 10)
+
+  x = x.cuda()
+  kernel = kernel.cuda()
+  op.cuda()
+
+  print "GPU pass"
+  y = op(x, kernel, 5, 10)
+
+  diff = (y.cpu()-y_cpu).data.abs().max()
+  print diff
+  assert diff < 1e-2
+
+
 def test_learnable_demosaick_cpu_gpu():
   # image = skimage.io.imread(
   #     os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
