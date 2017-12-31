@@ -56,7 +56,7 @@ EXT_DIR = _ext
 OPS = \
 			deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
 			deconv_cg_weight_forward deconv_cg_weight_backward bilateral_grid_forward bilateral_grid_backward \
-			deconv_prior_forward deconv_prior_backward \
+			deconv_prior_forward deconv_prior_backward
 			# learnable_demosaick_forward learnable_demosaick_backward \
 			# naive_demosaick_forward naive_demosaick_backward \
 			# conv1d_forward conv1d_backward conv1d_manual_backward \

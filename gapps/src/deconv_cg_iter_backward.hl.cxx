@@ -132,6 +132,7 @@ public:
                                   {0, 2},
                                   {0, 4}}},
                                  options);
+
 #if 0
             auto func_map = get_deps({
                 d_xrp,
@@ -140,6 +141,7 @@ public:
                 d_precond_kernel,
                 d_w_kernel,
                 d_w_reg_kernels});
+            print_func(Func(func_map["p_0_d_def__"]), false, false, true, 2);
             compute_all_root(d_xrp);
             compute_all_root(d_reg_kernel_weights);
             compute_all_root(d_reg_kernels);

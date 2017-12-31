@@ -19,7 +19,10 @@ public:
 
         if(auto_schedule) {
         } else {
-            simple_autoschedule(f_output,
+            SimpleAutoscheduleOptions options;
+            options.gpu = get_target().has_gpu_feature();
+            Func output_func = output;
+            simple_autoschedule(output_func,
                                 {{"input.min.0", 0},
                                  {"input.min.1", 0},
                                  {"input.min.2", 0},
@@ -32,7 +35,8 @@ public:
                                  {"filter_r.extent.0", 5}},
                                 {{0, 255},
                                  {0, 255},
-                                 {0, 2}});
+                                 {0, 2}},
+                                options);
         }
     }
 };

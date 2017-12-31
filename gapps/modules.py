@@ -2,6 +2,7 @@ import torch as th
 import torch.nn as nn
 import numpy as np
 from torch.autograd import Variable
+import time
 
 import gapps.functions as funcs
 
@@ -179,56 +180,53 @@ class DeconvCG(nn.Module):
       xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
               self.reg_kernel_weights0, self.reg_kernels0, reg_targets,
               self.precond_kernel0, w_kernel, w_reg_kernels)
-      assert(not np.isnan(xrp.data.cpu()).any())
-      r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
-      if r < 1e-10:
-        break
+      #assert(not np.isnan(xrp.data.cpu()).any())
+      #r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
+      #if r < 1e-10:
+      #  break
 
       for cg_it in range(num_cg_iter):
         xrp = funcs.DeconvCGIter.apply(xrp, kernel,
                 self.reg_kernel_weights0, self.reg_kernels0,
-                self.precond_kernel0, w_kernel, w_reg_kernels).clone()
-        assert(not np.isnan(xrp.data).any())
-        r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
-        if r < 1e-10:
-            break
-      x0 = xrp[0:1, :, :, :].clone()
-      if (irls_it < num_irls_iter):
+                self.precond_kernel0, w_kernel, w_reg_kernels)
+        #assert(not np.isnan(xrp.data).any())
+        #r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
+        #if r < 1e-10:
+        #    break
+      x0 = xrp[0:1, :, :, :]
+      if (irls_it < num_irls_iter - 1):
         w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x0,
           self.reg_kernels0, reg_targets, self.reg_powers0)
-        assert(not np.isnan(w_reg_kernels.data.cpu()).any())
+        #assert(not np.isnan(w_reg_kernels.data.cpu()).any())
 
-    assert(not np.isnan(x0.data.cpu()).any())
-
-    print(self.filter_s)
-    print(self.filter_r)
+    #assert(not np.isnan(x0.data.cpu()).any())
 
     # Smooth out the resulting image with bilateral grid
     x0 = funcs.BilateralGrid.apply(x0, self.filter_s, self.filter_r)
-    assert(not np.isnan(x0.data.cpu()).any())
+    #assert(not np.isnan(x0.data.cpu()).any())
 
     # Compute the adaptive prior
     reg_targets = funcs.DeconvPrior.apply(x0, self.reg_kernels1, self.reg_thresholds)
-    assert(not np.isnan(reg_targets.data.cpu()).any())
+    #assert(not np.isnan(reg_targets.data.cpu()).any())
 
     # Solve the deconvolution again using the obtained reg_targets
     for irls_it in range(num_irls_iter):
       xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
               self.reg_kernel_weights1, self.reg_kernels1, reg_targets,
               self.precond_kernel0, w_kernel, w_reg_kernels)
-      assert(not np.isnan(xrp.data.cpu()).any())
-      r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
-      if r < 1e-10:
-        break
+      #assert(not np.isnan(xrp.data.cpu()).any())
+      #r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
+      #if r < 1e-10:
+      #  break
 
       for cg_it in range(num_cg_iter):
         xrp = funcs.DeconvCGIter.apply(xrp, kernel,
                 self.reg_kernel_weights1, self.reg_kernels1,
                 self.precond_kernel1, w_kernel, w_reg_kernels).clone()
-        assert(not np.isnan(xrp.data).any())
-        r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
-        if r < 1e-10:
-            break
+        #assert(not np.isnan(xrp.data).any())
+        #r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
+        #if r < 1e-10:
+        #    break
       x0 = xrp[0:1, :, :, :].clone()
       if (irls_it < num_irls_iter):
         w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x0,

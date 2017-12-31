@@ -87,7 +87,8 @@ public:
                                  {0, 255},
                                  {0, 2},
                                  {0, 2}},
-                                options);
+                                options,
+                                {"xrp$1"});
 #if 0
             auto func_map = get_deps(xrp);
             compute_all_root(xrp);

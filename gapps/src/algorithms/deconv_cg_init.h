@@ -123,16 +123,12 @@ std::map<std::string, Func> deconv_cg_init(
 
     Func r0("r0");
     r0(x, y, c) = ATWb(x, y, c) - ATWAx0(x, y, c);
-    Func clamped_r0 = BoundaryConditions::repeat_edge(r0,
-                {{Expr(0), Expr(x0.width())},
-                 {Expr(0), Expr(x0.height())},
-                 {Expr(), Expr()}});
     RDom r_precond_kernel(precond_kernel);
     Func Pr0("Pr0");
     Pr0(x, y, c) = 0.f;
-    Pr0(x, y, c) += clamped_r0(x + r_precond_kernel.x - precond_kernel.width() / 2,
-                               y + r_precond_kernel.y - precond_kernel.height() / 2,
-			                   c) *
+    Pr0(x, y, c) += r0(x + r_precond_kernel.x - precond_kernel.width() / 2,
+                       y + r_precond_kernel.y - precond_kernel.height() / 2,
+			           c) *
 	                precond_kernel_func(r_precond_kernel.x, r_precond_kernel.y);
     Func z0("z0");
     z0(x, y, c) = 0.f;
@@ -152,14 +148,14 @@ std::map<std::string, Func> deconv_cg_init(
     xrp(x, y, c, 3) = z0(x, y, c);
 
     std::map<std::string, Func> func_map;
-    func_map["x0_func"] = x0_func;
+    // use clamped_x0 instead of x0 to make the derivatives more parallelizable
+    func_map["x0_func"] = clamped_x0;
     func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
     func_map["reg_kernels_func"] = reg_kernels_func;
-    func_map["reg_targets_func"] = reg_targets_func;
+    func_map["reg_targets_func"] = clamped_rtarget;
     func_map["precond_kernel_func"] = precond_kernel_func;
-    func_map["w_kernel_func"] = w_kernel_func;
-    func_map["w_reg_kernels_func"] = w_reg_kernels_func;
-    func_map["reg_targets_func"] = reg_targets_func;
+    func_map["w_kernel_func"] = clamped_w_kernel;
+    func_map["w_reg_kernels_func"] = clamped_w_reg_kernels;
     func_map["xrp"] = xrp;
     return func_map;
 }

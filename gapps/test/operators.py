@@ -419,12 +419,18 @@ def _profile_deconv_cg(gpu=False):
     op.cuda()
 
   print("profiling")
+  it = 5
+  burn_it = 5
   with profiler.profile() as prof:
-    for i in range(1):
-      y = op(x, kernel, 5, 10)
+    for i in range(burn_it+it):
+      if i == burn_it:
+        start = time.time()
+      y = op(x, kernel, 1, 5)
       loss = y.sum()
       loss.backward()
-  print(prof)
+    elapsed = time.time() - start
+  print("elapased {:.2f} ms, {:.2f}ms/it".format(elapsed*1000, elapsed*1000.0/it))
+  #print(prof)
 
 def test_deconv_cg_match():
   x = Variable(th.randn(1, 3, 256, 256), requires_grad=True)

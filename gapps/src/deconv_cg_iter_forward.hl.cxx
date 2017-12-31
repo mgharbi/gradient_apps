@@ -24,6 +24,8 @@ public:
 
         if (auto_schedule) {
         } else {
+            SimpleAutoscheduleOptions options;
+            options.gpu = get_target().has_gpu_feature();
             Func output = next_xrp;
             simple_autoschedule(output,
                                 {{"xrp.min.0", 0},
@@ -76,8 +78,9 @@ public:
                                 {{0, 255},
                                  {0, 255},
                                  {0, 2},
-                                 {0, 2}});
-
+                                 {0, 3}},
+                                options,
+                                {"next_xrp$1"});
 #if 0
             auto func_map = get_deps(next_xrp);
             compute_all_root(next_xrp);

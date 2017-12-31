@@ -145,6 +145,7 @@ public:
                                   {0, 2},
                                   {0, 4}}},
                                   options);
+
 #if 0
             auto func_map = get_deps({d_x0,
                                       d_reg_kernel_weights,
@@ -152,6 +153,7 @@ public:
                                       d_precond_kernel,
                                       d_w_kernel,
                                       d_w_reg_kernels});
+            print_func(Func(func_map["reg_kernels_func_0_d_def__"]), false, false, true, 1);
             compute_all_root(d_x0);
             compute_all_root(d_reg_kernel_weights);
             compute_all_root(d_reg_kernels);

@@ -48,9 +48,9 @@ int main(int argc, char *argv[])
   ret = deconv_cg_init_forward_cuda(
           nullptr, blurred, x0, kernel, reg_kernel_weights, reg_kernels, reg_targets, precond_kernel, w_kernel, w_reg_kernels, xrp);
   printf("done gpu %d\n", ret);
-  for (int i = 0; i < 10; i++) {
-      printf("xrp %f\n", xrp(i, 0, 0, 0));
-  }
+  //for (int i = 0; i < 10; i++) {
+      //printf("xrp %f\n", xrp(i, 0, 0, 0));
+  //}
  
   return 0;
 }

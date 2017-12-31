@@ -150,9 +150,9 @@ std::map<std::string, Func> deconv_cg_iter(
     func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
     func_map["reg_kernels_func"] = reg_kernels_func;
     func_map["precond_kernel_func"] = precond_kernel_func;
-    func_map["w_kernel_func"] = w_kernel_func;
-    func_map["w_reg_kernels_func"] = w_reg_kernels_func;
-    func_map["xrp_func"] = xrp_func;
+    func_map["w_kernel_func"] = clamped_w_kernel;
+    func_map["w_reg_kernels_func"] = clamped_w_reg_kernels;
+    func_map["xrp_func"] = xrp_clamped;
     func_map["next_xrp"] = next_xrp;
     return func_map;
 }
