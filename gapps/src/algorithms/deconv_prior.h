@@ -43,7 +43,7 @@ std::map<std::string, Func> deconv_prior(
     weights(x, y, c, n) = f4 * rKf(x, y, c, n) / (t4 + f4);
 
     std::map<std::string, Func> func_map;
-    func_map["f_func"] = f_func;
+    func_map["f_func"] = clamped_f;
     func_map["reg_kernels_func"] = reg_kernels_func;
     func_map["thresholds_func"] = thresholds_func;
     func_map["weights"] = weights;

@@ -51,9 +51,9 @@ std::map<std::string, Func> deconv_cg_weight(
                    reg_powers_func(n) - 2.f)));
 
     std::map<std::string, Func> func_map;
-    func_map["current_func"] = current_func;
+    func_map["current_func"] = clamped_current;
     func_map["reg_kernels_func"] = reg_kernels_func;
-    func_map["reg_targets_func"] = reg_targets_func;
+    func_map["reg_targets_func"] = clamped_rtarget;
     func_map["reg_powers_func"] = reg_powers_func;
     func_map["weights"] = weights;
     return func_map;

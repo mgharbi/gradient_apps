@@ -117,10 +117,11 @@ std::map<std::string, Func> deconv_cg_iter(
     RDom r_precond_kernel(precond_kernel);
     Func Pr("Pr");
     Pr(x, y, c) = 0.f;
-    Pr(x, y, c) += r(x + r_precond_kernel.x - precond_kernel.width() / 2,
-                     y + r_precond_kernel.y - precond_kernel.height() / 2,
-             	     c) *
-                   precond_kernel_func(r_precond_kernel.x, r_precond_kernel.y);
+    Pr(x, y, c) += next_r(x + r_precond_kernel.x - precond_kernel.width() / 2,
+                          y + r_precond_kernel.y - precond_kernel.height() / 2,
+                	      c) *
+                   precond_kernel_func(r_precond_kernel.x,
+                                       r_precond_kernel.y);
     Func next_z("next_z");
     next_z(x, y, c) = 0.f;
     next_z(x, y, c) += Pr(x - r_precond_kernel.x + precond_kernel.width() / 2,
