@@ -68,8 +68,8 @@ std::map<std::string, Func> bilateral_grid(
                           f_filter_s(rs.x);
 
     // Enclosing voxel
-    Expr gx = x / sigma_s;
-    Expr gy = y / sigma_s;
+    Expr gx = x / float(sigma_s);
+    Expr gy = y / float(sigma_s);
     Expr gz = clamp(guide(x, y) * cast<float>(sigma_r),
                     0.f,
                     cast<float>(sigma_r));
