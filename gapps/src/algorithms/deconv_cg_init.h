@@ -82,7 +82,9 @@ std::map<std::string, Func> deconv_cg_init(
 
     Func ATWb("A^TWb");
     ATWb(x, y, c) = KTWb(x, y, c);
-    ATWb(x, y, c) += rKTWb(x, y, c, r_reg_kernel_z);
+    ATWb(x, y, c) += rKTWb(x, y, c, r_reg_kernel_z) *
+                     reg_kernel_weights_func(r_reg_kernel_z) *
+                     reg_kernel_weights_func(r_reg_kernel_z);;
     Func Kx0("Kx0");
     Kx0(x, y, c) = 0.f;
     Kx0(x, y, c) += clamped_x0(x + r_kernel.x - kernel.width()  / 2,
