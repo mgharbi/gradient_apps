@@ -47,8 +47,8 @@ class DeconvCallback(object):
     self.reg_powers1_viz = viz.ScalarVisualizer("reg_powers1", port=viz_port, env=env)
     self.precond_kernel0_viz = viz.ImageVisualizer("precond_kernel0", port=viz_port, env=env)
     self.precond_kernel1_viz = viz.ImageVisualizer("precond_kernel1", port=viz_port, env=env)
-    self.filter_s_viz = viz.ScalarVisualizer("filter_s", port=viz_port, env=env)
-    self.filter_r_viz = viz.ScalarVisualizer("filter_r", port=viz_port, env=env)
+    self.filter_s_viz = viz.ScalarVisualizer("filter_s", ntraces=5, port=viz_port, env=env)
+    self.filter_r_viz = viz.ScalarVisualizer("filter_r", ntraces=5, port=viz_port, env=env)
     self.reg_thresholds_viz = viz.ScalarVisualizer("reg_thresholds", port=viz_port, env=env)
 
     self.loss_viz = viz.ScalarVisualizer("loss", port=viz_port, env=env)
@@ -146,8 +146,16 @@ def main(args):
     model = model.cuda()
     ref_model = ref_model.cuda()
 
-  optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
-  # optimizer = th.optim.SGD(model.parameters(), lr=args.lr)
+  print "Training parameters:"
+  params_to_train = []
+  for n, p in model.named_parameters():
+    if n in ["filter_s", "filter_r"]:
+      print "  -", n
+      params_to_train.append(p)
+    else:
+      print "  - (ignored)", n
+  optimizer = th.optim.Adam(params_to_train, lr=args.lr)
+  # optimizer = th.optim.SGD(params_to_train, lr=args.lr)
   loss_fn = metrics.CroppedMSELoss(crop=5)
   psnr_fn = metrics.PSNR(crop=5)
 
