@@ -3,6 +3,7 @@ import os
 import struct
 import re
 import random
+import hashlib
 
 import numpy as np
 import skimage.io
@@ -25,18 +26,20 @@ class DeconvDataset(Dataset):
     return len(self.files)
 
   def __getitem__(self, idx):
-    reference = skimage.io.imread(os.path.join(os.path.join(self.root, "imagenet_rescale"), self.files[idx]))
+    #reference = skimage.io.imread(os.path.join(os.path.join(self.root, "imagenet_rescale"), self.files[idx]))
+    reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
     reference = reference.astype(np.float32)/255.0
 
+    seed = int(hashlib.md5(self.files[idx].encode('utf-8')).hexdigest(), 16) % (1 << 32)
+    np.random.seed(seed)
+
     kernel_size = 11
-    crop_size = [240 + kernel_size, 320 + kernel_size]
-    # Randomly choose a 320x240 crop if reference is larger than this
+    crop_size = [256 + kernel_size, 256 + kernel_size]
+    # Randomly choose a crop if reference is larger than this
     reference_size = reference.shape
     if reference.shape[0] > crop_size[0] and reference.shape[1] > crop_size[1]:
-      left_top = [random.randint(0, reference_size[0] - crop_size[0]),
-                  random.randint(0, reference_size[1] - crop_size[1])]
-      # left_top = [0, 0]
-      # np.random.seed(1234)
+      left_top = [np.random.randint(0, reference_size[0] - crop_size[0]),
+                  np.random.randint(0, reference_size[1] - crop_size[1])]
       reference = reference[left_top[0]:left_top[0]+crop_size[0]-1,
                             left_top[1]:left_top[1]+crop_size[1]-1,
                             :]
@@ -45,12 +48,6 @@ class DeconvDataset(Dataset):
     blurred = utils.make_blur(reference, psf)
     reference = reference.transpose((2, 0, 1))
     blurred = blurred.transpose((2, 0, 1))
-
-    # Drop the boundaries
-    r = int(kernel_size/2)
-    blurred = blurred[:, r : crop_size[0] - r, r : crop_size[1] - r]
-    reference = reference[:, r : crop_size[0] - r, r : crop_size[1] - r]
-
     return blurred, reference, psf
 
 class DemosaickingDataset(Dataset):

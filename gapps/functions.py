@@ -323,12 +323,11 @@ class DeconvCGInit(Function):
       precond_kernel, w_kernel, w_reg_kernels)
 
     xrp = blurred.new()
-    b, ci, h, w = blurred.shape
-    assert b == 1
+    ci, h, w = blurred.shape
 
     xrp.resize_(4, ci, h, w)
     ops.deconv_cg_init_forward(
-        blurred.view(ci, h, w), x0.view(ci, h, w), kernel,
+        blurred, x0, kernel,
         reg_kernel_weights, reg_kernels, reg_targets,
         precond_kernel, w_kernel, w_reg_kernels, xrp)
 
@@ -355,8 +354,7 @@ class DeconvCGInit(Function):
     d_w_reg_kernels = w_reg_kernels.data.new()
     d_w_reg_kernels.resize_as_(w_reg_kernels.data)
 
-    b, ci, h, w = blurred.shape
-    assert b == 1
+    ci, h, w = blurred.shape
 
     ops.deconv_cg_init_backward(
         blurred.data.view(ci, h, w), x0.data, kernel.data,
@@ -436,9 +434,8 @@ class DeconvCGWeight(Function):
     ctx.save_for_backward(blurred, current, reg_kernels, reg_targets, reg_powers)
 
     weights = blurred.new()
-    b, ci, h, w = blurred.shape
+    ci, h, w = blurred.shape
     n, = reg_powers.shape
-    assert b == 1
     assert ci == 3
 
     weights.resize_(n, ci, h, w)
@@ -479,11 +476,10 @@ class BilateralGrid(Function):
   def forward(ctx, input, filter_s, filter_r):
     ctx.save_for_backward(input, filter_s, filter_r)
 
-    b, c, h, w = input.shape
-    assert b == 1
+    c, h, w = input.shape
 
     output = input.new()
-    output.resize_(b, c, h, w);
+    output.resize_(c, h, w);
 
     ops.bilateral_grid_forward(
         input, filter_s, filter_r, output)
@@ -519,9 +515,8 @@ class DeconvPrior(Function):
     ctx.save_for_backward(f, reg_kernels, thresholds)
 
     weights = f.new()
-    b, ci, h, w = f.shape
+    ci, h, w = f.shape
     n, _, _ = reg_kernels.shape
-    assert b == 1
     assert ci == 3
 
     weights.resize_(n, ci, h, w)

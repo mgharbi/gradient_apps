@@ -222,10 +222,11 @@ def _test_bilateral_grid_(gpu=False):
 
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
   sz = 256
-  image = image[:sz, :sz, :]
+  image = image[22:sz+22, 73:sz+73, :]
 
   h, w, _ = image.shape
-  image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
+  #image = np.expand_dims(image.transpose([2, 0, 1])/255.0, 0).astype(np.float32)
+  image = image.transpose([2, 0, 1]).astype(np.float32)/255.0
 
   image = Variable(th.from_numpy(image), requires_grad=False)
   filter_s = Variable(th.zeros(5), requires_grad=True)
@@ -245,6 +246,20 @@ def _test_bilateral_grid_(gpu=False):
     image = image.cuda()
     filter_s = filter_s.cuda()
     filter_r = filter_r.cuda()
+
+  output = funcs.BilateralGrid.apply(
+              image, filter_s, filter_r)
+  output = output.data.cpu().numpy()
+  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  output = np.squeeze(output)
+  image = image.data.cpu().numpy()
+  image = np.clip(np.transpose(image, [1, 2, 0]), 0, 1)
+  image = np.squeeze(image)
+  skimage.io.imsave(
+      os.path.join(out_dir, "bilateral_grid_input.png"), image)
+  skimage.io.imsave(
+      os.path.join(out_dir, "bilateral_grid_output.png"), output)
+  return
 
   print("profiling")
   with profiler.profile() as prof:
@@ -419,7 +434,7 @@ def _profile_deconv_cg(gpu=False):
     op.cuda()
 
   print("profiling")
-  it = 5
+  it = 10
   burn_it = 5
   with profiler.profile() as prof:
     for i in range(burn_it+it):

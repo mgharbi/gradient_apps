@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 from torch.autograd import Variable
 import time
+import math
 
 import gapps.functions as funcs
 
@@ -129,37 +130,37 @@ class DeconvCG(nn.Module):
     self.reg_kernels0.data[0, reg_kernel_center, reg_kernel_center] = -1.0
     self.reg_kernels0.data[0, reg_kernel_center + 1, reg_kernel_center] = 1.0
     # dy
-    self.reg_kernels0.data[0, reg_kernel_center, reg_kernel_center] = -1.0
-    self.reg_kernels0.data[0, reg_kernel_center, reg_kernel_center + 1] = 1.0
+    self.reg_kernels0.data[1, reg_kernel_center, reg_kernel_center] = -1.0
+    self.reg_kernels0.data[1, reg_kernel_center, reg_kernel_center + 1] = 1.0
     # dxdy
-    self.reg_kernels0.data[0, reg_kernel_center    , reg_kernel_center    ] =  1.0
-    self.reg_kernels0.data[0, reg_kernel_center + 1, reg_kernel_center    ] = -1.0
-    self.reg_kernels0.data[0, reg_kernel_center    , reg_kernel_center + 1] = -1.0
-    self.reg_kernels0.data[0, reg_kernel_center + 1, reg_kernel_center + 1] =  1.0
+    self.reg_kernels0.data[2, reg_kernel_center    , reg_kernel_center    ] =  1.0
+    self.reg_kernels0.data[2, reg_kernel_center + 1, reg_kernel_center    ] = -1.0
+    self.reg_kernels0.data[2, reg_kernel_center    , reg_kernel_center + 1] = -1.0
+    self.reg_kernels0.data[2, reg_kernel_center + 1, reg_kernel_center + 1] =  1.0
     # d^2x
-    self.reg_kernels0.data[0, reg_kernel_center - 1, reg_kernel_center] = 1.0
-    self.reg_kernels0.data[0, reg_kernel_center, reg_kernel_center] = -2.0
-    self.reg_kernels0.data[0, reg_kernel_center + 1, reg_kernel_center] = 1.0
+    self.reg_kernels0.data[3, reg_kernel_center - 1, reg_kernel_center] = 1.0
+    self.reg_kernels0.data[3, reg_kernel_center, reg_kernel_center] = -2.0
+    self.reg_kernels0.data[3, reg_kernel_center + 1, reg_kernel_center] = 1.0
     # d^2y
-    self.reg_kernels0.data[0, reg_kernel_center, reg_kernel_center - 1] = 1.0
-    self.reg_kernels0.data[0, reg_kernel_center, reg_kernel_center] = -2.0
-    self.reg_kernels0.data[0, reg_kernel_center, reg_kernel_center + 1] = 1.0
+    self.reg_kernels0.data[4, reg_kernel_center, reg_kernel_center - 1] = 1.0
+    self.reg_kernels0.data[4, reg_kernel_center, reg_kernel_center] = -2.0
+    self.reg_kernels0.data[4, reg_kernel_center, reg_kernel_center + 1] = 1.0
     self.reg_kernels1.data = self.reg_kernels0.data.clone()
 
     # Smaller lambda for first phase since the noise is going to be smoothed out anyway
-    self.reg_kernel_weights0.data[:] = 0.001
-    self.reg_kernel_weights1.data[:] = 0.05
+    self.reg_kernel_weights0.data[:] = math.sqrt(0.001)
+    self.reg_kernel_weights1.data[:] = math.sqrt(0.05)
 
     # Initialize the preconditioning kernel to a Dirac
     precond_kernel_center = int(precond_kernel_size / 2)
     self.precond_kernel0.data[precond_kernel_center, precond_kernel_center] = 1.0
     self.precond_kernel1.data[precond_kernel_center, precond_kernel_center] = 1.0
 
-    self.filter_s.data[0] = 1.0
-    self.filter_s.data[1] = 4.0
-    self.filter_s.data[2] = 6.0
-    self.filter_s.data[3] = 4.0
-    self.filter_s.data[4] = 1.0
+    self.filter_s.data[0] = 0.0
+    self.filter_s.data[1] = 0.0
+    self.filter_s.data[2] = 1.0
+    self.filter_s.data[3] = 0.0
+    self.filter_s.data[4] = 0.0
     self.filter_r.data = self.filter_s.data.clone()
 
     self.reg_thresholds.data[0] = 0.065
@@ -168,77 +169,70 @@ class DeconvCG(nn.Module):
     self.reg_thresholds.data[3] = 0.0325
     self.reg_thresholds.data[4] = 0.0325
 
-  def forward(self, blurred, kernel, num_irls_iter, num_cg_iter):
-    # Solve the deconvolution using reg_targets == 0 with IRLS first
-    w_kernel = blurred.new(blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(1.0)
-    w_reg_kernels = \
-      blurred.new(self.reg_kernels0.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(1.0)
-    reg_targets = \
-      blurred.new(self.reg_kernels0.shape[0], blurred.shape[1], blurred.shape[2], blurred.shape[3]).fill_(0.0)
-    x0 = blurred.clone()
-    for irls_it in range(num_irls_iter):
-      xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
-              self.reg_kernel_weights0, self.reg_kernels0, reg_targets,
-              self.precond_kernel0, w_kernel, w_reg_kernels)
-      #assert(not np.isnan(xrp.data.cpu()).any())
-      #r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
-      #if r < 1e-10:
-      #  break
+  def forward(self, blurred_batch, kernel_batch, num_irls_iter, num_cg_iter):
+    num_batches = blurred_batch.shape[0]
+    result = blurred_batch.new(
+      blurred_batch.shape[0], blurred_batch.shape[1], blurred_batch.shape[2], blurred_batch.shape[3])
+    for b in range(num_batches):
+      blurred = blurred_batch[b, :, :, :]
+      kernel = kernel_batch[b, :, :]
+      # Solve the deconvolution using reg_targets == 0 with IRLS first
+      w_kernel = blurred.new(blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(1.0)
+      w_reg_kernels = \
+        blurred.new(self.reg_kernels0.shape[0], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(1.0)
+      reg_targets = \
+        blurred.new(self.reg_kernels0.shape[0], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
+      x = blurred.clone()
+#      for irls_it in range(num_irls_iter):
+#        xrp = funcs.DeconvCGInit.apply(blurred, x, kernel,
+#                self.reg_kernel_weights0, self.reg_kernels0, reg_targets,
+#                self.precond_kernel0, w_kernel, w_reg_kernels)
+#        r = xrp[1, :, :, :].norm()
+#        if r.data.cpu() < 1e-10:
+#          break
+#  
+#        for cg_it in range(num_cg_iter):
+#          xrp = funcs.DeconvCGIter.apply(xrp, kernel,
+#                  self.reg_kernel_weights0, self.reg_kernels0,
+#                  self.precond_kernel0, w_kernel, w_reg_kernels)
+#          r = xrp[1, :, :, :].norm()
+#          if r.data.cpu() < 1e-10:
+#            break
+#  
+#        x = xrp[0, :, :, :]
+#        if (irls_it < num_irls_iter - 1):
+#          w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x,
+#            self.reg_kernels0, reg_targets, self.reg_powers0)
+  
+      # Smooth out the resulting image with bilateral grid
+      x = funcs.BilateralGrid.apply(x, self.filter_s, self.filter_r)
+#  
+#      # Compute the adaptive prior
+#      reg_targets = funcs.DeconvPrior.apply(x, self.reg_kernels1, self.reg_thresholds)
+#
+#      # Solve the deconvolution again using the obtained reg_targets
+#      for irls_it in range(num_irls_iter):
+#        xrp = funcs.DeconvCGInit.apply(blurred, x, kernel,
+#                self.reg_kernel_weights1, self.reg_kernels1, reg_targets,
+#                self.precond_kernel0, w_kernel, w_reg_kernels)
+#        r = xrp[1, :, :, :].norm()
+#        if r.data.cpu() < 1e-10:
+#          break
+#  
+#        for cg_it in range(num_cg_iter):
+#          xrp = funcs.DeconvCGIter.apply(xrp, kernel,
+#                  self.reg_kernel_weights1, self.reg_kernels1,
+#                  self.precond_kernel1, w_kernel, w_reg_kernels)
+#          r = xrp[1, :, :, :].norm()
+#          if r.data.cpu() < 1e-10:
+#            break
+#  
+#        x = xrp[0, :, :, :].clone()
+#        if (irls_it < num_irls_iter):
+#          w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x,
+#            self.reg_kernels1, reg_targets, self.reg_powers1)
+      result[b, :, :, :] = x
+  
+    assert(not np.isnan(result.data.cpu()).any())
+    return result
 
-      for cg_it in range(num_cg_iter):
-        xrp = funcs.DeconvCGIter.apply(xrp, kernel,
-                self.reg_kernel_weights0, self.reg_kernels0,
-                self.precond_kernel0, w_kernel, w_reg_kernels)
-        #assert(not np.isnan(xrp.data).any())
-        #r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
-        #if r < 1e-10:
-        #    break
-      x0 = xrp[0:1, :, :, :]
-      if (irls_it < num_irls_iter - 1):
-        w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x0,
-          self.reg_kernels0, reg_targets, self.reg_powers0)
-        #assert(not np.isnan(w_reg_kernels.data.cpu()).any())
-
-    #assert(not np.isnan(x0.data.cpu()).any())
-
-    # Smooth out the resulting image with bilateral grid
-    x0 = funcs.BilateralGrid.apply(x0, self.filter_s, self.filter_r)
-    #assert(not np.isnan(x0.data.cpu()).any())
-
-    # Compute the adaptive prior
-    reg_targets = funcs.DeconvPrior.apply(x0, self.reg_kernels1, self.reg_thresholds)
-    #assert(not np.isnan(reg_targets.data.cpu()).any())
-
-    # Solve the deconvolution again using the obtained reg_targets
-    for irls_it in range(num_irls_iter):
-      xrp = funcs.DeconvCGInit.apply(blurred, x0, kernel,
-              self.reg_kernel_weights1, self.reg_kernels1, reg_targets,
-              self.precond_kernel0, w_kernel, w_reg_kernels)
-      #assert(not np.isnan(xrp.data.cpu()).any())
-      #r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
-      #if r < 1e-10:
-      #  break
-
-      for cg_it in range(num_cg_iter):
-        xrp = funcs.DeconvCGIter.apply(xrp, kernel,
-                self.reg_kernel_weights1, self.reg_kernels1,
-                self.precond_kernel1, w_kernel, w_reg_kernels).clone()
-        #assert(not np.isnan(xrp.data).any())
-        #r = np.linalg.norm(xrp.data.cpu().numpy()[1, :, :, :])
-        #if r < 1e-10:
-        #    break
-      x0 = xrp[0:1, :, :, :].clone()
-      if (irls_it < num_irls_iter):
-        w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x0,
-          self.reg_kernels1, reg_targets, self.reg_powers1)
-        assert(not np.isnan(w_reg_kernels.data.cpu()).any())
-
-    return x0
-
-# class CG(nn.Module):
-#   def forward(self, A, b):
-#     r = 0
-#     x = 0
-#     for nit:
-#       r, x, p = funcs.cg_it(r, x, p)
-#     return x
