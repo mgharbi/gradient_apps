@@ -14,7 +14,7 @@ std::map<std::string, Func> bilateral_grid(
         const Input &input,
         const Input &filter_s,
         const Input &filter_r) {
-    int sigma_s = 1;
+    int sigma_s = 4;
     int sigma_r = 8;
 
     Func f_input("f_input");
@@ -57,15 +57,15 @@ std::map<std::string, Func> bilateral_grid(
     Func blur_z("blur_z");
     blur_z(x, y, z, c) = 0.f;
     blur_z(x, y, z, c) += f_grid(x, y, z + rr.x - filter_r.width() / 2, c) *
-                          f_filter_r(rr.x);
+                          f_filter_r(rr.x) * f_filter_r(rr.x);
     Func blur_y("blur_y");
     blur_y(x, y, z, c) = 0.f;
     blur_y(x, y, z, c) += blur_z(x, y + rs.x - filter_s.width() / 2, z, c) *
-                          f_filter_s(rs.x);
+                          f_filter_s(rs.x) * f_filter_s(rs.x);
     Func blur_x("blur_x");
     blur_x(x, y, z, c) = 0.f;
     blur_x(x, y, z, c) += blur_y(x + rs.x - filter_s.width() / 2, y, z, c) *
-                          f_filter_s(rs.x);
+                          f_filter_s(rs.x) * f_filter_s(rs.x);
 
     // Enclosing voxel
     Expr gx = x / float(sigma_s);
@@ -96,7 +96,7 @@ std::map<std::string, Func> bilateral_grid(
        + blur_x(cx, cy, cz, c)*(      wx)*(      wy)*(      wz);
     Func output("output");
     output(x, y, c) = unnormalized_output(x, y, c) /
-                      unnormalized_output(x, y, input.channels());
+                      (unnormalized_output(x, y, input.channels()) + 1e-4f);
 
     std::map<std::string, Func> func_map;
     func_map["f_input"]  = f_input;
