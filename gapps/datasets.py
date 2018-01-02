@@ -17,35 +17,53 @@ import gapps.utils as utils
 log = logging.getLogger("gapps")
 
 class DeconvDataset(Dataset):
-  def __init__(self, filelist):
+  def __init__(self, filelist, is_validate = False):
     self.root = os.path.dirname(filelist)
     with open(filelist) as fid:
       self.files = [l.strip() for l in fid.readlines()]
+    if is_validate:
+      random_files = []
+      random.seed(8888)
+      for i in range(8):
+        random_files.append(self.files[random.randint(0, len(self.files)-1)])
+      self.files = random_files
+    else:
+      random.shuffle(self.files)
 
   def __len__(self):
     return len(self.files)
 
   def __getitem__(self, idx):
-    #reference = skimage.io.imread(os.path.join(os.path.join(self.root, "imagenet_rescale"), self.files[idx]))
-    reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
-    reference = reference.astype(np.float32)/255.0
-
-    seed = int(hashlib.md5(self.files[idx].encode('utf-8')).hexdigest(), 16) % (1 << 32)
-    np.random.seed(seed)
-
     kernel_size = 11
-    crop_size = [256 + kernel_size, 256 + kernel_size]
-    # Randomly choose a crop if reference is larger than this
-    reference_size = reference.shape
-    if reference.shape[0] > crop_size[0] and reference.shape[1] > crop_size[1]:
-      left_top = [np.random.randint(0, reference_size[0] - crop_size[0]),
-                  np.random.randint(0, reference_size[1] - crop_size[1])]
-      reference = reference[left_top[0]:left_top[0]+crop_size[0]-1,
-                            left_top[1]:left_top[1]+crop_size[1]-1,
-                            :]
+    # 20 pixels of boundaries since we are going to clamp them
+    crop_size = [256 + 40, 256 + 40]
+    try:
+      reference = skimage.io.imread(os.path.join(os.path.join(self.root, "imagenet_raw"), self.files[idx]))
+      #reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
+      reference = reference.astype(np.float32)/255.0
+  
+      seed = int(hashlib.md5(self.files[idx].encode('utf-8')).hexdigest(), 16) % (1 << 32)
+      np.random.seed(seed)
+  
+      # Randomly choose a crop if reference is larger than this
+      reference_size = reference.shape
+      if len(reference.shape) == 2:
+        reference = np.stack([reference, reference, reference], axis=-1)
+      if reference.shape[0] > crop_size[0] and reference.shape[1] > crop_size[1]:
+        left_top = [np.random.randint(0, reference_size[0] - crop_size[0]),
+                    np.random.randint(0, reference_size[1] - crop_size[1])]
+        reference = reference[left_top[0]:left_top[0]+crop_size[0],
+                              left_top[1]:left_top[1]+crop_size[1],
+                              :]
+      else:
+        # otherwise resize
+        reference = np.resize(reference, [crop_size[0], crop_size[1], 3])
+    except:
+      print('Couldn\'t load ', self.files[idx])
+      reference = np.zeros([crop_size[0], crop_size[1], 3], dtype=np.float32)
 
     psf = utils.sample_psf(kernel_size)
-    blurred = utils.make_blur(reference, psf)
+    blurred = utils.make_blur(reference, psf, 0.01)
     reference = reference.transpose((2, 0, 1))
     blurred = blurred.transpose((2, 0, 1))
     return blurred, reference, psf
