@@ -114,8 +114,33 @@ Func get_func(const std::map<std::string, Halide::Internal::Function> &func_map,
     return Func(it->second);
 }
 
-void simple_auto_schedule(std::vector<Func> &outputs) {
-
+std::pair<Func, Func> select_repeat_edge(Func input, Expr width, Expr height) {
+    std::vector<Var> args = input.args();
+    assert(args.size() >= 2);
+    Func repeat_edge(input.name() + std::string("repeat_edge"));
+    std::vector<Expr> exprs;
+    exprs.push_back(clamp(likely(args[0]), 0, width-1));
+    exprs.push_back(clamp(likely(args[1]), 0, height-1));
+    for (int i = 2; i < (int)args.size(); i++) {
+        exprs.push_back(args[i]);
+    }
+    repeat_edge(args) = input(exprs);
+    Func selected(input.name() + std::string("selected"));
+    std::vector<Expr> arg_exprs;
+    for (int i = 0; i < (int)args.size(); i++) {
+        arg_exprs.push_back(args[i]);
+    }
+    exprs = arg_exprs;
+    exprs[0] = Expr(0);
+    selected(args) = select(args[0] >= 0, repeat_edge(arg_exprs), repeat_edge(exprs));
+    exprs[0] = width - 1;
+    selected(args) = select(args[0] < width, selected(arg_exprs), repeat_edge(exprs));
+    exprs[0] = args[0];
+    exprs[1] = Expr(0);
+    selected(args) = select(args[1] >= 0, selected(arg_exprs), repeat_edge(exprs));
+    exprs[1] = height - 1;
+    selected(args) = select(args[1] < height, selected(arg_exprs), repeat_edge(exprs));
+    return {repeat_edge, selected};
 }
 
 #endif /* end of include guard: GRADIENT_HELPERS_H_FSA3FYYR */

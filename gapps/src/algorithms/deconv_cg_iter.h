@@ -33,29 +33,21 @@ std::map<std::string, Func> deconv_cg_iter(
 
     RDom r_image(0, xrp.width(), 0, xrp.height(), 0, xrp.channels());
     RDom r_kernel(kernel);
-    Func xrp_clamped = BoundaryConditions::repeat_edge(xrp_func,
-                {{Expr(0), Expr(xrp.width())},
-                 {Expr(0), Expr(xrp.height())},
-                 {Expr(), Expr()},
-                 {Expr(), Expr()}});
-    Func clamped_w_kernel = BoundaryConditions::repeat_edge(w_kernel_func,
-                {{Expr(0), Expr(xrp.width())},
-                 {Expr(0), Expr(xrp.height())},
-                 {Expr(), Expr()}});
-    Func clamped_w_reg_kernels = BoundaryConditions::repeat_edge(w_reg_kernels_func,
-                {{Expr(0), Expr(xrp.width())},
-                 {Expr(0), Expr(xrp.height())},
-                 {Expr(), Expr()},
-                 {Expr(), Expr()}});
+    Func xrp_re, clamped_xrp;
+    std::tie(xrp_re, clamped_xrp) = select_repeat_edge(xrp_func, xrp.width(), xrp.height());
+    Func w_kernel_re, clamped_w_kernel;
+    std::tie(w_kernel_re, clamped_w_kernel) = select_repeat_edge(w_kernel_func, xrp.width(), xrp.height());
+    Func w_reg_kernels_re, clamped_w_reg_kernels;
+    std::tie(w_reg_kernels_re, clamped_w_reg_kernels) = select_repeat_edge(w_reg_kernels_func, xrp.width(), xrp.height());
     // Extract input
     Func xk("xk");
-    xk(x, y, c) = xrp_clamped(x, y, c, 0);
+    xk(x, y, c) = clamped_xrp(x, y, c, 0);
     Func r("r");
-    r(x, y, c) = xrp_clamped(x, y, c, 1);
+    r(x, y, c) = clamped_xrp(x, y, c, 1);
     Func p("p");
-    p(x, y, c) = xrp_clamped(x, y, c, 2);
+    p(x, y, c) = clamped_xrp(x, y, c, 2);
     Func z("z");
-    z(x, y, c) = xrp_clamped(x, y, c, 3);
+    z(x, y, c) = clamped_xrp(x, y, c, 3);
 
     Func rTz("rTz");
     // alpha = r^T * z / p^T A^T W A p
@@ -98,8 +90,7 @@ std::map<std::string, Func> deconv_cg_iter(
     Func ATWAp("A^TWAp");
     ATWAp(x, y, c) = KTWKp(x, y, c);
     ATWAp(x, y, c) += rKTWrKp(x, y, c, r_reg_kernel_z.x) *
-                      reg_kernel_weights_func(r_reg_kernel_z.x) *
-                      reg_kernel_weights_func(r_reg_kernel_z.x);
+                      abs(reg_kernel_weights_func(r_reg_kernel_z.x));
     Func pTATWAp("p^TA^TWAp");
     pTATWAp() = 0.f;
     pTATWAp() += p(r_image.x, r_image.y, r_image.z) *
@@ -151,9 +142,9 @@ std::map<std::string, Func> deconv_cg_iter(
     func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
     func_map["reg_kernels_func"] = reg_kernels_func;
     func_map["precond_kernel_func"] = precond_kernel_func;
-    func_map["w_kernel_func"] = clamped_w_kernel;
-    func_map["w_reg_kernels_func"] = clamped_w_reg_kernels;
-    func_map["xrp_func"] = xrp_clamped;
+    func_map["w_kernel_func"] = w_kernel_re;
+    func_map["w_reg_kernels_func"] = w_reg_kernels_re;
+    func_map["xrp_func"] = xrp_re;
     func_map["next_xrp"] = next_xrp;
     return func_map;
 }

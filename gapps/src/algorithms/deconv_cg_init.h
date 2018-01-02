@@ -40,28 +40,18 @@ std::map<std::string, Func> deconv_cg_init(
     x0_func(x, y, c) = x0(x, y, c);
 
     RDom r_kernel(kernel);
-    Func clamped_b = BoundaryConditions::repeat_edge(blurred);
-    Func clamped_x0 = BoundaryConditions::repeat_edge(x0_func,
-                {{Expr(0), Expr(x0.width())},
-                 {Expr(0), Expr(x0.height())},
-                 {Expr(), Expr()}});
-    Func clamped_rtarget = BoundaryConditions::repeat_edge(reg_targets_func,
-                {{Expr(0), Expr(x0.width())},
-                 {Expr(0), Expr(x0.height())},
-                 {Expr(), Expr()},
-                 {Expr(), Expr()}});
-    Func clamped_w_kernel = BoundaryConditions::repeat_edge(w_kernel_func,
-                {{Expr(0), Expr(x0.width())},
-                 {Expr(0), Expr(x0.height())},
-                 {Expr(), Expr()}});
-    Func clamped_w_reg_kernels = BoundaryConditions::repeat_edge(w_reg_kernels_func,
-                {{Expr(0), Expr(x0.width())},
-                 {Expr(0), Expr(x0.height())},
-                 {Expr(), Expr()},
-                 {Expr(), Expr()}});
+    Func b_re = BoundaryConditions::repeat_edge(blurred);
+    Func x0_re, clamped_x0;
+    std::tie(x0_re, clamped_x0) = select_repeat_edge(x0_func, x0.width(), x0.height());
+    Func rtarget_re, clamped_rtarget;
+    std::tie(rtarget_re, clamped_rtarget) = select_repeat_edge(reg_targets_func, x0.width(), x0.height());
+    Func w_kernel_re, clamped_w_kernel;
+    std::tie(w_kernel_re, clamped_w_kernel) = select_repeat_edge(w_kernel_func, x0.width(), x0.height());
+    Func w_reg_kernels_re, clamped_w_reg_kernels;
+    std::tie(w_reg_kernels_re, clamped_w_reg_kernels) = select_repeat_edge(w_reg_kernels_func, x0.width(), x0.height());
 
     Func wkb("wkb");
-    wkb(x, y, c) = clamped_w_kernel(x, y, c) * clamped_b(x, y, c);
+    wkb(x, y, c) = clamped_w_kernel(x, y, c) * b_re(x, y, c);
     Func KTWb("K^TWb");
     KTWb(x, y, c) = 0.f;
     KTWb(x, y, c) += wkb(x - r_kernel.x + kernel.width()  / 2,
@@ -83,8 +73,7 @@ std::map<std::string, Func> deconv_cg_init(
     Func ATWb("A^TWb");
     ATWb(x, y, c) = KTWb(x, y, c);
     ATWb(x, y, c) += rKTWb(x, y, c, r_reg_kernel_z) *
-                     reg_kernel_weights_func(r_reg_kernel_z) *
-                     reg_kernel_weights_func(r_reg_kernel_z);;
+                     abs(reg_kernel_weights_func(r_reg_kernel_z));
     Func Kx0("Kx0");
     Kx0(x, y, c) = 0.f;
     Kx0(x, y, c) += clamped_x0(x + r_kernel.x - kernel.width()  / 2,
@@ -98,7 +87,7 @@ std::map<std::string, Func> deconv_cg_init(
     KTWKx0(x, y, c) += WKx0(x - r_kernel.x + kernel.width()  / 2,
                             y - r_kernel.y + kernel.height() / 2,
                             c) *
-                        kernel(r_kernel.x, r_kernel.y);
+                       kernel(r_kernel.x, r_kernel.y);
     Func rKx0("rKx0");
     rKx0(x, y, c, n) = 0.f;
     rKx0(x, y, c, n) += clamped_x0(x + r_reg_kernel_xy.x - reg_kernels.width()  / 2,
@@ -120,8 +109,7 @@ std::map<std::string, Func> deconv_cg_init(
     Func ATWAx0("A^TWAx0");
     ATWAx0(x, y, c) = KTWKx0(x, y, c);
     ATWAx0(x, y, c) += rKTWrKx0(x, y, c, r_reg_kernel_z.x) *
-                       reg_kernel_weights_func(r_reg_kernel_z.x) *
-                       reg_kernel_weights_func(r_reg_kernel_z.x);
+                       abs(reg_kernel_weights_func(r_reg_kernel_z.x));
 
     Func r0("r0");
     r0(x, y, c) = ATWb(x, y, c) - ATWAx0(x, y, c);
@@ -144,20 +132,19 @@ std::map<std::string, Func> deconv_cg_init(
     p0(x, y, c) = z0(x, y, c);
     Func xrp("xrp");
     xrp(x, y, c, n) = 0.f;
-    xrp(x, y, c, 0) = x0_func(x, y, c);
+    xrp(x, y, c, 0) = x0_re(x, y, c);
     xrp(x, y, c, 1) = r0(x, y, c);
     xrp(x, y, c, 2) = p0(x, y, c);
     xrp(x, y, c, 3) = z0(x, y, c);
 
     std::map<std::string, Func> func_map;
-    // use clamped_x0 instead of x0 to make the derivatives more parallelizable
-    func_map["x0_func"] = clamped_x0;
+    func_map["x0_func"] = x0_re;
     func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
     func_map["reg_kernels_func"] = reg_kernels_func;
-    func_map["reg_targets_func"] = clamped_rtarget;
+    func_map["reg_targets_func"] = reg_targets_func;
     func_map["precond_kernel_func"] = precond_kernel_func;
-    func_map["w_kernel_func"] = clamped_w_kernel;
-    func_map["w_reg_kernels_func"] = clamped_w_reg_kernels;
+    func_map["w_kernel_func"] = w_kernel_re;
+    func_map["w_reg_kernels_func"] = w_reg_kernels_re;
     func_map["xrp"] = xrp;
     return func_map;
 }
