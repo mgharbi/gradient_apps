@@ -28,6 +28,7 @@ class DeconvDataset(Dataset):
         random_files.append(self.files[random.randint(0, len(self.files)-1)])
       self.files = random_files
     else:
+      random.seed(9999)
       random.shuffle(self.files)
 
   def __len__(self):

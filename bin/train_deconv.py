@@ -28,7 +28,7 @@ log = logging.getLogger("gapps_deconvolution")
 
 viz_port = 8888
 irls_iter = 1
-cg_iter = 20
+cg_iter = 10
 ref_irls_iter = 1
 ref_cg_iter = 20
 
@@ -44,21 +44,21 @@ class DeconvCallback(object):
     self.reg_kernels0_viz = viz.BatchVisualizer("reg_kernels0", port=viz_port, env=env)
     self.reg_kernels1_viz = viz.BatchVisualizer("reg_kernels1", port=viz_port, env=env)
     self.reg_kernel_weights0_viz = viz.ScalarVisualizer("reg_kernel_weights0",
-      ntraces = self.model.reg_kernel_weights0.shape[0], port=viz_port, env=env)
+      ntraces = self.model.reg_kernel_weights.shape[1], port=viz_port, env=env)
     self.reg_kernel_weights1_viz = viz.ScalarVisualizer("reg_kernel_weights1",
-      ntraces = self.model.reg_kernel_weights1.shape[0], port=viz_port, env=env)
+      ntraces = self.model.reg_kernel_weights.shape[1], port=viz_port, env=env)
     self.reg_powers0_viz = viz.ScalarVisualizer("reg_powers0",
-      ntraces = self.model.reg_powers0.shape[0], port=viz_port, env=env)
+      ntraces = self.model.reg_powers.shape[1], port=viz_port, env=env)
     self.reg_powers1_viz = viz.ScalarVisualizer("reg_powers1",
-      ntraces = self.model.reg_powers1.shape[0], port=viz_port, env=env)
+      ntraces = self.model.reg_powers.shape[1], port=viz_port, env=env)
     self.precond_kernel0_viz = viz.ImageVisualizer("precond_kernel0", port=viz_port, env=env)
     self.precond_kernel1_viz = viz.ImageVisualizer("precond_kernel1", port=viz_port, env=env)
-    self.filter_s_viz = viz.ScalarVisualizer("filter_s",
-      ntraces = self.model.filter_s.shape[0], port=viz_port, env=env)
-    self.filter_r_viz = viz.ScalarVisualizer("filter_r",
-      ntraces = self.model.filter_r.shape[0], port=viz_port, env=env)
+    self.filter_s_viz = viz.ScalarVisualizer("filter_s0",
+      ntraces = self.model.filter_s.shape[1], port=viz_port, env=env)
+    self.filter_r_viz = viz.ScalarVisualizer("filter_r0",
+      ntraces = self.model.filter_r.shape[1], port=viz_port, env=env)
     self.reg_thresholds_viz = viz.ScalarVisualizer("reg_thresholds",
-      ntraces = self.model.reg_thresholds.shape[0], port=viz_port, env=env)
+      ntraces = self.model.reg_thresholds.shape[1], port=viz_port, env=env)
 
     self.loss_viz = viz.ScalarVisualizer("loss", port=viz_port, env=env)
     self.psnr_viz = viz.ScalarVisualizer("psnr", port=viz_port, env=env)
@@ -118,34 +118,34 @@ class DeconvCallback(object):
     if "psnr" in logs.keys():
       self.psnr_viz.update(iteration, logs['psnr'])
 
-    rk0 = self.model.reg_kernels0.data.cpu().numpy()
+    rk0 = self.model.reg_kernels.data[0, :, :, :].cpu().numpy()
     rk0 = np.reshape(rk0, [rk0.shape[0], 1, rk0.shape[1], rk0.shape[2]])
     rk0 = (rk0 / np.abs(rk0).max() + 1.0) / 2.0
     self.reg_kernels0_viz.update(rk0,
                                  per_row=rk0.shape[0],
                                  caption="reg_kernels0")
-    rk1 = self.model.reg_kernels1.data.cpu().numpy()
+    rk1 = self.model.reg_kernels.data[1, :, :, :].cpu().numpy()
     rk1 = np.reshape(rk1, [rk1.shape[0], 1, rk1.shape[1], rk1.shape[2]])
     rk1 = (rk1 / np.abs(rk1).max() + 1.0) / 2.0
     self.reg_kernels1_viz.update(rk1,
                                  per_row=rk1.shape[0],
                                  caption="reg_kernels1")
-    self.reg_kernel_weights0_viz.update(iteration, self.model.reg_kernel_weights0.data.cpu().numpy())
-    self.reg_kernel_weights1_viz.update(iteration, self.model.reg_kernel_weights1.data.cpu().numpy())
-    self.reg_powers0_viz.update(iteration, self.model.reg_powers0.data.cpu().numpy())
-    self.reg_powers1_viz.update(iteration, self.model.reg_powers1.data.cpu().numpy())
-    pk0 = self.model.precond_kernel0.data.cpu().numpy()
+    self.reg_kernel_weights0_viz.update(iteration, self.model.reg_kernel_weights.data[0, :].cpu().numpy())
+    self.reg_kernel_weights1_viz.update(iteration, self.model.reg_kernel_weights.data[1, :].cpu().numpy())
+    self.reg_powers0_viz.update(iteration, self.model.reg_powers.data[0, :].cpu().numpy())
+    self.reg_powers1_viz.update(iteration, self.model.reg_powers.data[1, :].cpu().numpy())
+    pk0 = self.model.precond_kernel.data[0, :, :].cpu().numpy()
     pk0 = (pk0 / np.abs(pk0).max() + 1.0) / 2.0
     self.precond_kernel0_viz.update(pk0)
-    pk1 = self.model.precond_kernel1.data.cpu().numpy()
+    pk1 = self.model.precond_kernel.data[0, :, :].cpu().numpy()
     pk1 = (pk1 / np.abs(pk1).max() + 1.0) / 2.0
     self.precond_kernel1_viz.update(pk1)
-    self.filter_s_viz.update(iteration, self.model.filter_s.data.cpu().numpy())
-    self.filter_r_viz.update(iteration, self.model.filter_r.data.cpu().numpy())
-    self.reg_thresholds_viz.update(iteration, self.model.reg_thresholds.data.cpu().numpy())
+    self.filter_s_viz.update(iteration, self.model.filter_s.data[0, :].cpu().numpy())
+    self.filter_r_viz.update(iteration, self.model.filter_r.data[0, :].cpu().numpy())
+    self.reg_thresholds_viz.update(iteration, self.model.reg_thresholds.data[0, :].cpu().numpy())
 
 def main(args):
-  model = models.DeconvCG()
+  model = models.DeconvCG(num_stages = 3)
   ref_model = models.DeconvCG(ref = True)
 
   if not os.path.exists(args.output):
@@ -172,7 +172,7 @@ def main(args):
   loss_fn = metrics.CroppedMSELoss(crop=20)
   psnr_fn = metrics.PSNR(crop=20)
 
-  loader = DataLoader(dset, batch_size=args.batch_size, num_workers=4, shuffle=True)
+  loader = DataLoader(dset, batch_size=args.batch_size, num_workers=1, shuffle=True)
   val_loader = DataLoader(val_dset, batch_size=8)
 
   checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=True)
@@ -185,6 +185,7 @@ def main(args):
   chkpt_name, iteration = checkpointer.load_latest()
   log.info("Resuming from latest checkpoint {}.".format(chkpt_name))
   train_iterator = iter(loader)
+  first = True
   while True:
     # Training
     # Get a batch from the dataset
@@ -220,9 +221,10 @@ def main(args):
     psnr = psnr_fn(output, reference)
 
     # Exponential smooth of error curve
-    if iteration == 0:
+    if first:
       smooth_loss = loss.data[0]
       smooth_psnr = psnr.data[0]
+      first = False
     else:
       smooth_loss = ema*smooth_loss + (1-ema)*loss.data[0]
       smooth_psnr = ema*smooth_psnr + (1-ema)*psnr.data[0]
