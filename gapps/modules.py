@@ -186,6 +186,12 @@ class DeconvCG(nn.Module):
     self.gmm_invvars.data[:, 1, :] = 471.84142102
     self.gmm_invvars.data[:, 2, :] = 41.84820868
 
+  def train(self, mode=True):
+    super(DeconvCG, self).train(mode)
+    for p in self.parameters():
+      p.requires_grad = mode
+    return self
+
   def forward(self, blurred_batch, kernel_batch, num_irls_iter, num_cg_iter):
     num_batches = blurred_batch.shape[0]
     result = blurred_batch.new(
@@ -218,6 +224,7 @@ class DeconvCG(nn.Module):
         r = xrp[1, :, :, :].norm()
         if r.data.cpu() < 1e-10:
           break
+
   
         for cg_it in range(num_cg_iter):
           xrp = funcs.DeconvCGIter.apply(
@@ -228,13 +235,12 @@ class DeconvCG(nn.Module):
                   self.reg_kernel_weights[0, :],
                   self.reg_kernels[0, :, :, :],
                   self.precond_kernel[0, :, :],
-                  w_data,
-                  w_reg)
+                  w_data, w_reg)
           assert(not np.isnan(xrp.data.cpu()).any())
           r = xrp[1, :, :, :].norm()
           if r.data.cpu() < 1e-10:
             break
-  
+
         x = xrp[0, :, :, :]
         if (irls_it < num_irls_iter - 1):
           w_reg = funcs.DeconvCGWeight.apply(blurred, x,
