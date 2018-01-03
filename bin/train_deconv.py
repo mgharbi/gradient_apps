@@ -24,13 +24,13 @@ import gapps.datasets as datasets
 import gapps.modules as models
 import gapps.metrics as metrics
 
-log = logging.getLogger("gapps_deconvolution")
+log = logging.getLogger("gapps_deconvolution3")
 
 viz_port = 8888
-irls_iter = 1
-cg_iter = 10
+irls_iter = 4
+cg_iter = 20
 ref_irls_iter = 1
-ref_cg_iter = 20
+ref_cg_iter = 1
 
 class DeconvCallback(object):
   def __init__(self, model, ref_model, val_loader, cuda, env=None):
@@ -47,10 +47,6 @@ class DeconvCallback(object):
       ntraces = self.model.reg_kernel_weights.shape[1], port=viz_port, env=env)
     self.reg_kernel_weights1_viz = viz.ScalarVisualizer("reg_kernel_weights1",
       ntraces = self.model.reg_kernel_weights.shape[1], port=viz_port, env=env)
-    self.reg_powers0_viz = viz.ScalarVisualizer("reg_powers0",
-      ntraces = self.model.reg_powers.shape[1], port=viz_port, env=env)
-    self.reg_powers1_viz = viz.ScalarVisualizer("reg_powers1",
-      ntraces = self.model.reg_powers.shape[1], port=viz_port, env=env)
     self.precond_kernel0_viz = viz.ImageVisualizer("precond_kernel0", port=viz_port, env=env)
     self.precond_kernel1_viz = viz.ImageVisualizer("precond_kernel1", port=viz_port, env=env)
     self.filter_s_viz = viz.ScalarVisualizer("filter_s0",
@@ -132,8 +128,6 @@ class DeconvCallback(object):
                                  caption="reg_kernels1")
     self.reg_kernel_weights0_viz.update(iteration, self.model.reg_kernel_weights.data[0, :].cpu().numpy())
     self.reg_kernel_weights1_viz.update(iteration, self.model.reg_kernel_weights.data[1, :].cpu().numpy())
-    self.reg_powers0_viz.update(iteration, self.model.reg_powers.data[0, :].cpu().numpy())
-    self.reg_powers1_viz.update(iteration, self.model.reg_powers.data[1, :].cpu().numpy())
     pk0 = self.model.precond_kernel.data[0, :, :].cpu().numpy()
     pk0 = (pk0 / np.abs(pk0).max() + 1.0) / 2.0
     self.precond_kernel0_viz.update(pk0)
@@ -145,7 +139,7 @@ class DeconvCallback(object):
     self.reg_thresholds_viz.update(iteration, self.model.reg_thresholds.data[0, :].cpu().numpy())
 
 def main(args):
-  model = models.DeconvCG(num_stages = 3)
+  model = models.DeconvCG(num_stages = 1)
   ref_model = models.DeconvCG(ref = True)
 
   if not os.path.exists(args.output):
@@ -177,7 +171,7 @@ def main(args):
 
   checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=True)
   callback = DeconvCallback(
-      model, ref_model, val_loader, args.cuda, env="gapps_deconv")
+      model, ref_model, val_loader, args.cuda, env="gapps_deconv3")
 
   smooth_loss = 0
   smooth_psnr = 0
@@ -297,6 +291,6 @@ if __name__ == "__main__":
   logging.basicConfig(
       format="[%(process)d] %(levelname)s %(filename)s:%(lineno)s | %(message)s")
   log.setLevel(logging.INFO)
-  setproctitle.setproctitle('gapps_deconvolution')
+  setproctitle.setproctitle('gapps_deconvolution2')
 
   main(args)

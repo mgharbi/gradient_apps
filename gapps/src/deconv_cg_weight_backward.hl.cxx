@@ -11,20 +11,23 @@ public:
     Input<Buffer<float>>  current{"current", 3};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
     Input<Buffer<float>>  reg_targets{"reg_targets", 4};
-    Input<Buffer<float>>  reg_powers{"reg_powers", 1};
+    Input<Buffer<float>>  gmm_weights{"gmm_weights", 2};
+    Input<Buffer<float>>  gmm_invvars{"gmm_invvars", 2};
     Input<Buffer<float>>  d_weights{"d_weights", 4};
     Output<Buffer<float>> d_current{"d_current", 3};
     Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
     Output<Buffer<float>> d_reg_targets{"d_reg_targets", 4};
-    Output<Buffer<float>> d_reg_powers{"d_reg_powers", 1};
+    Output<Buffer<float>> d_gmm_weights{"d_gmm_weights", 2};
+    Output<Buffer<float>> d_gmm_invvars{"d_gmm_invvars", 2};
 
     void generate() {
         auto func_map = deconv_cg_weight(blurred, current,
-            reg_kernels, reg_targets, reg_powers);
+            reg_kernels, reg_targets, gmm_weights, gmm_invvars);
         Func current_func = func_map["current_func"];
         Func reg_kernels_func = func_map["reg_kernels_func"];
         Func reg_targets_func = func_map["reg_targets_func"];
-        Func reg_powers_func = func_map["reg_powers_func"];
+        Func gmm_weights_func = func_map["gmm_weights_func"];
+        Func gmm_invvars_func = func_map["gmm_invvars_func"];
         Func weights = func_map["weights"];
         Derivative d = propagate_adjoints(
             weights,
@@ -38,11 +41,12 @@ public:
         assign_gradient(adjoints, current_func, d_current);
         assign_gradient(adjoints, reg_kernels_func, d_reg_kernels);
         assign_gradient(adjoints, reg_targets_func, d_reg_targets);
-        assign_gradient(adjoints, reg_powers_func, d_reg_powers);
+        assign_gradient(adjoints, gmm_weights_func, d_gmm_weights);
+        assign_gradient(adjoints, gmm_invvars_func, d_gmm_invvars);
 
         if (auto_schedule) {
         } else {
-            std::vector<Func> funcs{d_current, d_reg_kernels, d_reg_targets, d_reg_powers};
+            std::vector<Func> funcs{d_current, d_reg_kernels, d_reg_targets, d_gmm_weights, d_gmm_invvars};
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
             simple_autoschedule(funcs,
@@ -72,8 +76,14 @@ public:
                                  {"reg_targets.extent.1", 256},
                                  {"reg_targets.extent.2", 3},
                                  {"reg_targets.extent.3", 5},
-                                 {"reg_powers.min.0", 0},
-                                 {"reg_powers.extent.0", 5},
+                                 {"gmm_weights.min.0", 0},
+                                 {"gmm_weights.min.1", 0},
+                                 {"gmm_weights.extent.0", 5},
+                                 {"gmm_weights.extent.1", 3},
+                                 {"gmm_invvars.min.0", 0},
+                                 {"gmm_invvars.min.1", 0},
+                                 {"gmm_invvars.extent.0", 5},
+                                 {"gmm_invvars.extent.1", 3},
                                  {"d_weights.min.0", 0},
                                  {"d_weights.min.1", 0},
                                  {"d_weights.min.2", 0},
@@ -81,18 +91,23 @@ public:
                                  {"d_weights.extent.0", 256},
                                  {"d_weights.extent.1", 256},
                                  {"d_weights.extent.2", 3},
-                                 {"d_weights.extent.3", 5}},
-                               {{{0, 255},
+                                 {"d_weights.extent.3", 5}
+                                },
+                               {{{0, 255}, // current
                                  {0, 255},
                                  {0, 2}},
-                                {{0, 4},
+                                {{0, 4}, // reg_kernels
                                  {0, 4},
                                  {0, 4}},
-                                {{0, 255},
+                                {{0, 255}, // reg_targets
                                  {0, 255},
                                  {0, 2},
                                  {0, 5}},
-                                {{0, 4}}},
+                                {{0, 4}, // gmm_weights
+                                 {0, 2}},
+                                {{0, 4}, // gmm_invvars
+                                 {0, 2}}
+                                },
                                options);
 #if 0
             auto func_map = get_deps(

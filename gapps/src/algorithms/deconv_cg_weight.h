@@ -6,7 +6,7 @@
 
 using namespace Halide;
 
-Var x("x"), y("y"), c("c"), n("n");
+Var x("x"), y("y"), c("c"), n("n"), j("j");
 
 template <typename Input>
 std::map<std::string, Func> deconv_cg_weight(
@@ -14,7 +14,8 @@ std::map<std::string, Func> deconv_cg_weight(
         const Input &current,
         const Input &reg_kernels,
         const Input &reg_targets,
-        const Input &reg_powers) {
+        const Input &gmm_weights,
+        const Input &gmm_invvars) {
     // Compute the residuals with the power of p-2
     Func current_func("current_func");
     current_func(x, y, c) = current(x, y, c);
@@ -22,21 +23,18 @@ std::map<std::string, Func> deconv_cg_weight(
     reg_kernels_func(x, y, n) = reg_kernels(x, y, n);
     Func reg_targets_func("reg_targets_func");
     reg_targets_func(x, y, c, n) = reg_targets(x, y, c, n);
-    Func reg_powers_func("reg_powers_func");
-    reg_powers_func(n) = reg_powers(n);
+    Func gmm_weights_func("gmm_weights_func");
+    gmm_weights_func(n, j) = gmm_weights(n, j);
+    Func gmm_invvars_func("gmm_invvars_func");
+    gmm_invvars_func(n, j) = gmm_invvars(n, j);
 
     RDom r_reg_kernel_xy(0, reg_kernels.width(), 0, reg_kernels.height());
     RDom r_reg_kernel_z(0, reg_kernels.channels());
     Func clamped_blurred = BoundaryConditions::repeat_edge(blurred);
-    Func clamped_current = BoundaryConditions::repeat_edge(current_func,
-                {{Expr(0), Expr(current.width())},
-                 {Expr(0), Expr(current.height())},
-                 {Expr(), Expr()}});
-    Func clamped_rtarget = BoundaryConditions::repeat_edge(reg_targets_func,
-                {{Expr(0), Expr(current.width())},
-                 {Expr(0), Expr(current.height())},
-                 {Expr(), Expr()},
-                 {Expr(), Expr()}});
+    Func current_re, clamped_current;
+    std::tie(current_re, clamped_current) = select_repeat_edge(current_func, current.width(), current.height());
+    Func rtarget_re, clamped_rtarget;
+    std::tie(rtarget_re, clamped_rtarget) = select_repeat_edge(reg_targets_func, reg_targets.width(), reg_targets.height());
 
     Func rKc("rKc");
     rKc(x, y, c, n) = 0.f;
@@ -44,17 +42,26 @@ std::map<std::string, Func> deconv_cg_weight(
                                        y + r_reg_kernel_xy.y - reg_kernels.height() / 2,
                                        c) *
                        reg_kernels_func(r_reg_kernel_xy.x, r_reg_kernel_xy.y, n);
+    Func dist("dist");
+    dist(x, y, c, n) = (rKc(x, y, c, n) - clamped_rtarget(x, y, c, n)) * 
+                       (rKc(x, y, c, n) - clamped_rtarget(x, y, c, n));
 
+    Func gmm_likelihood("gmm_likelihood");
+    gmm_likelihood(x, y, c, n, j) = gmm_weights_func(n, j) * sqrt(gmm_invvars_func(n, j)) *
+        exp(-0.5f * dist(x, y, c, n) * gmm_invvars_func(n, j));
+
+    RDom r_gmm(0, gmm_weights.height());
     Func weights("weights");
     weights(x, y, c, n) =
-        1.f / (max(1e-4f, pow(max(abs(rKc(x, y, c, n) - clamped_rtarget(x, y, c, n)), 1e-4f),
-                   reg_powers_func(n) - 2.f)));
+        sum(gmm_invvars_func(n, r_gmm) * gmm_likelihood(x, y, c, n, r_gmm)) /
+        sum(gmm_likelihood(x, y, c, n, r_gmm));
 
     std::map<std::string, Func> func_map;
-    func_map["current_func"] = clamped_current;
+    func_map["current_func"] = current_re;
     func_map["reg_kernels_func"] = reg_kernels_func;
-    func_map["reg_targets_func"] = clamped_rtarget;
-    func_map["reg_powers_func"] = reg_powers_func;
+    func_map["reg_targets_func"] = rtarget_re;
+    func_map["gmm_weights_func"] = gmm_weights_func;
+    func_map["gmm_invvars_func"] = gmm_invvars_func;
     func_map["weights"] = weights;
     return func_map;
 }

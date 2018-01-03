@@ -11,12 +11,13 @@ public:
     Input<Buffer<float>>  current{"current", 3};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
     Input<Buffer<float>>  reg_targets{"reg_target_kernels", 4};
-    Input<Buffer<float>>  reg_powers{"reg_powers", 1};
+    Input<Buffer<float>>  gmm_weights{"gmm_weights", 2};
+    Input<Buffer<float>>  gmm_invvars{"gmm_invvars", 2};
     Output<Buffer<float>> weights{"weights", 4};
 
     void generate() {
         auto func_map = deconv_cg_weight(blurred, current,
-            reg_kernels, reg_targets, reg_powers);
+            reg_kernels, reg_targets, gmm_weights, gmm_invvars);
         weights(x, y, c, n) = func_map["weights"](x, y, c, n);
 
         if (auto_schedule) {
@@ -51,8 +52,15 @@ public:
                                  {"reg_targets.extent.1", 256},
                                  {"reg_targets.extent.2", 3},
                                  {"reg_targets.extent.3", 5},
-                                 {"reg_powers.min.0", 0},
-                                 {"reg_powers.extent.0", 5}},
+                                 {"gmm_weights.min.0", 0},
+                                 {"gmm_weights.min.1", 0},
+                                 {"gmm_weights.extent.0", 5},
+                                 {"gmm_weights.extent.1", 3},
+                                 {"gmm_invvars.min.0", 0},
+                                 {"gmm_invvars.min.1", 0},
+                                 {"gmm_invvars.extent.0", 5},
+                                 {"gmm_invvars.extent.1", 3},
+                                },
                                {{{0, 255},
                                  {0, 255},
                                  {0, 2},
