@@ -26,9 +26,9 @@ import gapps.metrics as metrics
 
 log = logging.getLogger("gapps_deconvolution3")
 
-irls_iter = 4
+irls_iter = 3
 cg_iter = 20
-ref_irls_iter = 4
+ref_irls_iter = 3
 ref_cg_iter = 20
 
 class DeconvCallback(object):
@@ -40,20 +40,25 @@ class DeconvCallback(object):
 
     self.viz = viz.BatchVisualizer("deconv", port=args.port, env=env)
     self.psf_viz = viz.BatchVisualizer("psf", port=args.port, env=env)
-    self.reg_kernels0_viz = viz.BatchVisualizer("reg_kernels0", port=args.port, env=env)
-    self.reg_kernels1_viz = viz.BatchVisualizer("reg_kernels1", port=args.port, env=env)
-    self.reg_kernel_weights0_viz = viz.ScalarVisualizer("reg_kernel_weights0",
+    self.data_kernels_viz = viz.BatchVisualizer("data_kernels", port=args.port, env=env)
+    self.data_kernel_weights_viz = viz.ScalarVisualizer("data_kernel_weights",
+      ntraces = self.model.data_kernel_weights.shape[1], port=args.port, env=env)
+    self.reg_kernels_viz = viz.BatchVisualizer("reg_kernels", port=args.port, env=env)
+    self.reg_kernel_weights_viz = viz.ScalarVisualizer("reg_kernel_weights",
       ntraces = self.model.reg_kernel_weights.shape[1], port=args.port, env=env)
-    self.reg_kernel_weights1_viz = viz.ScalarVisualizer("reg_kernel_weights1",
-      ntraces = self.model.reg_kernel_weights.shape[1], port=args.port, env=env)
-    self.precond_kernel0_viz = viz.ImageVisualizer("precond_kernel0", port=args.port, env=env)
-    self.precond_kernel1_viz = viz.ImageVisualizer("precond_kernel1", port=args.port, env=env)
-    self.filter_s_viz = viz.ScalarVisualizer("filter_s0",
-      ntraces = self.model.filter_s.shape[1], port=args.port, env=env)
-    self.filter_r_viz = viz.ScalarVisualizer("filter_r0",
-      ntraces = self.model.filter_r.shape[1], port=args.port, env=env)
-    self.reg_thresholds_viz = viz.ScalarVisualizer("reg_thresholds",
-      ntraces = self.model.reg_thresholds.shape[1], port=args.port, env=env)
+    self.precond_kernel_viz = viz.ImageVisualizer("precond_kernel", port=args.port, env=env)
+    self.gmm_weights0_viz = viz.ScalarVisualizer("gmm_weights0",
+      ntraces = self.model.gmm_weights.shape[2], port=args.port, env=env)
+    self.gmm_weights1_viz = viz.ScalarVisualizer("gmm_weights1",
+      ntraces = self.model.gmm_weights.shape[2], port=args.port, env=env)
+    self.gmm_weights2_viz = viz.ScalarVisualizer("gmm_weights2",
+      ntraces = self.model.gmm_weights.shape[2], port=args.port, env=env)
+    self.gmm_invvars0_viz = viz.ScalarVisualizer("gmm_invvars0",
+      ntraces = self.model.gmm_invvars.shape[2], port=args.port, env=env)
+    self.gmm_invvars1_viz = viz.ScalarVisualizer("gmm_invvars1",
+      ntraces = self.model.gmm_invvars.shape[2], port=args.port, env=env)
+    self.gmm_invvars2_viz = viz.ScalarVisualizer("gmm_invvars2",
+      ntraces = self.model.gmm_invvars.shape[2], port=args.port, env=env)
 
     self.loss_viz = viz.ScalarVisualizer("loss", port=args.port, env=env)
     self.psnr_viz = viz.ScalarVisualizer("psnr", port=args.port, env=env)
@@ -70,7 +75,7 @@ class DeconvCallback(object):
         batchv = batchv.cuda()
         psf = psf.cuda()
 
-      out = self.model(batchv, psf, irls_iter, cg_iter)
+      out = self.model(batchv, psf, ref_irls_iter, ref_cg_iter)
       out_ref = self.ref_model(batchv, psf, ref_irls_iter, ref_cg_iter)
       out = out.data.cpu().numpy()
       out_ref = out_ref.data.cpu().numpy()
@@ -78,7 +83,7 @@ class DeconvCallback(object):
       inp = b[0].cpu().numpy()
       gt = b[1].cpu().numpy()
       diff = np.abs(gt-out)*4
-      diff_ref = np.abs(inp-out_ref)*4
+      diff_ref = np.abs(gt-out_ref)*4
       batchviz = np.concatenate([inp, gt, out, out_ref, diff, diff_ref], axis=0)
       batchviz = np.clip(batchviz, 0, 1)
       return batchviz
@@ -86,6 +91,7 @@ class DeconvCallback(object):
   def _get_psf_batch(self):
     for b in self.val_loader:
       psf = b[2].cpu().numpy()
+
       psf = psf / (np.max(psf) - np.min(psf))
       psf = np.reshape(psf, [psf.shape[0], 1, psf.shape[1], psf.shape[2]])
       return psf
@@ -113,29 +119,31 @@ class DeconvCallback(object):
     if "psnr" in logs.keys():
       self.psnr_viz.update(iteration, logs['psnr'])
 
+    dk0 = self.model.data_kernels.data[0, :, :, :].cpu().numpy()
+    dk0 = np.reshape(dk0, [dk0.shape[0], 1, dk0.shape[1], dk0.shape[2]])
+    dk0 = (dk0 / np.abs(dk0).max() + 1.0) / 2.0
+    self.data_kernels_viz.update(dk0,
+                                 per_row=dk0.shape[0],
+                                 caption="data_kernels")
+    self.data_kernel_weights_viz.update(iteration, self.model.data_kernel_weights.data[0, :].cpu().numpy())
     rk0 = self.model.reg_kernels.data[0, :, :, :].cpu().numpy()
     rk0 = np.reshape(rk0, [rk0.shape[0], 1, rk0.shape[1], rk0.shape[2]])
     rk0 = (rk0 / np.abs(rk0).max() + 1.0) / 2.0
-    self.reg_kernels0_viz.update(rk0,
-                                 per_row=rk0.shape[0],
-                                 caption="reg_kernels0")
-    rk1 = self.model.reg_kernels.data[1, :, :, :].cpu().numpy()
-    rk1 = np.reshape(rk1, [rk1.shape[0], 1, rk1.shape[1], rk1.shape[2]])
-    rk1 = (rk1 / np.abs(rk1).max() + 1.0) / 2.0
-    self.reg_kernels1_viz.update(rk1,
-                                 per_row=rk1.shape[0],
-                                 caption="reg_kernels1")
-    self.reg_kernel_weights0_viz.update(iteration, self.model.reg_kernel_weights.data[0, :].cpu().numpy())
-    self.reg_kernel_weights1_viz.update(iteration, self.model.reg_kernel_weights.data[1, :].cpu().numpy())
+    self.reg_kernels_viz.update(rk0,
+                                per_row=rk0.shape[0],
+                                caption="reg_kernels")
+    self.reg_kernel_weights_viz.update(iteration, self.model.reg_kernel_weights.data[0, :].cpu().numpy())
     pk0 = self.model.precond_kernel.data[0, :, :].cpu().numpy()
     pk0 = (pk0 / np.abs(pk0).max() + 1.0) / 2.0
-    self.precond_kernel0_viz.update(pk0)
-    pk1 = self.model.precond_kernel.data[0, :, :].cpu().numpy()
-    pk1 = (pk1 / np.abs(pk1).max() + 1.0) / 2.0
-    self.precond_kernel1_viz.update(pk1)
-    self.filter_s_viz.update(iteration, self.model.filter_s.data[0, :].cpu().numpy())
-    self.filter_r_viz.update(iteration, self.model.filter_r.data[0, :].cpu().numpy())
-    self.reg_thresholds_viz.update(iteration, self.model.reg_thresholds.data[0, :].cpu().numpy())
+    self.precond_kernel_viz.update(pk0)
+
+    self.gmm_weights0_viz.update(iteration, self.model.gmm_weights.data[0, 0, :].cpu().numpy())
+    self.gmm_weights1_viz.update(iteration, self.model.gmm_weights.data[0, 1, :].cpu().numpy())
+    self.gmm_weights2_viz.update(iteration, self.model.gmm_weights.data[0, 2, :].cpu().numpy())
+    
+    self.gmm_invvars0_viz.update(iteration, self.model.gmm_invvars.data[0, 0, :].cpu().numpy())
+    self.gmm_invvars1_viz.update(iteration, self.model.gmm_invvars.data[0, 1, :].cpu().numpy())
+    self.gmm_invvars2_viz.update(iteration, self.model.gmm_invvars.data[0, 2, :].cpu().numpy())
 
 def main(args):
   model = models.DeconvCG(num_stages = 1)
@@ -248,7 +256,7 @@ def main(args):
           reference = reference.cuda()
           kernel = kernel.cuda()
 
-        output = model(blurred, kernel, irls_iter, cg_iter)
+        output = model(blurred, kernel, ref_irls_iter, ref_cg_iter)
         loss = loss_fn(output, reference)
         psnr = psnr_fn(output, reference)
 
@@ -270,7 +278,7 @@ def main(args):
       logs = {"val_loss": val_loss, "val_psnr": val_psnr,
               "ref_loss": ref_loss, "ref_psnr": ref_psnr}
 
-      callback.on_validation_end(iteration / 20, logs)
+      callback.on_validation_end(iteration, logs)
       # save
       checkpointer.on_epoch_end(iteration)
 
@@ -283,7 +291,7 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="/data/graphics/approximation/datasets/imagenet/imagenet_jpeg.txt")
   parser.add_argument("--val_dataset", default="/data/graphics/approximation/datasets/imagenet/imagenet_jpeg.txt")
   parser.add_argument("--output", default="output/deconv")
-  parser.add_argument("--lr", type=float, default=1e-4)
+  parser.add_argument("--lr", type=float, default=3e-4)
   parser.add_argument("--cuda", type=bool, default=True)
   parser.add_argument("--batch_size", type=int, default=1)
   parser.add_argument("--port", type=int, default=8888)

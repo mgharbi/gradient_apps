@@ -13,7 +13,6 @@ public:
     Input<Buffer<float>>  data_kernels{"data_kernels", 3};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
-    Input<Buffer<float>>  precond_kernel{"precond_kernel", 2};
     Input<Buffer<float>>  w_data{"w_data", 4};
     Input<Buffer<float>>  w_reg{"w_reg", 4};
     Output<Buffer<float>> next_xrp{"next_xrp", 4};
@@ -22,7 +21,7 @@ public:
         auto func_map = deconv_cg_iter(xrp, kernel,
             data_kernel_weights, data_kernels,
             reg_kernel_weights, reg_kernels,
-            precond_kernel, w_data, w_reg);
+            w_data, w_reg);
         next_xrp(x, y, c, n) = func_map["next_xrp"](x, y, c, n);
 
         if (auto_schedule) {
@@ -67,10 +66,6 @@ public:
                                  {"reg_targets.extent.1", 256},
                                  {"reg_targets.extent.2", 3},
                                  {"reg_targets.extent.3", 5},
-                                 {"precond_kernel.min.0", 0},
-                                 {"precond_kernel.min.1", 0},
-                                 {"precond_kernel.extent.0", 11},
-                                 {"precond_kernel.extent.1", 11},
                                  {"w_data.min.0", 0},
                                  {"w_data.min.1", 0},
                                  {"w_data.min.2", 0},

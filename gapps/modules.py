@@ -94,7 +94,7 @@ class DeconvCG(nn.Module):
   def __init__(self,
                precond_kernel_size=11,
                data_kernel_size=5,
-               num_data_kernels=16,
+               num_data_kernels=8,
                reg_kernel_size=5,
                num_reg_kernels=16,
                filter_s_size=11,
@@ -143,17 +143,16 @@ class DeconvCG(nn.Module):
     self.reg_kernels.data[:, 4, reg_kernel_center, reg_kernel_center - 1] = 1.0
     self.reg_kernels.data[:, 4, reg_kernel_center, reg_kernel_center] = -2.0
     self.reg_kernels.data[:, 4, reg_kernel_center, reg_kernel_center + 1] = 1.0
+    
+    self.data_kernels.data[:, :, :, :] = 0.0
+    self.data_kernels.data[:, 0, reg_kernel_center, reg_kernel_center] = 1.0
+
     if not ref:
-      self.reg_kernels.data[:, :, :, :].normal_(0, 0.1)
-      self.data_kernels.data[:, :, :, :].normal_(0, 0.1)
-      self.data_kernels.data[:, 0, :, :] = 0.0
-      self.data_kernels.data[:, 0, reg_kernel_center, reg_kernel_center] = 1.0
-    if ref:
-      self.data_kernels.data[:, :, :, :] = 0.0
-      self.data_kernels.data[:, 0, reg_kernel_center, reg_kernel_center] = 1.0
+      self.reg_kernels.data[:, 5:, :, :].normal_(0, 0.1)
+      self.data_kernels.data[:, 1:, :, :].normal_(0, 0.1)
 
     self.data_kernel_weights.data[:, :] = 1.0
-    self.reg_kernel_weights.data[:, :] = 0.01
+    self.reg_kernel_weights.data[:, :] = 0.0001
     if ref:
       # Don't use the extra kernels for reference
       self.data_kernel_weights.data[:, 1:] = 0.0
@@ -180,9 +179,13 @@ class DeconvCG(nn.Module):
       self.reg_thresholds.data.uniform_(0, 0.03)
       self.reg_thresholds.data += 0.02
 
-    self.gmm_weights.data[:, :, :] = 1.0
+    self.gmm_weights.data[:, 0, :] = 0.30471011
+    self.gmm_weights.data[:, 1, :] = 0.43436355
+    self.gmm_weights.data[:, 2, :] = 0.26092634
 
-    self.gmm_invvars.data[:, :, :].uniform_(0.9, 1.1)
+    self.gmm_invvars.data[:, 0, :] = 7021.6804986
+    self.gmm_invvars.data[:, 1, :] = 471.84142102
+    self.gmm_invvars.data[:, 2, :] = 41.84820868
 
   def train(self, mode=True):
     super(DeconvCG, self).train(mode)
@@ -191,12 +194,14 @@ class DeconvCG(nn.Module):
     return self
 
   def forward(self, blurred_batch, kernel_batch, num_irls_iter, num_cg_iter):
+    begin = time.time()
     num_batches = blurred_batch.shape[0]
     result = blurred_batch.new(
       blurred_batch.shape[0], blurred_batch.shape[1], blurred_batch.shape[2], blurred_batch.shape[3])
     for b in range(num_batches):
       blurred = blurred_batch[b, :, :, :]
       kernel = kernel_batch[b, :, :]
+
       # Solve the deconvolution using reg_targets == 0 with IRLS first
       w_data = \
         blurred.new(self.data_kernels.shape[1], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(1.0)
@@ -215,14 +220,12 @@ class DeconvCG(nn.Module):
                 self.reg_kernel_weights[0, :],
                 self.reg_kernels[0, :, :, :],
                 reg_targets,
-                self.precond_kernel[0, :, :],
                 w_data,
                 w_reg)
         r = xrp[1, :, :, :].norm()
-        if r.data.cpu() < 1e-10:
+        if r.data.cpu() < 1e-6:
           break
 
-  
         for cg_it in range(num_cg_iter):
           xrp = funcs.DeconvCGIter.apply(
                   xrp,
@@ -231,13 +234,11 @@ class DeconvCG(nn.Module):
                   self.data_kernels[0, :, :, :],
                   self.reg_kernel_weights[0, :],
                   self.reg_kernels[0, :, :, :],
-                  self.precond_kernel[0, :, :],
                   w_data,
                   w_reg)
           r = xrp[1, :, :, :].norm()
-          if r.data.cpu() < 1e-10:
+          if r.data.cpu() < 1e-6:
             break
-
         x = xrp[0, :, :, :]
         if (irls_it < num_irls_iter - 1):
           w_reg = funcs.DeconvCGWeight.apply(blurred, x,

@@ -16,7 +16,6 @@ std::map<std::string, Func> deconv_cg_iter(
         const Input &data_kernels,
         const Input &reg_kernel_weights,
         const Input &reg_kernels,
-        const Input &precond_kernel,
         const Input &w_data,
         const Input &w_reg) {
     // A single iteration of conjugate gradient, takes X, R, P, Z and updates them
@@ -30,8 +29,6 @@ std::map<std::string, Func> deconv_cg_iter(
     reg_kernel_weights_func(n) = reg_kernel_weights(n);
     Func reg_kernels_func("reg_kernels_func");
     reg_kernels_func(x, y, n) = reg_kernels(x, y, n);
-    Func precond_kernel_func("precond_kernel_func");
-    precond_kernel_func(x, y) = precond_kernel(x, y);
     Func w_data_func("w_data_func");
     w_data_func(x, y, c, n) = w_data(x, y, c, n);
     Func w_reg_func("w_reg_func");
@@ -57,11 +54,11 @@ std::map<std::string, Func> deconv_cg_iter(
     Func z("z");
     z(x, y, c) = clamped_xrp(x, y, c, 3);
 
-    Func rTz("rTz");
-    // alpha = r^T * z / p^T A^T W A p
-    rTz() = 0.f;
-    rTz() += r(r_image.x, r_image.y, r_image.z) *
-             z(r_image.x, r_image.y, r_image.z);
+    Func rTr("rTr");
+    // alpha = r^T * r / p^T A^T W A p
+    rTr() = 0.f;
+    rTr() += r(r_image.x, r_image.y, r_image.z) *
+             r(r_image.x, r_image.y, r_image.z);
     // Data term on p
     Func Kp("Kp");
     Kp(x, y, c) = 0.f;
@@ -125,7 +122,7 @@ std::map<std::string, Func> deconv_cg_iter(
                  ATWAp(r_image.x, r_image.y, r_image.z);
 
     Func alpha("alpha");
-    alpha() = rTz() / pTATWAp();
+    alpha() = rTr() / pTATWAp();
     // x = x + alpha * p
     Func next_x("next_x");
     next_x(x, y, c) = xk(x, y, c) + alpha() * p(x, y, c);
@@ -133,45 +130,27 @@ std::map<std::string, Func> deconv_cg_iter(
     Func next_r("next_r");
     next_r(x, y, c) = r(x, y, c) - alpha() * ATWAp(x, y, c);
 
-    RDom r_precond_kernel(precond_kernel);
-    Func Pr("Pr");
-    Pr(x, y, c) = 0.f;
-    Pr(x, y, c) += next_r(x + r_precond_kernel.x - precond_kernel.width() / 2,
-                          y + r_precond_kernel.y - precond_kernel.height() / 2,
-                	      c) *
-                   precond_kernel_func(r_precond_kernel.x,
-                                       r_precond_kernel.y);
-    Func next_z("next_z");
-    next_z(x, y, c) = 0.f;
-    next_z(x, y, c) += Pr(x - r_precond_kernel.x + precond_kernel.width() / 2,
-                          y - r_precond_kernel.y + precond_kernel.height() / 2,
-        	  	          c) *
-  	                   precond_kernel_func(r_precond_kernel.x,
-                                           r_precond_kernel.y);
-
-    // beta = nextZ^TnextR / r^Tr
-    Func nRTnZ("nRTnZ");
-    nRTnZ() = 0.f;
-    nRTnZ() += next_r(r_image.x, r_image.y, r_image.z) *
-               next_z(r_image.x, r_image.y, r_image.z);
+    // beta = nextZ^T(nextR - r) / r^Tr
+    Func nRTnR("nRTnR");
+    nRTnR() = 0.f;
+    nRTnR() += next_r(r_image.x, r_image.y, r_image.z) *
+               next_r(r_image.x, r_image.y, r_image.z);
     Func beta("beta");
-    beta() = nRTnZ() / rTz();
+    beta() = nRTnR() / rTr();
     Func next_p("next_p");
-    next_p(x, y, c) = next_z(x, y, c) + beta() * p(x, y, c);
+    next_p(x, y, c) = next_r(x, y, c) + beta() * p(x, y, c);
 
     Func next_xrp("next_xrp");
     next_xrp(x, y, c, n) = 0.f;
     next_xrp(x, y, c, 0) = next_x(x, y, c);
     next_xrp(x, y, c, 1) = next_r(x, y, c);
     next_xrp(x, y, c, 2) = next_p(x, y, c);
-    next_xrp(x, y, c, 3) = next_z(x, y, c);
 
     std::map<std::string, Func> func_map;
     func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
     func_map["reg_kernels_func"] = reg_kernels_func;
     func_map["data_kernel_weights_func"] = data_kernel_weights_func;
     func_map["data_kernels_func"] = data_kernels_func;
-    func_map["precond_kernel_func"] = precond_kernel_func;
     func_map["w_data_func"] = w_data_re;
     func_map["w_reg_func"] = w_reg_re;
     func_map["xrp_func"] = xrp_re;

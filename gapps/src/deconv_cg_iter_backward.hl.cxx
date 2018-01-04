@@ -13,7 +13,6 @@ public:
     Input<Buffer<float>>  data_kernels{"data_kernels", 3};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
-    Input<Buffer<float>>  precond_kernel{"precond_kernel", 2};
     Input<Buffer<float>>  w_data{"w_data", 4};
     Input<Buffer<float>>  w_reg{"w_reg", 4};
     Input<Buffer<float>>  d_next_xrp{"d_next_xrp", 4};
@@ -22,7 +21,6 @@ public:
     Output<Buffer<float>> d_data_kernels{"d_data_kernels", 3};
     Output<Buffer<float>> d_reg_kernel_weights{"d_reg_kernel_weights", 1};
     Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
-    Output<Buffer<float>> d_precond_kernel{"d_precond_kernel", 2};
     Output<Buffer<float>> d_w_data{"d_w_data", 4};
     Output<Buffer<float>> d_w_reg{"d_w_reg", 4};
 
@@ -30,13 +28,12 @@ public:
         auto func_map = deconv_cg_iter(xrp, kernel,
             data_kernel_weights, data_kernels,
             reg_kernel_weights, reg_kernels,
-            precond_kernel, w_data, w_reg);
+            w_data, w_reg);
         Func xrp_func = func_map["xrp_func"];
         Func data_kernel_weights_func = func_map["data_kernel_weights_func"];
         Func data_kernels_func = func_map["data_kernels_func"];
         Func reg_kernel_weights_func = func_map["reg_kernel_weights_func"];
         Func reg_kernels_func = func_map["reg_kernels_func"];
-        Func precond_kernel_func = func_map["precond_kernel_func"];
         Func w_data_func = func_map["w_data_func"];
         Func w_reg_func = func_map["w_reg_func"];
         Func next_xrp = func_map["next_xrp"];
@@ -54,7 +51,6 @@ public:
         assign_gradient(adjoints, data_kernels_func, d_data_kernels);
         assign_gradient(adjoints, reg_kernel_weights_func, d_reg_kernel_weights);
         assign_gradient(adjoints, reg_kernels_func, d_reg_kernels);
-        assign_gradient(adjoints, precond_kernel_func, d_precond_kernel);
         assign_gradient(adjoints, w_data_func, d_w_data);
         assign_gradient(adjoints, w_reg_func, d_w_reg);
 
@@ -65,7 +61,6 @@ public:
                                     d_data_kernels,
                                     d_reg_kernel_weights,
                                     d_reg_kernels,
-                                    d_precond_kernel,
                                     d_w_data,
                                     d_w_reg};
             SimpleAutoscheduleOptions options;
@@ -107,10 +102,6 @@ public:
                                  {"reg_targets.extent.1", 256},
                                  {"reg_targets.extent.2", 3},
                                  {"reg_targets.extent.3", 5},
-                                 {"precond_kernel.min.0", 0},
-                                 {"precond_kernel.min.1", 0},
-                                 {"precond_kernel.extent.0", 11},
-                                 {"precond_kernel.extent.1", 11},
                                  {"w_data.min.0", 0},
                                  {"w_data.min.1", 0},
                                  {"w_data.min.2", 0},
@@ -148,8 +139,6 @@ public:
                                  {{0, 4},   // reg_kernels
                                   {0, 4},
                                   {0, 4}},
-                                 {{0, 10},  // precond kernel
-                                  {0, 10}},
                                  {{0, 255}, // w_data
                                   {0, 255},
                                   {0, 2},

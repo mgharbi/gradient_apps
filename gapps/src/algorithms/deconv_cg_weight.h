@@ -16,7 +16,7 @@ std::map<std::string, Func> deconv_cg_weight(
         const Input &reg_targets,
         const Input &gmm_weights,
         const Input &gmm_invvars) {
-    // Compute the residuals with the power of p-2
+    // Compute GMM weights (see Levin et al. 2011)
     Func current_func("current_func");
     current_func(x, y, c) = current(x, y, c);
     Func reg_kernels_func("reg_kernels_func");
@@ -47,14 +47,14 @@ std::map<std::string, Func> deconv_cg_weight(
                        (rKc(x, y, c, n) - clamped_rtarget(x, y, c, n));
 
     Func gmm_likelihood("gmm_likelihood");
-    gmm_likelihood(x, y, c, n, j) = gmm_weights_func(n, j) * sqrt(gmm_invvars_func(n, j)) *
+    gmm_likelihood(x, y, c, n, j) = abs(gmm_weights_func(n, j)) * sqrt(gmm_invvars_func(n, j)) *
         exp(-0.5f * dist(x, y, c, n) * gmm_invvars_func(n, j));
 
     RDom r_gmm(0, gmm_weights.height());
     Func weights("weights");
     weights(x, y, c, n) =
         sum(gmm_invvars_func(n, r_gmm) * gmm_likelihood(x, y, c, n, r_gmm)) /
-        sum(gmm_likelihood(x, y, c, n, r_gmm));
+        (sum(gmm_likelihood(x, y, c, n, r_gmm)) + 1e-6f);
 
     std::map<std::string, Func> func_map;
     func_map["current_func"] = current_re;

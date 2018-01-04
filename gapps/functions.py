@@ -318,22 +318,22 @@ class DeconvCGInit(Function):
   def forward(ctx, blurred, x0, kernel,
               data_kernel_weights, data_kernels,
               reg_kernel_weights, reg_kernels, reg_targets,
-              precond_kernel, w_data, w_reg):
+              w_data, w_reg):
     if any(ctx.needs_input_grad):
       ctx.save_for_backward(blurred, x0, kernel,
         data_kernel_weights, data_kernels,
         reg_kernel_weights, reg_kernels, reg_targets,
-        precond_kernel, w_data, w_reg)
+        w_data, w_reg)
 
     xrp = blurred.new()
     ci, h, w = blurred.shape
 
-    xrp.resize_(4, ci, h, w)
+    xrp.resize_(3, ci, h, w)
     ops.deconv_cg_init_forward(
         blurred, x0, kernel,
         data_kernel_weights, data_kernels,
         reg_kernel_weights, reg_kernels, reg_targets,
-        precond_kernel, w_data, w_reg, xrp)
+        w_data, w_reg, xrp)
 
     return xrp
 
@@ -342,7 +342,7 @@ class DeconvCGInit(Function):
     blurred, x0, kernel, \
         data_kernel_weights, data_kernels, \
         reg_kernel_weights, reg_kernels, reg_targets, \
-        precond_kernel, w_data, w_reg = ctx.saved_variables
+        w_data, w_reg = ctx.saved_variables
 
     d_x0 = x0.data.new()
     d_x0.resize_as_(x0.data)
@@ -356,8 +356,6 @@ class DeconvCGInit(Function):
     d_reg_kernels.resize_as_(reg_kernels.data)
     d_reg_targets = reg_targets.data.new()
     d_reg_targets.resize_as_(reg_targets.data)
-    d_precond_kernel = precond_kernel.data.new()
-    d_precond_kernel.resize_as_(precond_kernel.data)
     d_w_data = w_data.data.new()
     d_w_data.resize_as_(w_data.data)
     d_w_reg = w_reg.data.new()
@@ -369,10 +367,10 @@ class DeconvCGInit(Function):
         blurred.data, x0.data, kernel.data,
         data_kernel_weights.data, data_kernels.data,
         reg_kernel_weights.data, reg_kernels.data, reg_targets.data,
-        precond_kernel.data, w_data.data, w_reg.data, d_xrp.data,
+        w_data.data, w_reg.data, d_xrp.data,
         d_x0, d_data_kernel_weights, d_data_kernels,
         d_reg_kernel_weights, d_reg_kernels, d_reg_targets,
-        d_precond_kernel, d_w_data, d_w_reg)
+        d_w_data, d_w_reg)
 
     d_x0 = Variable(d_x0)
     d_data_kernel_weights = Variable(d_data_kernel_weights)
@@ -380,14 +378,13 @@ class DeconvCGInit(Function):
     d_reg_kernel_weights = Variable(d_reg_kernel_weights)
     d_reg_kernels = Variable(d_reg_kernels)
     d_reg_targets = Variable(d_reg_targets)
-    d_precond_kernel = Variable(d_precond_kernel)
     d_w_data = Variable(d_w_data)
     d_w_reg = Variable(d_w_reg)
 
     return None, d_x0, None, \
            d_data_kernel_weights, d_data_kernels, \
            d_reg_kernel_weights, d_reg_kernels, d_reg_targets, \
-           d_precond_kernel, d_w_data, d_w_reg
+           d_w_data, d_w_reg
 
 class DeconvCGIter(Function):
   """"""
@@ -396,16 +393,16 @@ class DeconvCGIter(Function):
   def forward(ctx, xrp, kernel,
           data_kernel_weights, data_kernels,
           reg_kernel_weights, reg_kernels,
-          precond_kernel, w_data, w_reg):
+          w_data, w_reg):
     if any(ctx.needs_input_grad):
       ctx.save_for_backward(xrp, kernel,
                             data_kernel_weights, data_kernels,
                             reg_kernel_weights, reg_kernels,
-                            precond_kernel, w_data, w_reg)
+                            w_data, w_reg)
 
     next_xrp = xrp.new()
     n, ci, h, w = xrp.shape
-    assert n == 4
+    assert n == 3
     assert ci == 3
 
     next_xrp.resize_(n, ci, h, w)
@@ -413,14 +410,14 @@ class DeconvCGIter(Function):
         xrp, kernel,
         data_kernel_weights, data_kernels,
         reg_kernel_weights, reg_kernels,
-        precond_kernel, w_data, w_reg, next_xrp)
+        w_data, w_reg, next_xrp)
 
     return next_xrp
 
   @staticmethod
   def backward(ctx, d_next_xrp):
     xrp, kernel, data_kernel_weights, data_kernels, \
-      reg_kernel_weights, reg_kernels, precond_kernel, w_data, w_reg = ctx.saved_variables
+      reg_kernel_weights, reg_kernels, w_data, w_reg = ctx.saved_variables
 
     d_xrp = xrp.data.new()
     d_xrp.resize_as_(xrp.data)
@@ -432,8 +429,6 @@ class DeconvCGIter(Function):
     d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
-    d_precond_kernel = precond_kernel.data.new()
-    d_precond_kernel.resize_as_(precond_kernel.data)
     d_w_data = w_data.data.new()
     d_w_data.resize_as_(w_data.data)
     d_w_reg = w_reg.data.new()
@@ -443,24 +438,23 @@ class DeconvCGIter(Function):
         xrp.data, kernel.data, 
         data_kernel_weights.data, data_kernels.data,
         reg_kernel_weights.data, reg_kernels.data,
-        precond_kernel.data, w_data.data, w_reg.data, d_next_xrp.data,
+        w_data.data, w_reg.data, d_next_xrp.data,
         d_xrp, 
         d_data_kernel_weights, d_data_kernels,
-        d_reg_kernel_weights, d_reg_kernels, d_precond_kernel, d_w_data, d_w_reg)
+        d_reg_kernel_weights, d_reg_kernels, d_w_data, d_w_reg)
 
     d_xrp = Variable(d_xrp)
     d_data_kernel_weights = Variable(d_data_kernel_weights)
     d_data_kernels = Variable(d_data_kernels)
     d_reg_kernel_weights = Variable(d_reg_kernel_weights)
     d_reg_kernels = Variable(d_reg_kernels)
-    d_precond_kernel = Variable(d_precond_kernel)
     d_w_data = Variable(d_w_data)
     d_w_reg = Variable(d_w_reg)
 
     return d_xrp, None, \
            d_data_kernel_weights, d_data_kernels, \
            d_reg_kernel_weights, d_reg_kernels, \
-           d_precond_kernel, d_w_data, d_w_reg
+           d_w_data, d_w_reg
 
 class DeconvCGWeight(Function):
   """"""
