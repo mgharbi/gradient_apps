@@ -319,10 +319,11 @@ class DeconvCGInit(Function):
               data_kernel_weights, data_kernels,
               reg_kernel_weights, reg_kernels, reg_targets,
               precond_kernel, w_data, w_reg):
-    ctx.save_for_backward(blurred, x0, kernel,
-      data_kernel_weights, data_kernels,
-      reg_kernel_weights, reg_kernels, reg_targets,
-      precond_kernel, w_data, w_reg)
+    if any(ctx.needs_input_grad):
+      ctx.save_for_backward(blurred, x0, kernel,
+        data_kernel_weights, data_kernels,
+        reg_kernel_weights, reg_kernels, reg_targets,
+        precond_kernel, w_data, w_reg)
 
     xrp = blurred.new()
     ci, h, w = blurred.shape
@@ -396,10 +397,11 @@ class DeconvCGIter(Function):
           data_kernel_weights, data_kernels,
           reg_kernel_weights, reg_kernels,
           precond_kernel, w_data, w_reg):
-    ctx.save_for_backward(xrp, kernel,
-                          data_kernel_weights, data_kernels,
-                          reg_kernel_weights, reg_kernels,
-                          precond_kernel, w_data, w_reg)
+    if any(ctx.needs_input_grad):
+      ctx.save_for_backward(xrp, kernel,
+                            data_kernel_weights, data_kernels,
+                            reg_kernel_weights, reg_kernels,
+                            precond_kernel, w_data, w_reg)
 
     next_xrp = xrp.new()
     n, ci, h, w = xrp.shape
@@ -464,8 +466,12 @@ class DeconvCGWeight(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, blurred, current, reg_kernels, reg_targets, gmm_weights, gmm_invvars):
-    ctx.save_for_backward(blurred, current, reg_kernels, reg_targets, gmm_weights, gmm_invvars)
+  def forward(ctx, blurred, current, reg_kernels, reg_targets, gmm_weights, 
+              gmm_invvars):
+    if any(ctx.needs_input_grad):
+      ctx.save_for_backward(
+          blurred, current, reg_kernels, reg_targets,
+          gmm_weights, gmm_invvars)
 
     weights = blurred.new()
     ci, h, w = blurred.shape

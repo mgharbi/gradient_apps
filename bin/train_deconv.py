@@ -26,11 +26,10 @@ import gapps.metrics as metrics
 
 log = logging.getLogger("gapps_deconvolution3")
 
-viz_port = 8888
 irls_iter = 4
 cg_iter = 20
-ref_irls_iter = 1
-ref_cg_iter = 1
+ref_irls_iter = 4
+ref_cg_iter = 20
 
 class DeconvCallback(object):
   def __init__(self, model, ref_model, val_loader, cuda, env=None):
@@ -39,29 +38,29 @@ class DeconvCallback(object):
     self.val_loader = val_loader
     self.cuda = cuda
 
-    self.viz = viz.BatchVisualizer("deconv", port=viz_port, env=env)
-    self.psf_viz = viz.BatchVisualizer("psf", port=viz_port, env=env)
-    self.reg_kernels0_viz = viz.BatchVisualizer("reg_kernels0", port=viz_port, env=env)
-    self.reg_kernels1_viz = viz.BatchVisualizer("reg_kernels1", port=viz_port, env=env)
+    self.viz = viz.BatchVisualizer("deconv", port=args.port, env=env)
+    self.psf_viz = viz.BatchVisualizer("psf", port=args.port, env=env)
+    self.reg_kernels0_viz = viz.BatchVisualizer("reg_kernels0", port=args.port, env=env)
+    self.reg_kernels1_viz = viz.BatchVisualizer("reg_kernels1", port=args.port, env=env)
     self.reg_kernel_weights0_viz = viz.ScalarVisualizer("reg_kernel_weights0",
-      ntraces = self.model.reg_kernel_weights.shape[1], port=viz_port, env=env)
+      ntraces = self.model.reg_kernel_weights.shape[1], port=args.port, env=env)
     self.reg_kernel_weights1_viz = viz.ScalarVisualizer("reg_kernel_weights1",
-      ntraces = self.model.reg_kernel_weights.shape[1], port=viz_port, env=env)
-    self.precond_kernel0_viz = viz.ImageVisualizer("precond_kernel0", port=viz_port, env=env)
-    self.precond_kernel1_viz = viz.ImageVisualizer("precond_kernel1", port=viz_port, env=env)
+      ntraces = self.model.reg_kernel_weights.shape[1], port=args.port, env=env)
+    self.precond_kernel0_viz = viz.ImageVisualizer("precond_kernel0", port=args.port, env=env)
+    self.precond_kernel1_viz = viz.ImageVisualizer("precond_kernel1", port=args.port, env=env)
     self.filter_s_viz = viz.ScalarVisualizer("filter_s0",
-      ntraces = self.model.filter_s.shape[1], port=viz_port, env=env)
+      ntraces = self.model.filter_s.shape[1], port=args.port, env=env)
     self.filter_r_viz = viz.ScalarVisualizer("filter_r0",
-      ntraces = self.model.filter_r.shape[1], port=viz_port, env=env)
+      ntraces = self.model.filter_r.shape[1], port=args.port, env=env)
     self.reg_thresholds_viz = viz.ScalarVisualizer("reg_thresholds",
-      ntraces = self.model.reg_thresholds.shape[1], port=viz_port, env=env)
+      ntraces = self.model.reg_thresholds.shape[1], port=args.port, env=env)
 
-    self.loss_viz = viz.ScalarVisualizer("loss", port=viz_port, env=env)
-    self.psnr_viz = viz.ScalarVisualizer("psnr", port=viz_port, env=env)
-    self.val_loss_viz = viz.ScalarVisualizer("val_loss", port=viz_port, env=env)
-    self.val_psnr_viz = viz.ScalarVisualizer("val_psnr", port=viz_port, env=env)
-    self.ref_loss_viz = viz.ScalarVisualizer("ref_loss", port=viz_port, env=env)
-    self.ref_psnr_viz = viz.ScalarVisualizer("ref_psnr", port=viz_port, env=env)
+    self.loss_viz = viz.ScalarVisualizer("loss", port=args.port, env=env)
+    self.psnr_viz = viz.ScalarVisualizer("psnr", port=args.port, env=env)
+    self.val_loss_viz = viz.ScalarVisualizer("val_loss", port=args.port, env=env)
+    self.val_psnr_viz = viz.ScalarVisualizer("val_psnr", port=args.port, env=env)
+    self.ref_loss_viz = viz.ScalarVisualizer("ref_loss", port=args.port, env=env)
+    self.ref_psnr_viz = viz.ScalarVisualizer("ref_psnr", port=args.port, env=env)
 
   def _get_im_batch(self):
     for b in self.val_loader:
@@ -225,6 +224,7 @@ def main(args):
 
     print('loss: {}, psnr: {}'.format(smooth_loss, smooth_psnr))
     model.train(False)
+    ref_model.train(False)
 
     logs = {"loss": smooth_loss, "psnr": smooth_psnr}
     callback.on_iteration_end(iteration, logs)
@@ -242,26 +242,26 @@ def main(args):
         blurred = Variable(blurred, requires_grad=False)
         reference = Variable(reference, requires_grad=False)
         kernel = Variable(kernel, requires_grad=False)
-  
+
         if args.cuda:
           blurred = blurred.cuda()
           reference = reference.cuda()
           kernel = kernel.cuda()
-  
+
         output = model(blurred, kernel, irls_iter, cg_iter)
         loss = loss_fn(output, reference)
         psnr = psnr_fn(output, reference)
-  
+
         ref_output = ref_model(blurred, kernel, ref_irls_iter, ref_cg_iter)
         ref_loss = loss_fn(ref_output, reference)
         ref_psnr = psnr_fn(ref_output, reference)
-  
+
         total_loss += loss.data[0]*args.batch_size
         total_psnr += psnr.data[0]*args.batch_size
         total_ref_loss += ref_loss.data[0]*args.batch_size
         total_ref_psnr += ref_psnr.data[0]*args.batch_size
         n_seen += args.batch_size
-  
+
       val_loss = total_loss / n_seen
       val_psnr = total_psnr / n_seen
       ref_loss = total_ref_loss / n_seen
@@ -286,6 +286,7 @@ if __name__ == "__main__":
   parser.add_argument("--lr", type=float, default=1e-4)
   parser.add_argument("--cuda", type=bool, default=True)
   parser.add_argument("--batch_size", type=int, default=1)
+  parser.add_argument("--port", type=int, default=8888)
   args = parser.parse_args()
 
   logging.basicConfig(
