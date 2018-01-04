@@ -146,6 +146,8 @@ class DeconvCG(nn.Module):
     if not ref:
       self.reg_kernels.data[:, :, :, :].normal_(0, 0.1)
       self.data_kernels.data[:, :, :, :].normal_(0, 0.1)
+      self.data_kernels.data[:, 0, :, :] = 0.0
+      self.data_kernels.data[:, 0, reg_kernel_center, reg_kernel_center] = 1.0
     if ref:
       self.data_kernels.data[:, :, :, :] = 0.0
       self.data_kernels.data[:, 0, reg_kernel_center, reg_kernel_center] = 1.0
@@ -178,13 +180,9 @@ class DeconvCG(nn.Module):
       self.reg_thresholds.data.uniform_(0, 0.03)
       self.reg_thresholds.data += 0.02
 
-    self.gmm_weights.data[:, 0, :] = 0.30471011
-    self.gmm_weights.data[:, 1, :] = 0.43436355
-    self.gmm_weights.data[:, 2, :] = 0.26092634
+    self.gmm_weights.data[:, :, :] = 1.0
 
-    self.gmm_invvars.data[:, 0, :] = 7021.6804986
-    self.gmm_invvars.data[:, 1, :] = 471.84142102
-    self.gmm_invvars.data[:, 2, :] = 41.84820868
+    self.gmm_invvars.data[:, :, :].uniform_(0.9, 1.1)
 
   def forward(self, blurred_batch, kernel_batch, num_irls_iter, num_cg_iter):
     num_batches = blurred_batch.shape[0]
@@ -214,7 +212,6 @@ class DeconvCG(nn.Module):
                 self.precond_kernel[0, :, :],
                 w_data,
                 w_reg)
-        assert(not np.isnan(xrp.data.cpu()).any())
         r = xrp[1, :, :, :].norm()
         if r.data.cpu() < 1e-10:
           break
@@ -230,7 +227,6 @@ class DeconvCG(nn.Module):
                   self.precond_kernel[0, :, :],
                   w_data,
                   w_reg)
-          assert(not np.isnan(xrp.data.cpu()).any())
           r = xrp[1, :, :, :].norm()
           if r.data.cpu() < 1e-10:
             break
@@ -239,7 +235,6 @@ class DeconvCG(nn.Module):
         if (irls_it < num_irls_iter - 1):
           w_reg = funcs.DeconvCGWeight.apply(blurred, x,
             self.reg_kernels[0, :, :, :], reg_targets, self.gmm_weights[0, :, :], self.gmm_invvars[0, :, :])
-          assert(not np.isnan(w_reg.data.cpu()).any())
  
       result[b, :, :, :] = x
   

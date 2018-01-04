@@ -291,6 +291,6 @@ if __name__ == "__main__":
   logging.basicConfig(
       format="[%(process)d] %(levelname)s %(filename)s:%(lineno)s | %(message)s")
   log.setLevel(logging.INFO)
-  setproctitle.setproctitle('gapps_deconvolution2')
+  setproctitle.setproctitle('gapps_deconvolution3')
 
   main(args)
