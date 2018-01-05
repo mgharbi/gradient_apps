@@ -73,8 +73,6 @@ class DemosaickCallback(object):
         "loss", opts={"legend": ["train", "val"]}, env=env)
     self.psnr_viz = viz.ScalarVisualizer(
         "psnr", opts={"legend": ["train", "val"]}, env=env)
-    self.scale_viz = viz.ScalarVisualizer(
-        "softmax_scale", opts={"legend": ["scale"]}, env=env)
 
     self.current_epoch = 0
 
@@ -131,7 +129,6 @@ class DemosaickCallback(object):
       self.loss_viz.update(frac, logs['loss'], name="train")
     if "psnr" in logs.keys():
       self.psnr_viz.update(frac, logs['psnr'], name="train")
-    self.scale_viz.update(frac, self.model.softmax_scale.data.clone().cpu().numpy().squeeze(), name="scale")
 
     k = self.model.green_filts.data.clone().cpu().view(
         self.model.num_filters, 1, self.model.fsize, self.model.fsize)
