@@ -88,3 +88,6 @@ def make_blur(ref, kernel, stddev = 0.01):
   blurred = correlate(ref, np.reshape(kernel, [kernel.shape[0], kernel.shape[1], 1]))
   blurred += np.random.normal(scale = stddev, size = blurred.shape)
   return blurred
+
+def make_noisy(ref, stddev):
+  return np.clip(ref + np.random.normal(scale = stddev, size = ref.shape), 0, 1)

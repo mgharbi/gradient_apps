@@ -222,3 +222,34 @@ class DeconvCG(nn.Module):
     assert(not np.isnan(result.data.cpu()).any())
     return result
 
+class NonLocalMeans(nn.Module):
+  def __init__(self,
+               feature_filter_size=7,
+               feature_channel_size=3,
+               patch_filter_size=9,
+               inv_sigma=1.0,
+               search_radius=9):
+    super(NonLocalMeans, self).__init__()
+
+    self.feature_filter = nn.Parameter(th.zeros(feature_filter_size, feature_filter_size, 3, feature_channel_size))
+    self.patch_filter = nn.Parameter(th.zeros(patch_filter_size, patch_filter_size))
+    self.inv_sigma = nn.Parameter(th.zeros(1))
+    self.search_radius = Variable(th.IntTensor([search_radius]))
+
+    feature_filter_center = int(feature_filter_size/2)
+    self.feature_filter.data[feature_filter_center, feature_filter_center, 0, 0] = 1.0
+    self.feature_filter.data[feature_filter_center, feature_filter_center, 1, 1] = 1.0
+    self.feature_filter.data[feature_filter_center, feature_filter_center, 2, 2] = 1.0
+    self.patch_filter.data[:, :] = 1.0
+    self.inv_sigma.data[0] = inv_sigma
+
+  def train(self, mode=True):
+    super(NonLocalMeans, self).train(mode)
+    for p in self.parameters():
+      p.requires_grad = mode
+    return self
+
+  def forward(self, input):
+    output = funcs.NonLocalMeans.apply(input, self.feature_filter, self.patch_filter, self.inv_sigma, self.search_radius)
+    return output
+

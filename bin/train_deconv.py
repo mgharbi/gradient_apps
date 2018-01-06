@@ -224,6 +224,7 @@ def main(args):
     loss.backward()
     for n, p in model.named_parameters():
         print('name:', n)
+        print('val', p)
         print('grad:', p.grad)
     optimizer.step()
 
