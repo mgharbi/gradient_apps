@@ -69,10 +69,19 @@ class DemosaickCallback(object):
         opts={"legend": ["min", "-std", "mean", "+std", "max"]},
         env=env)
 
+    self.h_scalar = viz.ScalarVisualizer(
+        "chroma_h",
+        opts={"legend": ["min", "-std", "mean", "+std", "max"]},
+        env=env)
+
     self.loss_viz = viz.ScalarVisualizer(
         "loss", opts={"legend": ["train", "val"]}, env=env)
     self.psnr_viz = viz.ScalarVisualizer(
         "psnr", opts={"legend": ["train", "val"]}, env=env)
+    self.ssim_viz = viz.ScalarVisualizer(
+        "1-ssim", opts={"legend": ["train", "val"]}, env=env)
+    self.l1_viz = viz.ScalarVisualizer(
+        "l1", opts={"legend": ["train", "val"]}, env=env)
 
     self.current_epoch = 0
 
@@ -103,6 +112,10 @@ class DemosaickCallback(object):
       self.loss_viz.update(epoch+1, logs['loss'], name="val")
     if "psnr" in logs.keys():
       self.psnr_viz.update(epoch+1, logs['psnr'], name="val")
+    if "ssim" in logs.keys():
+      self.ssim_viz.update(epoch+1, logs['psnr'], name="val")
+    if "l1" in logs.keys():
+      self.l1_viz.update(epoch+1, logs['l1'], name="val")
 
     self.viz.update(self._get_im_batch(), per_row=self.val_loader.batch_size,
                     caption="input | gt | ours | ref | diff (x4)")
@@ -129,30 +142,34 @@ class DemosaickCallback(object):
       self.loss_viz.update(frac, logs['loss'], name="train")
     if "psnr" in logs.keys():
       self.psnr_viz.update(frac, logs['psnr'], name="train")
+    if "ssim" in logs.keys():
+      self.ssim_viz.update(frac, logs['ssim'], name="train")
+    if "l1" in logs.keys():
+      self.l1_viz.update(frac, logs['l1'], name="train")
 
-    k = self.model.green_filts.data.clone().cpu().view(
-        self.model.num_filters, 1, self.model.fsize, self.model.fsize)
+    k = self.model.green_filts.data.clone().cpu()
     mini, maxi = k.min(), k.max()
     mean, std = k.mean(), k.std()
-    k -= mini
-    k /= maxi-mini
     self.green_scalar.update(frac, mini, name="min")
     self.green_scalar.update(frac, mean-std, name="-std")
     self.green_scalar.update(frac, mean, name="mean")
     self.green_scalar.update(frac, mean+std, name="+std")
     self.green_scalar.update(frac, maxi, name="max")
 
-    k = self.model.sel_filts.data.clone().cpu().view(
-        self.model.num_filters, 1, self.model.fsize, self.model.fsize)
+    k = self.model.sel_filts.data.clone().cpu()
     mini, maxi = k.min(), k.max()
     mean, std = k.mean(), k.std()
-    k -= mini
-    k /= maxi-mini
     self.sel_scalar.update(frac, mini, name="min")
     self.sel_scalar.update(frac, mean-std, name="-std")
     self.sel_scalar.update(frac, mean, name="mean")
     self.sel_scalar.update(frac, mean+std, name="+std")
     self.sel_scalar.update(frac, maxi, name="max")
 
-
-
+    k = self.model.h_chroma_filter.data.clone().cpu()
+    mini, maxi = k.min(), k.max()
+    mean, std = k.mean(), k.std()
+    self.h_scalar.update(frac, mini, name="min")
+    self.h_scalar.update(frac, mean-std, name="-std")
+    self.h_scalar.update(frac, mean, name="mean")
+    self.h_scalar.update(frac, mean+std, name="+std")
+    self.h_scalar.update(frac, maxi, name="max")

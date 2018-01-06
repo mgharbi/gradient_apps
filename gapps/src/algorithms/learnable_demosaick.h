@@ -54,16 +54,16 @@ std::map<std::string, Func> learnable_demosaick(
     RDom rsel(0, sel_filt_w, 0, sel_filt_h);
     selection(x, y, k, n) = 0.0f;
     selection(x, y, k, n) += f_mosaick(x + rsel.x - sel_filt_w/2, y + rsel.y - sel_filt_h/2, n)*f_sel_filts(rsel.x, rsel.y, k);
-    Func abs_selection("abs_selection");
-    abs_selection(x, y, k, n) = abs(selection(x, y, k, n));
+    // Func abs_selection("abs_selection");
+    // abs_selection(x, y, k, n) = abs(selection(x, y, k, n));
 
     // Softmax ----------------
     Func sel_max("sel_max");
-    sel_max(x, y, n) = 0.0f;
-    sel_max(x, y, n) = max(sel_max(x, y,n), abs_selection(x, y, rfilters, n));
+    sel_max(x, y, n) = selection(x, y, 0, n);
+    sel_max(x, y, n) = max(sel_max(x, y,n), selection(x, y, rfilters, n));
     Func exp_selection("exp_selection");
     // stable softmax (-= max)
-    exp_selection(x, y, k, n) = exp((sel_max(x, y, n) - abs_selection(x, y, k, n)));
+    exp_selection(x, y, k, n) = exp(selection(x, y, k, n) - sel_max(x, y, n));
     Func normalizer("normalizer");
     normalizer(x, y, n) = 0.0f;
     normalizer(x, y, n) += exp_selection(x, y, rfilters, n);
@@ -128,15 +128,15 @@ std::map<std::string, Func> learnable_demosaick(
     //     chroma(x+1, y+1, n)) + green(x, y, n);
 
     Func red("red");
-    red(x, y, n) = select(is_g0, h_interp(x, y, n),
-                          is_g3, v_interp(x, y, n),
-                          is_blue, q_interp(x, y, n),
+    red(x, y, n) = select(is_g0, h_interp(x, y, n) + green(x, y, n),
+                          is_g3, v_interp(x, y, n) + green(x, y, n),
+                          is_blue, q_interp(x, y, n) + green(x, y, n),
                           f_mosaick(x, y, n));
 
     Func blue("blue");
-    blue(x, y, n) = select(is_g0, v_interp(x, y, n),
-                           is_g3, h_interp(x, y, n),
-                           is_red, q_interp(x, y, n),
+    blue(x, y, n) = select(is_g0, v_interp(x, y, n) + green(x, y, n),
+                           is_g3, h_interp(x, y, n) + green(x, y, n),
+                           is_red, q_interp(x, y, n) + green(x, y, n),
                            f_mosaick(x, y, n));
 
     Func f_output("f_output");

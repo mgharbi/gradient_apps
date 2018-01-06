@@ -34,23 +34,17 @@ class LearnableDemosaick(nn.Module):
     self.reset_weights()
 
   def reset_weights(self):
-    self.sel_filts.data.uniform_(-1.0, 1.0)
-    self.green_filts.data.normal_(0.0, 1.0/(self.fsize*self.fsize))
-    self.h_chroma_filter.data.normal_(0.0, 1.0/(self.fsize*self.fsize))
-    self.v_chroma_filter.data.normal_(0.0, 1.0/(self.fsize*self.fsize))
-    self.q_chroma_filter.data.normal_(0.0, 1.0/(self.fsize*self.fsize))
-    self.h_chroma_filter.data.normal_(0.0, 1.0/(self.fsize*self.fsize))
-    # self.green_filts.data /= self.fsize
+    self.sel_filts.data.normal_(-1.0, 1.0)
+    self.green_filts.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)
+    self.h_chroma_filter.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)
+    self.v_chroma_filter.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)
+    self.q_chroma_filter.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)
 
-  # def cuda(self, device=None):
-  #   # self.mask = self.mask.cuda()
-  #   return super(LearnableDemosaick, self).cuda(device)
 
   def forward(self, mosaick):
     output = funcs.LearnableDemosaick.apply(
         mosaick, self.sel_filts, self.green_filts,
         self.h_chroma_filter, self.v_chroma_filter, self.q_chroma_filter)
-    # return output[:, 1:2, ...]
     return output
 
 

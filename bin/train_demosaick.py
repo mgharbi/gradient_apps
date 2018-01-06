@@ -57,25 +57,30 @@ def main(args):
   # params = [p for n, p in model.named_parameters() if n != "green_filts"]
   optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
 
-  mse_fn = metrics.CroppedMSELoss(crop=args.fsize//2)
-  # l1_fn = metrics.CroppedL1Loss(crop=args.fsize//2)
+  # mse_fn = metrics.CroppedMSELoss(crop=args.fsize//2)
+  l1_fn = metrics.CroppedL1Loss(crop=args.fsize//2)
+  msssim_fn = metrics.MSSSIM()
   # grad_l1_fn = metrics.CroppedGradientLoss(crop=args.fsize//2)
-  # loss_fn = lambda a,b : l1_fn(a, b) + grad_l1_fn(a, b)
-  loss_fn = mse_fn
+  # loss_fn = lambda a, b: 0.84*msssim_fn(a, b) + (1-0.84)*l1_fn(a, b)
+  alpha = 0.84
+  crop = args.fsize // 2
   psnr_fn = metrics.PSNR(crop=args.fsize//2)
 
+
   env = os.path.basename(args.output)
-  checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=False)
+  checkpointer = utils.Checkpointer(
+      args.output, model, optimizer, verbose=False, interval=600)
   callback = demosaick.DemosaickCallback(
       model, reference_model, len(loader), val_loader, env=env)
+
+  chkpt_name, _ = checkpointer.load_latest()
+  log.info("Resuming from latest checkpoint {}.".format(chkpt_name))
 
   if args.chkpt is not None:
     log.info("Loading checkpoint {}".format(args.chkpt))
     checkpointer.load_checkpoint(args.chkpt)
 
-  smooth_loss = 0
-  smooth_psnr = 0
-  ema = 0.9
+  ema = utils.ExponentialMovingAverage(["loss", "psnr", "ssim", "l1"])
   for epoch in range(args.num_epochs):
     callback.on_epoch_end(epoch, {})
 
@@ -96,27 +101,36 @@ def main(args):
         output = model(mosaick)
 
         optimizer.zero_grad()
-        loss = loss_fn(output, reference)
+        if crop > 0:
+          output = output[:, :, crop:-crop, crop:-crop]
+          reference = reference[:, :, crop:-crop, crop:-crop]
+
+        ssim_ = 1-msssim_fn(output, reference)
+        l1_ = l1_fn(output, reference)
+        loss = ssim_*alpha + (1-alpha)*l1_
         loss.backward()
         optimizer.step()
 
+
         psnr = psnr_fn(output, reference)
 
-        smooth_loss = ema*smooth_loss + (1-ema)*loss.data[0]
-        smooth_psnr = ema*smooth_psnr + (1-ema)*psnr.data[0]
+        ema.update("loss", loss.data[0]) 
+        ema.update("psnr", psnr.data[0]) 
+        ema.update("ssim", ssim_.data[0]) 
+        ema.update("l1", l1_.data[0]) 
 
-        logs = {"loss": smooth_loss, "psnr": smooth_psnr}
+        logs = {"loss": ema["loss"], "psnr": ema["psnr"], 
+                "ssim": ema["ssim"], "l1": ema["l1"]}
         pbar.set_postfix(logs)
         pbar.update(1)
         callback.on_batch_end(batch_id, logs)
+        checkpointer.periodic_checkpoint(epoch)
     model.train(False)
 
     # Validation
     with tqdm(total=len(val_loader), unit=' batches') as pbar:
       pbar.set_description("Epoch {}/{} (val)".format(epoch+1, args.num_epochs))
-      total_loss = 0
-      total_psnr = 0
-      n_seen = 0
+      avg = utils.Averager(["loss", "psnr", "ssim", "l1"])
       for batch_id, batch in enumerate(val_loader):
         mosaick, reference = batch
         mosaick = Variable(mosaick, requires_grad=False)
@@ -127,17 +141,22 @@ def main(args):
           reference = reference.cuda()
 
         output = model(mosaick)
-        loss = loss_fn(output, reference)
+        if crop > 0:
+          output = output[:, :, crop:-crop, crop:-crop]
+          reference = reference[:, :, crop:-crop, crop:-crop]
+        ssim_ = 1-msssim_fn(output, reference)
+        l1_ = l1_fn(output, reference)
+        loss = ssim_*alpha + (1-alpha)*l1_
         psnr = psnr_fn(output, reference)
 
-        total_loss += loss.data[0]*args.batch_size
-        total_psnr += psnr.data[0]*args.batch_size
-        n_seen += args.batch_size
+        avg.update("loss", loss.data[0], count=args.batch_size)
+        avg.update("psnr", psnr.data[0], count=args.batch_size)
+        avg.update("ssim", ssim_.data[0], count=args.batch_size)
+        avg.update("l1", l1_.data[0], count=args.batch_size)
         pbar.update(1)
 
-      total_loss /= n_seen
-      total_psnr /= n_seen
-      logs = {"loss": total_loss, "psnr": total_psnr}
+      logs = {"loss": avg["loss"], "psnr": avg["psnr"],
+              "ssim": avg["ssim"], "l1": avg["l1"]}
 
       pbar.set_postfix(logs)
       callback.on_epoch_end(epoch, logs)
@@ -153,8 +172,8 @@ if __name__ == "__main__":
   parser.add_argument("--chkpt")
   parser.add_argument("--output", default="output/demosaick")
   parser.add_argument("--lr", type=float, default=1e-4)
-  parser.add_argument("--batch_size", type=int, default=16)
-  parser.add_argument("--num_epochs", type=int, default=3)
+  parser.add_argument("--batch_size", type=int, default=32)
+  parser.add_argument("--num_epochs", type=int, default=100)
   parser.add_argument("--no-cuda", dest="cuda", action="store_false")
   parser.add_argument("--nfilters", type=int, default=9)
   parser.add_argument("--fsize", type=int, default=5)
