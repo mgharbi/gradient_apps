@@ -14,7 +14,7 @@ std::map<std::string, Func> bilateral_grid(
         const Input &input,
         const Input &filter_s,
         const Input &filter_r) {
-    int sigma_s = 4;
+    int sigma_s = 2;
     int sigma_r = 8;
 
     Func f_input("f_input");

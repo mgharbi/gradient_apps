@@ -24,11 +24,11 @@ import gapps.datasets as datasets
 import gapps.modules as models
 import gapps.metrics as metrics
 
-log = logging.getLogger("gapps_deconvolution3")
+log = logging.getLogger("gapps_deconvolution2")
 
-irls_iter = 3
+irls_iter = 1
 cg_iter = 20
-ref_irls_iter = 3
+ref_irls_iter = 1
 ref_cg_iter = 20
 
 class DeconvCallback(object):
@@ -40,25 +40,24 @@ class DeconvCallback(object):
 
     self.viz = viz.BatchVisualizer("deconv", port=args.port, env=env)
     self.psf_viz = viz.BatchVisualizer("psf", port=args.port, env=env)
-    self.data_kernels_viz = viz.BatchVisualizer("data_kernels", port=args.port, env=env)
-    self.data_kernel_weights_viz = viz.ScalarVisualizer("data_kernel_weights",
+    self.data_kernels0_viz = viz.BatchVisualizer("data_kernels0", port=args.port, env=env)
+    self.data_kernels1_viz = viz.BatchVisualizer("data_kernels1", port=args.port, env=env)
+    self.data_kernel_weights0_viz = viz.ScalarVisualizer("data_kernel_weights0",
       ntraces = self.model.data_kernel_weights.shape[1], port=args.port, env=env)
-    self.reg_kernels_viz = viz.BatchVisualizer("reg_kernels", port=args.port, env=env)
-    self.reg_kernel_weights_viz = viz.ScalarVisualizer("reg_kernel_weights",
+    self.data_kernel_weights1_viz = viz.ScalarVisualizer("data_kernel_weights1",
+      ntraces = self.model.data_kernel_weights.shape[1], port=args.port, env=env)
+    self.reg_kernels0_viz = viz.BatchVisualizer("reg_kernels0", port=args.port, env=env)
+    self.reg_kernels1_viz = viz.BatchVisualizer("reg_kernels1", port=args.port, env=env)
+    self.reg_kernel_weights0_viz = viz.ScalarVisualizer("reg_kernel_weights0",
       ntraces = self.model.reg_kernel_weights.shape[1], port=args.port, env=env)
-    self.precond_kernel_viz = viz.ImageVisualizer("precond_kernel", port=args.port, env=env)
-    self.gmm_weights0_viz = viz.ScalarVisualizer("gmm_weights0",
-      ntraces = self.model.gmm_weights.shape[2], port=args.port, env=env)
-    self.gmm_weights1_viz = viz.ScalarVisualizer("gmm_weights1",
-      ntraces = self.model.gmm_weights.shape[2], port=args.port, env=env)
-    self.gmm_weights2_viz = viz.ScalarVisualizer("gmm_weights2",
-      ntraces = self.model.gmm_weights.shape[2], port=args.port, env=env)
-    self.gmm_invvars0_viz = viz.ScalarVisualizer("gmm_invvars0",
-      ntraces = self.model.gmm_invvars.shape[2], port=args.port, env=env)
-    self.gmm_invvars1_viz = viz.ScalarVisualizer("gmm_invvars1",
-      ntraces = self.model.gmm_invvars.shape[2], port=args.port, env=env)
-    self.gmm_invvars2_viz = viz.ScalarVisualizer("gmm_invvars2",
-      ntraces = self.model.gmm_invvars.shape[2], port=args.port, env=env)
+    self.reg_kernel_weights1_viz = viz.ScalarVisualizer("reg_kernel_weights1",
+      ntraces = self.model.reg_kernel_weights.shape[1], port=args.port, env=env)
+    self.filter_s_viz = viz.ScalarVisualizer("filter_s0",
+      ntraces = self.model.filter_s.shape[1], port=args.port, env=env)
+    self.filter_r_viz = viz.ScalarVisualizer("filter_r0",
+      ntraces = self.model.filter_r.shape[1], port=args.port, env=env)
+    self.reg_thresholds_viz = viz.ScalarVisualizer("reg_thresholds",
+      ntraces = self.model.reg_thresholds.shape[1], port=args.port, env=env)
 
     self.loss_viz = viz.ScalarVisualizer("loss", port=args.port, env=env)
     self.psnr_viz = viz.ScalarVisualizer("psnr", port=args.port, env=env)
@@ -122,31 +121,38 @@ class DeconvCallback(object):
     dk0 = self.model.data_kernels.data[0, :, :, :].cpu().numpy()
     dk0 = np.reshape(dk0, [dk0.shape[0], 1, dk0.shape[1], dk0.shape[2]])
     dk0 = (dk0 / np.abs(dk0).max() + 1.0) / 2.0
-    self.data_kernels_viz.update(dk0,
+    self.data_kernels0_viz.update(dk0,
                                  per_row=dk0.shape[0],
-                                 caption="data_kernels")
-    self.data_kernel_weights_viz.update(iteration, self.model.data_kernel_weights.data[0, :].cpu().numpy())
+                                 caption="data_kernels0")
+    dk1 = self.model.data_kernels.data[1, :, :, :].cpu().numpy()
+    dk1 = np.reshape(dk1, [dk1.shape[0], 1, dk1.shape[1], dk1.shape[2]])
+    dk1 = (dk1 / np.abs(dk1).max() + 1.0) / 2.0
+    self.data_kernels0_viz.update(dk1,
+                                 per_row=dk1.shape[0],
+                                 caption="data_kernels1")
+    self.data_kernel_weights0_viz.update(iteration, self.model.data_kernel_weights.data[0, :].cpu().numpy())
+    self.data_kernel_weights1_viz.update(iteration, self.model.data_kernel_weights.data[1, :].cpu().numpy())
+
     rk0 = self.model.reg_kernels.data[0, :, :, :].cpu().numpy()
     rk0 = np.reshape(rk0, [rk0.shape[0], 1, rk0.shape[1], rk0.shape[2]])
     rk0 = (rk0 / np.abs(rk0).max() + 1.0) / 2.0
-    self.reg_kernels_viz.update(rk0,
-                                per_row=rk0.shape[0],
-                                caption="reg_kernels")
-    self.reg_kernel_weights_viz.update(iteration, self.model.reg_kernel_weights.data[0, :].cpu().numpy())
-    pk0 = self.model.precond_kernel.data[0, :, :].cpu().numpy()
-    pk0 = (pk0 / np.abs(pk0).max() + 1.0) / 2.0
-    self.precond_kernel_viz.update(pk0)
-
-    self.gmm_weights0_viz.update(iteration, self.model.gmm_weights.data[0, 0, :].cpu().numpy())
-    self.gmm_weights1_viz.update(iteration, self.model.gmm_weights.data[0, 1, :].cpu().numpy())
-    self.gmm_weights2_viz.update(iteration, self.model.gmm_weights.data[0, 2, :].cpu().numpy())
-    
-    self.gmm_invvars0_viz.update(iteration, self.model.gmm_invvars.data[0, 0, :].cpu().numpy())
-    self.gmm_invvars1_viz.update(iteration, self.model.gmm_invvars.data[0, 1, :].cpu().numpy())
-    self.gmm_invvars2_viz.update(iteration, self.model.gmm_invvars.data[0, 2, :].cpu().numpy())
+    self.reg_kernels0_viz.update(rk0,
+                                 per_row=rk0.shape[0],
+                                 caption="reg_kernels0")
+    rk1 = self.model.reg_kernels.data[1, :, :, :].cpu().numpy()
+    rk1 = np.reshape(rk1, [rk1.shape[0], 1, rk1.shape[1], rk1.shape[2]])
+    rk1 = (rk1 / np.abs(rk1).max() + 1.0) / 2.0
+    self.reg_kernels1_viz.update(rk1,
+                                 per_row=rk1.shape[0],
+                                 caption="reg_kernels1")
+    self.reg_kernel_weights0_viz.update(iteration, self.model.reg_kernel_weights.data[0, :].cpu().numpy())
+    self.reg_kernel_weights1_viz.update(iteration, self.model.reg_kernel_weights.data[1, :].cpu().numpy())
+    self.filter_s_viz.update(iteration, self.model.filter_s.data[0, :].cpu().numpy())
+    self.filter_r_viz.update(iteration, self.model.filter_r.data[0, :].cpu().numpy())
+    self.reg_thresholds_viz.update(iteration, self.model.reg_thresholds.data[0, :].cpu().numpy())
 
 def main(args):
-  model = models.DeconvCG(num_stages = 1)
+  model = models.DeconvCG(num_stages = 3)
   ref_model = models.DeconvCG(ref = True)
 
   if not os.path.exists(args.output):
@@ -170,7 +176,7 @@ def main(args):
     params_to_train.append(p)
   optimizer = th.optim.Adam(params_to_train, lr=args.lr)
   # optimizer = th.optim.SGD(model.parameters(), lr=args.lr)
-  loss_fn = metrics.CroppedMSELoss(crop=20)
+  loss_fn = metrics.CroppedL1Loss(crop=20)
   psnr_fn = metrics.PSNR(crop=20)
 
   loader = DataLoader(dset, batch_size=args.batch_size, num_workers=1, shuffle=True)
@@ -178,7 +184,7 @@ def main(args):
 
   checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=True)
   callback = DeconvCallback(
-      model, ref_model, val_loader, args.cuda, env="gapps_deconv3")
+      model, ref_model, val_loader, args.cuda, env="gapps_deconv2")
 
   smooth_loss = 0
   smooth_psnr = 0
@@ -216,6 +222,9 @@ def main(args):
     optimizer.zero_grad()
     loss = loss_fn(output, reference)
     loss.backward()
+    for n, p in model.named_parameters():
+        print('name:', n)
+        print('grad:', p.grad)
     optimizer.step()
 
     # Compute PSNR
@@ -291,7 +300,7 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="/data/graphics/approximation/datasets/imagenet/imagenet_jpeg.txt")
   parser.add_argument("--val_dataset", default="/data/graphics/approximation/datasets/imagenet/imagenet_jpeg.txt")
   parser.add_argument("--output", default="output/deconv")
-  parser.add_argument("--lr", type=float, default=3e-4)
+  parser.add_argument("--lr", type=float, default=1e-4)
   parser.add_argument("--cuda", type=bool, default=True)
   parser.add_argument("--batch_size", type=int, default=1)
   parser.add_argument("--port", type=int, default=8888)
@@ -300,6 +309,6 @@ if __name__ == "__main__":
   logging.basicConfig(
       format="[%(process)d] %(levelname)s %(filename)s:%(lineno)s | %(message)s")
   log.setLevel(logging.INFO)
-  setproctitle.setproctitle('gapps_deconvolution3')
+  setproctitle.setproctitle('gapps_deconvolution2')
 
   main(args)
