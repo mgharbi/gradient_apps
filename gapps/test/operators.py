@@ -351,21 +351,22 @@ def _test_naive_demosaick(gpu=False):
 
   with profiler.profile() as prof:
     for i in range(1):
-      output = op(mosaick).view(3, h, w)
+      output = op(mosaick)
+      # .view(3, h, w)
       loss = output.sum()
       loss.backward()
 
-  # print prof
+  print prof
 
-  assert output.shape[0] == 3
-  assert output.shape[1] == h
-  assert output.shape[2] == w
-
-  output = output.data.cpu().numpy()
-  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
-  output = np.squeeze(output)
-  skimage.io.imsave(
-      os.path.join(out_dir, "naive_demosaicked.png"), output)
+  # assert output.shape[0] == 3
+  # assert output.shape[1] == h
+  # assert output.shape[2] == w
+  #
+  # output = output.data.cpu().numpy()
+  # output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  # output = np.squeeze(output)
+  # skimage.io.imsave(
+  #     os.path.join(out_dir, "naive_demosaicked.png"), output)
 
 
 def test_learnable_demosaick_gradients():
@@ -412,8 +413,8 @@ def _test_learnable_demosaick(gpu=False):
   with profiler.profile() as prof:
     for i in range(1):
       output = op(mosaick).view(1, h, w)
-      # loss = output.sum()
-      # loss.backward()
+      loss = output.sum()
+      loss.backward()
   print(prof)
   print(output)
 

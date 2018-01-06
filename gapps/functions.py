@@ -274,8 +274,8 @@ class LearnableDemosaick(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, mosaick, selection_filters, green_filters):
-    ctx.save_for_backward(mosaick, selection_filters, green_filters)
+  def forward(ctx, mosaick, selection_filters, green_filters, h_chroma, v_chroma, q_chroma):
+    ctx.save_for_backward(mosaick, selection_filters, green_filters, h_chroma, v_chroma, q_chroma)
 
     output = mosaick.new()
     bs, ci, h, w = mosaick.shape
@@ -283,13 +283,13 @@ class LearnableDemosaick(Function):
 
     output.resize_(bs, 3, h, w)
     ops.learnable_demosaick_forward(
-        mosaick.view(bs, h, w), selection_filters, green_filters, output)
+        mosaick.view(bs, h, w), selection_filters, green_filters, h_chroma, v_chroma, q_chroma, output)
 
     return output
 
   @staticmethod
   def backward(ctx, d_output):
-    mosaick, selection_filters, green_filters = ctx.saved_variables
+    mosaick, selection_filters, green_filters, h_chroma, v_chroma, q_chroma = ctx.saved_variables
 
     d_mosaick = mosaick.data.new()
     d_mosaick.resize_as_(mosaick.data)
@@ -297,19 +297,30 @@ class LearnableDemosaick(Function):
     d_sel_filts.resize_as_(selection_filters.data).zero_()
     d_green_filts = green_filters.data.new()
     d_green_filts.resize_as_(green_filters.data).zero_()
+    d_h_chroma = h_chroma.data.new()
+    d_h_chroma.resize_as_(h_chroma.data).zero_()
+    d_v_chroma = v_chroma.data.new()
+    d_v_chroma.resize_as_(v_chroma.data).zero_()
+    d_q_chroma = q_chroma.data.new()
+    d_q_chroma.resize_as_(q_chroma.data).zero_()
 
     bs, ci, h, w = mosaick.shape
 
     ops.learnable_demosaick_backward(
         mosaick.data.view(bs, h, w), selection_filters.data, green_filters.data,
+        h_chroma.data, v_chroma.data, q_chroma.data,
         d_output.data,
-        d_mosaick.view(bs, h, w), d_sel_filts, d_green_filts)
+        d_mosaick.view(bs, h, w), d_sel_filts, d_green_filts,
+        d_h_chroma, d_v_chroma, d_q_chroma)
 
     d_mosaick = Variable(d_mosaick)
     d_sel_filts = Variable(d_sel_filts)
     d_green_filts = Variable(d_green_filts)
+    d_h_chroma = Variable(d_h_chroma)
+    d_v_chroma = Variable(d_v_chroma)
+    d_q_chroma = Variable(d_q_chroma)
 
-    return d_mosaick, d_sel_filts, d_green_filts
+    return d_mosaick, d_sel_filts, d_green_filts, d_h_chroma, d_v_chroma, d_q_chroma
 
 class DeconvCGInit(Function):
   """"""
