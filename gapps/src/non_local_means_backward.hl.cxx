@@ -5,14 +5,14 @@ namespace gradient_apps {
 
 class NonLocalMeansBackwardGenerator : public Generator<NonLocalMeansBackwardGenerator> {
 public:
-    Input<Buffer<float>>  input{"input", 3};       // x, y, channel
+    Input<Buffer<float>>  input{"input", 4};       // x, y, channel, batch
     Input<Buffer<float>>  feature_filter{"feature_filter", 4};
     Input<Buffer<float>>  patch_filter{"patch_filter", 2};
     Input<float>          inv_sigma{"inv_sigma"};
     Input<int>            search_area{"search_area"};
-    Input<Buffer<float>>  d_output{"d_output", 3};
+    Input<Buffer<float>>  d_output{"d_output", 4};
 
-    Output<Buffer<float>> d_input{"d_input", 3};
+    Output<Buffer<float>> d_input{"d_input", 4};
     Output<Buffer<float>> d_feature_filter{"d_feature_filter", 4};
     Output<Buffer<float>> d_patch_filter{"d_patch_filter", 2};
     Output<Buffer<float>> d_inv_sigma{"d_inv_sigma", 0};
@@ -30,7 +30,8 @@ public:
             d_output,
             {{d_output.dim(0).min(), d_output.dim(0).max()},
              {d_output.dim(1).min(), d_output.dim(1).max()},
-             {d_output.dim(2).min(), d_output.dim(2).max()}}
+             {d_output.dim(2).min(), d_output.dim(2).max()},
+             {d_output.dim(3).min(), d_output.dim(3).max()}}
         );
         std::map<FuncKey, Func> adjoints = d.adjoints;
         assign_gradient(adjoints, clamped, d_input);
@@ -50,9 +51,11 @@ public:
                                 {{"input.min.0", 0},
                                  {"input.min.1", 0},
                                  {"input.min.2", 0},
+                                 {"input.min.3", 0},
                                  {"input.extent.0", 512},
                                  {"input.extent.1", 512},
                                  {"input.extent.2", 3},
+                                 {"input.extent.3", 8},
                                  {"feature_filter.min.0", 0},
                                  {"feature_filter.min.1", 0},
                                  {"feature_filter.min.2", 0},
@@ -69,13 +72,16 @@ public:
                                  {"d_output.min.0", 0},
                                  {"d_output.min.1", 0},
                                  {"d_output.min.2", 0},
+                                 {"d_output.min.3", 0},
                                  {"d_output.extent.0", 512},
                                  {"d_output.extent.1", 512},
                                  {"d_output.extent.2", 3},
+                                 {"d_output.extent.3", 8},
                                  },
                                 {{{0, 512}, // d_input
                                   {0, 512},
-                                  {0, 2}},
+                                  {0, 2},
+                                  {0, 7}},
                                  {{0, 5},   // feature_filter
                                   {0, 5},
                                   {0, 2},

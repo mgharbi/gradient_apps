@@ -606,10 +606,10 @@ class NonLocalMeans(Function):
       ctx.save_for_backward(input, feature_filter, patch_filter, inv_sigma, search_radius)
 
     output = input.new()
-    ci, h, w = input.shape
+    b, ci, h, w = input.shape
     assert ci == 3
 
-    output.resize_(ci, h, w)
+    output.resize_(b, ci, h, w)
     ops.non_local_means_forward(
         input, feature_filter, patch_filter, inv_sigma[0], search_radius[0], output)
 
@@ -626,7 +626,7 @@ class NonLocalMeans(Function):
     d_patch_filter = patch_filter.data.new()
     d_patch_filter.resize_as_(patch_filter.data)
     d_inv_sigma = inv_sigma.data.new()
-    d_inv_sigma.resize_as_(d_inv_sigma.data)
+    d_inv_sigma.resize_as_(inv_sigma.data)
 
     ops.non_local_means_backward(
         input.data, feature_filter.data, patch_filter.data, inv_sigma.data[0], search_radius[0],
@@ -635,7 +635,7 @@ class NonLocalMeans(Function):
 
     d_input = Variable(d_input)
     d_feature_filter = Variable(d_feature_filter)
-    d_patch_fitler = Variable(d_patch_filter)
+    d_patch_filter = Variable(d_patch_filter)
     d_inv_sigma = Variable(d_inv_sigma)
 
     return d_input, d_feature_filter, d_patch_filter, d_inv_sigma, None

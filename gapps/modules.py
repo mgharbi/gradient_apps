@@ -251,5 +251,6 @@ class NonLocalMeans(nn.Module):
 
   def forward(self, input):
     output = funcs.NonLocalMeans.apply(input, self.feature_filter, self.patch_filter, self.inv_sigma, self.search_radius)
+    assert(not np.isnan(output.data.cpu()).any())
     return output
 

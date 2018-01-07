@@ -90,4 +90,4 @@ def make_blur(ref, kernel, stddev = 0.01):
   return blurred
 
 def make_noisy(ref, stddev):
-  return np.clip(ref + np.random.normal(scale = stddev, size = ref.shape), 0, 1)
+  return np.clip(ref + np.random.normal(scale = stddev, size = ref.shape), 0, 1).astype(np.float32)

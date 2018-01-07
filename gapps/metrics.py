@@ -162,19 +162,3 @@ def ssim(img1, img2, window_size = 11, sigma=1.5, size_average = True):
     
     return _ssim(img1, img2, window, window_size, channel, size_average)
 
-class CroppedSURE(nn.Module):
-  def __init__(self, crop = 5):
-    super(CroppedSURELoss, self).__init__()
-    self.crop = crop
-
-  def forward(self, input, output, variance):
-    crop = self.crop
-    if crop > 0:
-      input = input[..., crop:-crop, crop:-crop]
-      output = output[..., crop:-crop, crop:-crop]
-
-    mse = th.mean(th.pow(output - input, 2))
-    output.backward()
-    scaled_grad = 2.0 * variance * th.mean(input.grad)
-    return mse + scaled_grad
-
