@@ -4,6 +4,7 @@ import struct
 import re
 import random
 import hashlib
+import sys
 
 import numpy as np
 import skimage.io
@@ -58,7 +59,11 @@ class DeconvDataset(Dataset):
                               :]
       else:
         # otherwise resize
-        reference = np.resize(reference, [crop_size[0], crop_size[1], 3])
+        tmp = np.zeros([crop_size[0], crop_size[1], 3], dtype=np.float32)
+        w = min(reference.shape[0], crop_size[0])
+        h = min(reference.shape[1], crop_size[1])
+        tmp[0:w, 0:h, :] = reference[0:w, 0:h, :]
+        reference = tmp
     except:
       print('Couldn\'t load ', self.files[idx])
       reference = np.zeros([crop_size[0], crop_size[1], 3], dtype=np.float32)
@@ -68,6 +73,64 @@ class DeconvDataset(Dataset):
     reference = reference.transpose((2, 0, 1))
     blurred = blurred.transpose((2, 0, 1))
     return blurred, reference, psf
+
+class DenoiseDataset(Dataset):
+  def __init__(self, filelist, is_validate = False):
+    self.root = os.path.dirname(filelist)
+    with open(filelist) as fid:
+      self.files = [l.strip() for l in fid.readlines()]
+    if is_validate:
+      random_files = []
+      random.seed(8891)
+      for i in range(8):
+        random_files.append(self.files[random.randint(0, len(self.files)-1)])
+      self.files = random_files
+    else:
+      random.seed(9999)
+      random.shuffle(self.files)
+
+  def __len__(self):
+    return len(self.files)
+
+  def __getitem__(self, idx):
+    # 5 pixels of boundaries since we are going to clamp them
+    crop_size = [256 + 10, 256 + 10]
+    try:
+      reference = skimage.io.imread(os.path.join(os.path.join(self.root, "imagenet_raw"), self.files[idx]))
+      #reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
+      reference = reference.astype(np.float32)/255.0
+  
+      seed = int(hashlib.md5(self.files[idx].encode('utf-8')).hexdigest(), 16) % (1 << 32)
+      np.random.seed(seed)
+  
+      # Randomly choose a crop if reference is larger than this
+      reference_size = reference.shape
+      if len(reference.shape) == 2:
+        reference = np.stack([reference, reference, reference], axis=-1)
+      if reference.shape[0] > crop_size[0] and reference.shape[1] > crop_size[1]:
+        left_top = [np.random.randint(0, reference_size[0] - crop_size[0]),
+                    np.random.randint(0, reference_size[1] - crop_size[1])]
+        reference = reference[left_top[0]:left_top[0]+crop_size[0],
+                              left_top[1]:left_top[1]+crop_size[1],
+                              :]
+      else:
+        # otherwise resize
+        tmp = np.zeros([crop_size[0], crop_size[1], 3], dtype=np.float32)
+        w = min(reference.shape[0], crop_size[0])
+        h = min(reference.shape[1], crop_size[1])
+        tmp[0:w, 0:h, :] = reference[0:w, 0:h, :]
+        reference = tmp
+    except:
+      exc_type, exc_value, exc_traceback = sys.exc_info()
+      print("*** print_tb:")
+      traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
+      print('Couldn\'t load ', self.files[idx])
+      reference = np.zeros([crop_size[0], crop_size[1], 3], dtype=np.float32)
+
+    noisy = utils.make_noisy(reference, 0.1)
+    reference = reference.transpose((2, 0, 1))
+    noisy = noisy.transpose((2, 0, 1))
+    return noisy, reference
 
 class DemosaickingDataset(Dataset):
   def __init__(self, filelist, transform=None):

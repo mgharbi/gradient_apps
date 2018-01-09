@@ -40,7 +40,7 @@ std::map<std::string, Func> deconv_prior(
     Expr f4 = f2 * f2;
     Expr t2 = thresholds_func(n) * thresholds_func(n);
     Expr t4 = t2 * t2;
-    weights(x, y, c, n) = f4 * rKf(x, y, c, n) / (t4 + f4);
+    weights(x, y, c, n) = f4 * rKf(x, y, c, n) / (t4 + f4 + 1e-6f);
 
     std::map<std::string, Func> func_map;
     func_map["f_func"] = clamped_f;

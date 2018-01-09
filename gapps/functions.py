@@ -522,7 +522,8 @@ class BilateralGrid(Function):
 
   @staticmethod
   def forward(ctx, input, filter_s, filter_r):
-    ctx.save_for_backward(input, filter_s, filter_r)
+    if any(ctx.needs_input_grad):
+      ctx.save_for_backward(input, filter_s, filter_r)
 
     c, h, w = input.shape
 
@@ -560,7 +561,8 @@ class DeconvPrior(Function):
 
   @staticmethod
   def forward(ctx, f, reg_kernels, thresholds):
-    ctx.save_for_backward(f, reg_kernels, thresholds)
+    if any(ctx.needs_input_grad):
+      ctx.save_for_backward(f, reg_kernels, thresholds)
 
     weights = f.new()
     ci, h, w = f.shape
@@ -594,4 +596,47 @@ class DeconvPrior(Function):
     d_thresholds = Variable(d_thresholds)
 
     return d_f, d_reg_kernels, d_thresholds
+
+class NonLocalMeans(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, feature_filter, patch_filter, inv_sigma, search_radius):
+    if any(ctx.needs_input_grad):
+      ctx.save_for_backward(input, feature_filter, patch_filter, inv_sigma, search_radius)
+
+    output = input.new()
+    b, ci, h, w = input.shape
+    assert ci == 3
+
+    output.resize_(b, ci, h, w)
+    ops.non_local_means_forward(
+        input, feature_filter, patch_filter, inv_sigma[0], search_radius[0], output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    input, feature_filter, patch_filter, inv_sigma, search_radius = ctx.saved_variables
+
+    d_input = input.data.new()
+    d_input.resize_as_(input.data)
+    d_feature_filter = feature_filter.data.new()
+    d_feature_filter.resize_as_(feature_filter.data)
+    d_patch_filter = patch_filter.data.new()
+    d_patch_filter.resize_as_(patch_filter.data)
+    d_inv_sigma = inv_sigma.data.new()
+    d_inv_sigma.resize_as_(inv_sigma.data)
+
+    ops.non_local_means_backward(
+        input.data, feature_filter.data, patch_filter.data, inv_sigma.data[0], search_radius[0],
+        d_output.data,
+        d_input, d_feature_filter, d_patch_filter, d_inv_sigma)
+
+    d_input = Variable(d_input)
+    d_feature_filter = Variable(d_feature_filter)
+    d_patch_filter = Variable(d_patch_filter)
+    d_inv_sigma = Variable(d_inv_sigma)
+
+    return d_input, d_feature_filter, d_patch_filter, d_inv_sigma, None
 
