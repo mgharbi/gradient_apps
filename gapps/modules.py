@@ -34,7 +34,7 @@ class LearnableDemosaick(nn.Module):
     self.reset_weights()
 
   def reset_weights(self):
-    self.sel_filts.data.normal_(-1.0, 1.0)
+    self.sel_filts.data.normal_(0.0, 1.0)
     self.green_filts.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)
     self.h_chroma_filter.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)
     self.v_chroma_filter.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)

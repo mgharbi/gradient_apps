@@ -58,7 +58,7 @@ def main(args):
   optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
 
   # mse_fn = metrics.CroppedMSELoss(crop=args.fsize//2)
-  l1_fn = metrics.CroppedL1Loss(crop=args.fsize//2)
+  l1_fn = th.nn.L1Loss()
   msssim_fn = metrics.MSSSIM()
   # grad_l1_fn = metrics.CroppedGradientLoss(crop=args.fsize//2)
   # loss_fn = lambda a, b: 0.84*msssim_fn(a, b) + (1-0.84)*l1_fn(a, b)
@@ -82,13 +82,13 @@ def main(args):
 
   ema = utils.ExponentialMovingAverage(["loss", "psnr", "ssim", "l1"])
   for epoch in range(args.num_epochs):
-    callback.on_epoch_end(epoch, {})
+    # callback.on_epoch_end(epoch, {})
 
     # Training
     model.train(True)
     with tqdm(total=len(loader), unit=' batches') as pbar:
       pbar.set_description("Epoch {}/{}".format(epoch+1, args.num_epochs))
-      callback.on_epoch_begin(epoch)
+      # callback.on_epoch_begin(epoch)
       for batch_id, batch in enumerate(loader):
         mosaick, reference = batch
         mosaick = Variable(mosaick, requires_grad=False)
@@ -123,11 +123,12 @@ def main(args):
                 "ssim": ema["ssim"], "l1": ema["l1"]}
         pbar.set_postfix(logs)
         pbar.update(1)
-        callback.on_batch_end(batch_id, logs)
+        if pbar.n % 100 == 0:
+          callback.on_batch_end(batch_id, logs)
         checkpointer.periodic_checkpoint(epoch)
-    model.train(False)
 
     # Validation
+    model.train(False)
     with tqdm(total=len(val_loader), unit=' batches') as pbar:
       pbar.set_description("Epoch {}/{} (val)".format(epoch+1, args.num_epochs))
       avg = utils.Averager(["loss", "psnr", "ssim", "l1"])
@@ -149,10 +150,10 @@ def main(args):
         loss = ssim_*alpha + (1-alpha)*l1_
         psnr = psnr_fn(output, reference)
 
-        avg.update("loss", loss.data[0], count=args.batch_size)
-        avg.update("psnr", psnr.data[0], count=args.batch_size)
-        avg.update("ssim", ssim_.data[0], count=args.batch_size)
-        avg.update("l1", l1_.data[0], count=args.batch_size)
+        avg.update("loss", loss.data[0], count=mosaick.shape[0])
+        avg.update("psnr", psnr.data[0], count=mosaick.shape[0])
+        avg.update("ssim", ssim_.data[0], count=mosaick.shape[0])
+        avg.update("l1", l1_.data[0], count=mosaick.shape[0])
         pbar.update(1)
 
       logs = {"loss": avg["loss"], "psnr": avg["psnr"],
