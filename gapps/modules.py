@@ -1,3 +1,5 @@
+from abc import ABCMeta, abstractmethod
+
 import torch as th
 import torch.nn as nn
 import numpy as np
@@ -254,16 +256,11 @@ class NonLocalMeans(nn.Module):
     assert(not np.isnan(output.data.cpu()).any())
     return output
 
-class BilateralLayerTorch(nn.Module):
-  def __init__(self):
-    pass
-
-  def forward(self):
-    pass
-
-class BilateralLayer(nn.Module):
+class BilateralLayerBase(nn.Module):
+  __metaclass__ = ABCMeta
   def __init__(self, ninputs, noutputs, kernel_size=3, use_bias=True):
-    super(BilateralLayer, self).__init__()
+    super(BilateralLayerBase, self).__init__()
+
     self.ninputs = ninputs
     self.noutputs = noutputs
     self.kernel_size = kernel_size
@@ -273,8 +270,101 @@ class BilateralLayer(nn.Module):
     if self.use_bias:
       self.bias = nn.Parameter(th.zeros(noutputs))
 
+  @abstractmethod
+  def apply(self, input, guide):
+    pass
+
   def forward(self, input, guide):
-    filtered = funcs.BilateralLayer.apply(input, guide, self.weights)
+    filtered = self.apply(input, guide)
     if self.use_bias:
       filtered = filtered + self.bias.view(1, self.noutputs, 1, 1)
     return filtered
+
+
+class BilateralLayerTorch(BilateralLayerBase):
+  def __init__(self, ninputs, noutputs, kernel_size=3, use_bias=True):
+    super(BilateralLayerTorch, self).__init__(ninputs, noutputs, kernel_size=kernel_size, use_bias=use_bias)
+    self.sigma_s = 8
+    self.sigma_r = 8
+
+  def apply(self, input, guide):
+    print "torch!"
+    bs, ci, h, w = input.shape
+    sigma_s = self.sigma_s
+    sigma_r = self.sigma_r
+    norm = 1.0/(sigma_s*sigma_s)
+
+    guide = guide.unsqueeze(1)
+
+    guide_pos = guide*sigma_r
+    lower_bin = th.floor(guide_pos)
+    upper_bin = th.clamp(th.ceil(guide_pos), max=sigma_s-1)
+    weight = guide_pos - lower_bin
+
+    lower_bin = lower_bin.long()
+    upper_bin = upper_bin.long()
+
+    # Grid dimensions
+    gw = w // sigma_s
+    gh = h // sigma_s
+    grid = input.new()
+    grid.resize_(bs, ci, gh, gw, sigma_r)
+
+    # Splat
+    batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
+    c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
+    h_idx = th.from_numpy(np.arange(h)).view(1, 1, h, 1) / sigma_s
+    w_idx = th.from_numpy(np.arange(w)).view(1, 1, 1, w) / sigma_s
+    grid[batch_idx, c_idx, h_idx, w_idx, lower_bin] += (1-weight)*norm*input
+    grid[batch_idx, c_idx, h_idx, w_idx, upper_bin] += weight*norm*input
+
+    # Conv3D
+
+    # Slice
+    xx, yy = np.meshgrid(np.arange(0, w), np.arange(0, h))
+    gx = ((xx+0.5)/w) * gw
+    gy = ((yy+0.5)/h) * gh
+    gz = guide*sigma_r
+
+    # Enclosing cell
+    fx = np.floor(gx).astype(np.int64);
+    fy = np.floor(gy).astype(np.int64);
+    cx = np.minimum(fx+1, gw-1);
+    cy = np.minimum(fy+1, gh-1);
+    fz = th.floor(gz)
+    cz = th.clamp(th.ceil(gz), max=sigma_s-1)
+
+    # Trilerp weights
+    wx = Variable(th.from_numpy((gx-0.5 - fx).astype(np.float32)));
+    wy = Variable(th.from_numpy((gy-0.5 - fy).astype(np.float32)));
+    wz = gz - fz;
+
+    # Make indices broadcastable
+    # fx = np.expand_dims(fx, 0)
+    # fy = np.expand_dims(fy, 0)
+    fz = fz.long()[:, 0].view(bs, 1, h, w)
+    cz = cz.long()[:, 0].view(bs, 1, h, w)
+
+    batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
+    c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
+    
+    out = grid[batch_idx, c_idx, fx, fy, fz]*(1-wx)*(1-wy)*(1-wz) + \
+          grid[batch_idx, c_idx, fx, fy, cz]*(1-wx)*(1-wy)*(  wz) + \
+          grid[batch_idx, c_idx, fx, cy, fz]*(1-wx)*(  wy)*(1-wz) + \
+          grid[batch_idx, c_idx, fx, cy, cz]*(1-wx)*(  wy)*(  wz) + \
+          grid[batch_idx, c_idx, cx, fy, fz]*(  wx)*(1-wy)*(1-wz) + \
+          grid[batch_idx, c_idx, cx, fy, cz]*(  wx)*(1-wy)*(  wz) + \
+          grid[batch_idx, c_idx, cx, cy, fz]*(  wx)*(  wy)*(1-wz) + \
+          grid[batch_idx, c_idx, cx, cy, cz]*(  wx)*(  wy)*(  wz)
+
+    return out
+
+class BilateralLayer(BilateralLayerBase):
+  def __init__(self, ninputs, noutputs, kernel_size=3, use_bias=True):
+    super(BilateralLayer, self).__init__(ninputs, noutputs, kernel_size=kernel_size, use_bias=use_bias)
+
+  def apply(self, input, guide):
+    print "ours!"
+    return funcs.BilateralLayer.apply(input, guide, self.weights)
+
+

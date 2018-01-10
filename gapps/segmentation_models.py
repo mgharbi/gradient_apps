@@ -19,21 +19,67 @@ class Bilateral(nn.Module):
   def __init__(self):
     super(Bilateral, self).__init__()
 
-    self.l1 = ops.BilateralLayer(3, 16)
-    self.r1 = nn.ReLU()
-    self.l2 = ops.BilateralLayer(16, 16)
-    self.r2 = nn.ReLU()
-    self.fc = nn.Conv2d(16, 512, 3, stride=2, padding=1)
+    self.vgg = nn.Sequential(
+        # fullres
+        nn.Conv2d(3, 64, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(64, 64, 3, stride=2, padding=1),
+        nn.ReLU(True),
+
+        # 2x
+        nn.Conv2d(64, 128, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(128, 128, 3, stride=2, padding=1),
+        nn.ReLU(True),
+
+        # 4x
+        nn.Conv2d(128, 256, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(256, 256, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(256, 256, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(256, 256, 3, stride=2, padding=1),
+        nn.ReLU(True),
+
+        # 8x
+        nn.Conv2d(256, 512, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(512, 512, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(512, 512, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(512, 512, 3, stride=2, padding=1),
+        nn.ReLU(True),
+
+        # 16x
+        nn.Conv2d(512, 512, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(512, 512, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(512, 512, 3, stride=1, padding=1),
+        nn.ReLU(True),
+        nn.Conv2d(512, 512, 3, stride=2, padding=1),
+        nn.ReLU(True),
+
+        # 32x
+        )
+    # self.l1 = ops.BilateralLayer(3, 3, 1)
+    # self.r1 = nn.ReLU()
+    # self.l2 = ops.BilateralLayer(3, 64, 1)
+    # self.l1 = nn.Conv2d(3, 64, 3, stride=2, padding=1)
+    # self.r2 = nn.ReLU()
+    # self.fc = nn.Conv2d(64, 512, 3, stride=2, padding=1)
 
     mb = ModelBuilder()
     self.decoder = mb.build_decoder(fc_dim=512)
 
   def forward(self, x):
     # TODO: learn guide, multiple guides?
-    guide = x.mean(1)
-    x = self.r1(self.l1(x, guide))
-    x = self.r2(self.l2(x, guide))
-    x = self.fc(x)
+    # guide = x.mean(1)
+    # x = self.r1(self.l1(x, guide))
+    # x = self.r2(self.l2(x, guide))
+    x = self.vgg(x)
     x = self.decoder(x)
     return x
 

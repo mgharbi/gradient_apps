@@ -575,3 +575,33 @@ def _test_deconv_cg(gpu=False):
   output = np.squeeze(output)
   skimage.io.imsave(
       os.path.join(out_dir, "deconv.png"), output)
+
+def test_bilateral_layer_op():
+  bs = 4
+  h = 128
+  w = 128
+  ci = 3
+  co = 3
+  ksize = 3
+  op = modules.BilateralLayerTorch(ci, co, ksize, False)
+  op2 = modules.BilateralLayer(ci, co, ksize, False)
+  image = Variable(th.randn(bs, ci, h, w))
+  guide = Variable(th.rand(bs, h, w), requires_grad=True)
+
+  nits_burns = 2
+  nits = 5
+  names = ["torch", "ours"]
+  for i, o in enumerate([op, op2]):
+    for it in range(nits_burns):
+      output = o(image, guide)
+      loss = output.sum()
+      loss.backward()
+
+    start = time.time()
+    for it in range(nits):
+      output = o(image, guide)
+      loss = output.sum()
+      loss.backward()
+    end = time.time()
+
+    print "{}: running time {}ms".format(names[i], (end-start)*1000/nits)
