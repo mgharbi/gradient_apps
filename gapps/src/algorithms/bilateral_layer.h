@@ -28,12 +28,14 @@ std::map<std::string, Func> bilateral_layer(
     // Downsample grid
     Expr normalization = 1.0f / (cast<float>(sigma_s) * cast<float>(sigma_s));
     RDom rgrid(0, sigma_s, 0, sigma_s);
+
     Expr guide_pos = clamp(
         f_guide(x*sigma_s + rgrid.x, y*sigma_s + rgrid.y, n)*cast<float>(sigma_r),
         0, cast<float>(sigma_r));
     Expr lower_bin = cast<int>(floor(guide_pos));
     Expr upper_bin = cast<int>(ceil(guide_pos));
     Expr w = guide_pos - lower_bin;
+
     Func f_grid("f_grid");
     f_grid(x, y, z, ci, n) = 0.f;
     f_grid(x, y, lower_bin, ci, n) += 
@@ -61,7 +63,7 @@ std::map<std::string, Func> bilateral_layer(
     // Enclosing voxel
     Expr gx = (x+0.5f)/(1.0f*sigma_s);
     Expr gy = (y+0.5f)/(1.0f*sigma_s);
-    Expr gz = guide_pos;
+    Expr gz = clamp(f_guide(x, y, n)*cast<float>(sigma_r), 0.f, cast<float>(sigma_r));
     Expr fx = cast<int>(floor(gx-0.5f));
     Expr fy = cast<int>(floor(gy-0.5f));
     Expr fz = cast<int>(floor(gz));

@@ -204,12 +204,12 @@ def _test_bilateral_layer_(gpu=False):
     skimage.io.imsave(
         os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), o)
 
-  # print "testing gradient"
-  # gradcheck(
-  #     funcs.BilateralLayer.apply,
-  #     (image, guide, kernels, sx, sy, sz),
-  #     eps=1e-4, atol=5e-2, rtol=5e-4,
-  #      raise_exception=True)
+  print "testing gradient"
+  gradcheck(
+      funcs.BilateralLayer.apply,
+      (image, guide, kernels),
+      eps=1e-4, atol=5e-2, rtol=5e-4,
+       raise_exception=True)
 
 def _test_bilateral_grid_(gpu=False):
   bs = 1
@@ -575,4 +575,3 @@ def _test_deconv_cg(gpu=False):
   output = np.squeeze(output)
   skimage.io.imsave(
       os.path.join(out_dir, "deconv.png"), output)
-
