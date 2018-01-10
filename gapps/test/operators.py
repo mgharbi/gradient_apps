@@ -154,8 +154,6 @@ def _test_bilateral_layer_(gpu=False):
   kw = 3
   kd = 3
 
-  sx, sy, sz = 4, 4, 8
-
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
   guide = skimage.io.imread(os.path.join(data_dir, "gray.png"))
 
@@ -172,23 +170,21 @@ def _test_bilateral_layer_(gpu=False):
   guide = Variable(th.from_numpy(guide), requires_grad=False)
   kernels = Variable(th.randn(co, ci, kd, kh, kw), requires_grad=True)
 
-  conv = th.nn.Conv2d(ci, co, [kh*sy, kw*sx])
-
   if gpu:
     image = image.cuda()
     guide = guide.cuda()
     kernels = kernels.cuda()
-    conv.cuda()
 
   print("profiling")
   with profiler.profile() as prof:
     output = funcs.BilateralLayer.apply(
-        image, guide, kernels, sx, sy, sz)
-    output2 = conv(image)
+        image, guide, kernels)
     loss = output.sum()
     loss.backward()
 
   print(prof)
+
+  print output.shape
 
   print("testing dimensions")
   assert output.shape[0] == bs
@@ -197,7 +193,7 @@ def _test_bilateral_layer_(gpu=False):
   assert output.shape[3] == w
 
   print("testing forward")
-  for i, o in enumerate([output, output2]):
+  for i, o in enumerate([output]):
     mini, maxi = o.min(), o.max()
     o -= mini
     o /= (maxi-mini)

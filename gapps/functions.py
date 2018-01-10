@@ -187,11 +187,8 @@ class BilateralLayer(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, input, guide, filter, sigma_x, sigma_y, sigma_z):
+  def forward(ctx, input, guide, filter):
     ctx.save_for_backward(input, guide, filter)
-    ctx.sigma_x = sigma_x
-    ctx.sigma_y = sigma_y
-    ctx.sigma_z = sigma_z
 
     bs, ci, h, w = input.shape
     co = filter.shape[0]
@@ -205,7 +202,6 @@ class BilateralLayer(Function):
     output.resize_(bs, co, h, w);
 
     ops.bilateral_layer_forward(
-        sigma_x, sigma_y, sigma_z,
         input, guide, filter, output)
 
     return output
@@ -213,10 +209,6 @@ class BilateralLayer(Function):
   @staticmethod
   def backward(ctx, d_output):
     input, guide, filter = ctx.saved_variables
-
-    sigma_x = ctx.sigma_x
-    sigma_y = ctx.sigma_y
-    sigma_z = ctx.sigma_z
 
     d_input = input.data.new()
     d_guide = guide.data.new()
@@ -226,7 +218,6 @@ class BilateralLayer(Function):
     d_filter.resize_as_(filter.data)
 
     ops.bilateral_layer_backward(
-        sigma_x, sigma_y, sigma_z,
         input.data, guide.data, filter.data, d_output.data,
         d_input, d_guide, d_filter)
 
@@ -234,7 +225,7 @@ class BilateralLayer(Function):
     d_guide = Variable(d_guide)
     d_filter = Variable(d_filter)
 
-    return d_input, d_guide, d_filter, None, None, None
+    return d_input, d_guide, d_filter
 
 
 class NaiveDemosaick(Function):

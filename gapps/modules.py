@@ -254,3 +254,16 @@ class NonLocalMeans(nn.Module):
     assert(not np.isnan(output.data.cpu()).any())
     return output
 
+class BilateralLayer(nn.Module):
+  def __init__(self):
+    pass
+
+  def forward(self):
+    pass
+
+class BilateralLayerTorch(nn.Module):
+  def __init__(self):
+    pass
+
+  def forward(self):
+    pass
