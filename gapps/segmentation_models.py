@@ -3,6 +3,8 @@ import torch.nn as nn
 import torchvision
 import resnet
 
+import modules as ops
+
 class ReferenceSegmentation(nn.Module):
   def __init__(self):
     super(ReferenceSegmentation, self).__init__()
@@ -12,6 +14,28 @@ class ReferenceSegmentation(nn.Module):
 
   def forward(self, x):
     return self.decoder(self.encoder(x))
+
+class Bilateral(nn.Module):
+  def __init__(self):
+    super(Bilateral, self).__init__()
+
+    self.l1 = ops.BilateralLayer(3, 16)
+    self.r1 = nn.ReLU()
+    self.l2 = ops.BilateralLayer(16, 16)
+    self.r2 = nn.ReLU()
+    self.fc = nn.Conv2d(16, 512, 3, stride=2, padding=1)
+
+    mb = ModelBuilder()
+    self.decoder = mb.build_decoder(fc_dim=512)
+
+  def forward(self, x):
+    # TODO: learn guide, multiple guides?
+    guide = x.mean(1)
+    x = self.r1(self.l1(x, guide))
+    x = self.r2(self.l2(x, guide))
+    x = self.fc(x)
+    x = self.decoder(x)
+    return x
 
 
 class ModelBuilder():

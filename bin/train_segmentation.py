@@ -36,7 +36,11 @@ def main(args):
   loader = DataLoader(dset, batch_size=args.batch_size, num_workers=4, shuffle=True)
   val_loader = DataLoader(val_dset, batch_size=args.batch_size)
 
-  model = models.ReferenceSegmentation()
+  if args.model == "baseline":
+    model = models.ReferenceSegmentation()
+  elif args.model == "bilateral":
+    model = models.Bilateral()
+
   crit = th.nn.NLLLoss2d(ignore_index=-1)
 
   if args.cuda:
@@ -129,6 +133,7 @@ if __name__ == "__main__":
   parser.add_argument('--segSize', default=384, type=int,
                       help='output image size')
 
+  parser.add_argument("--model", default="baseline", choices=["baseline", "bilateral"])
   parser.add_argument("--output", default="output/segmentation")
   parser.add_argument("--lr", type=float, default=1e-4)
   parser.add_argument("--batch_size", type=int, default=8)

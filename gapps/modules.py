@@ -254,16 +254,27 @@ class NonLocalMeans(nn.Module):
     assert(not np.isnan(output.data.cpu()).any())
     return output
 
-class BilateralLayer(nn.Module):
-  def __init__(self):
-    pass
-
-  def forward(self):
-    pass
-
 class BilateralLayerTorch(nn.Module):
   def __init__(self):
     pass
 
   def forward(self):
     pass
+
+class BilateralLayer(nn.Module):
+  def __init__(self, ninputs, noutputs, kernel_size=3, use_bias=True):
+    super(BilateralLayer, self).__init__()
+    self.ninputs = ninputs
+    self.noutputs = noutputs
+    self.kernel_size = kernel_size
+    self.use_bias = use_bias
+
+    self.weights = nn.Parameter(th.rand(noutputs, ninputs, kernel_size, kernel_size, kernel_size))
+    if self.use_bias:
+      self.bias = nn.Parameter(th.zeros(noutputs))
+
+  def forward(self, input, guide):
+    filtered = funcs.BilateralLayer.apply(input, guide, self.weights)
+    if self.use_bias:
+      filtered = filtered + self.bias.view(1, self.noutputs, 1, 1)
+    return filtered
