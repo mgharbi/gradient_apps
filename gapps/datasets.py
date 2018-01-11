@@ -9,6 +9,8 @@ import sys
 import numpy as np
 import skimage.io
 import skimage.transform
+from scipy.misc import imread, imresize
+from torchvision import transforms
 
 import torch as th
 from torch.utils.data import Dataset
@@ -156,73 +158,115 @@ class DemosaickingDataset(Dataset):
     # return mosaick, reference[1:2, ...]
 
 class ADESegmentationDataset(Dataset):
-  def __init__(self, root, transform=None):
-    self.transform = transform
-    self.root = root
-    self._load_info(root)
+  def __init__(self, txt, opt, max_sample=-1, is_train=1):
+    self.root_img = opt.root_img
+    self.root_seg = opt.root_seg
+    self.imgSize = opt.imgSize
+    self.segSize = opt.segSize
+    self.is_train = is_train
 
-    input_files = [f for f in os.listdir(os.path.join(root, "images")) if ".jpg" in f]
-    input_files = sorted(input_files)
+    # mean and std
+    self.img_transform = transforms.Compose([
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])])
 
-    output_files = [f.replace(".jpg", ".png") for f in input_files]
-    input_files = [os.path.join(root, "images", f) for f in input_files]
-    output_files = [os.path.join(root, "annotations", f) for f in output_files]
+    self.list_sample = [x.rstrip() for x in open(txt, 'r')]
 
-    for i, o in zip(input_files, output_files):
-      if not os.path.exists(i):
-        log.error("input file {} does not exists".format(i))
-      if not os.path.exists(o):
-        log.error("output file {} does not exists".format(o))
+    if self.is_train:
+      random.shuffle(self.list_sample)
+    if max_sample > 0:
+      self.list_sample = self.list_sample[0:max_sample]
+    num_sample = len(self.list_sample)
+    assert num_sample > 0
+    print('# samples: {}'.format(num_sample))
 
-    self.count = len(input_files)
-    self.input_files = input_files
-    self.output_files = output_files
+  def _scale_and_crop(self, img, seg, cropSize, is_train):
+    h, w = img.shape[0], img.shape[1]
 
-  def _load_info(self, root):
-    self.ratios = []
-    self.names = []
-    with open(os.path.join(root, "objectInfo150.txt"), 'r') as fid:
-      for i, l in enumerate(fid.xreadlines()):
-        if i == 0:
-          log.info("Loading datset info with fields {}".format(l.split()))
-        else:
-          data = l.split()
-          # idx, ratio, train, val, name
-          idx = int(data[0])
-          ratio = float(data[1])
-          train = int(data[2])
-          val = int(data[3])
-          name = str(" ".join(data[4:]))
+    if is_train:
+      # random scale
+      scale = random.random() + 0.5     # 0.5-1.5
+      scale = max(scale, 1. * cropSize / (min(h, w) - 1))
+    else:
+      # scale to crop size
+      scale = 1. * cropSize / (min(h, w) - 1)
 
-          self.ratios.append(ratio)
-          self.names.append(name)
+    img_scale = imresize(img, scale, interp='bilinear')
+    seg_scale = imresize(seg, scale, interp='nearest')
+
+    h_s, w_s = img_scale.shape[0], img_scale.shape[1]
+    if is_train:
+      # random crop
+      x1 = random.randint(0, w_s - cropSize)
+      y1 = random.randint(0, h_s - cropSize)
+    else:
+      # center crop
+      x1 = (w_s - cropSize) // 2
+      y1 = (h_s - cropSize) // 2
+
+    img_crop = img_scale[y1: y1 + cropSize, x1: x1 + cropSize, :]
+    seg_crop = seg_scale[y1: y1 + cropSize, x1: x1 + cropSize]
+    return img_crop, seg_crop
+
+  def _flip(self, img, seg):
+    img_flip = img[:, ::-1, :]
+    seg_flip = seg[:, ::-1]
+    return img_flip, seg_flip
+
+  def __getitem__(self, index):
+    img_basename = self.list_sample[index]
+    path_img = os.path.join(self.root_img, img_basename)
+    path_seg = os.path.join(self.root_seg,
+                            img_basename.replace('.jpg', '.png'))
+
+    assert os.path.exists(path_img), '[{}] does not exist'.format(path_img)
+    assert os.path.exists(path_seg), '[{}] does not exist'.format(path_seg)
+
+    # load image and label
+    try:
+      img = imread(path_img, mode='RGB')
+      seg = imread(path_seg)
+      assert(img.ndim == 3)
+      assert(seg.ndim == 2)
+      assert(img.shape[0] == seg.shape[0])
+      assert(img.shape[1] == seg.shape[1])
+
+      # random scale, crop, flip
+      if self.imgSize > 0:
+        img, seg = self._scale_and_crop(img, seg,
+                                        self.imgSize, self.is_train)
+        if random.choice([-1, 1]) > 0:
+          img, seg = self._flip(img, seg)
+
+      # image to float
+      img = img.astype(np.float32) / 255.
+      img = img.transpose((2, 0, 1))
+
+      if self.segSize > 0:
+        seg = imresize(seg, (self.segSize, self.segSize),
+                       interp='nearest')
+
+      # label to int from -1 to 149
+      seg = seg.astype(np.int) - 1
+
+      # to torch tensor
+      image = th.from_numpy(img)
+      segmentation = th.from_numpy(seg)
+    except Exception as e:
+      print('Failed loading image/segmentation [{}]: {}'
+            .format(path_img, e))
+      # dummy data
+      image = th.zeros(3, self.imgSize, self.imgSize)
+      segmentation = -1 * th.ones(self.segSize, self.segSize).long()
+      return image, segmentation, img_basename
+
+    # substracted by mean and divided by std
+    image = self.img_transform(image)
+
+    return image, segmentation, img_basename
 
   def __len__(self):
-    return self.count
-
-  def __getitem__(self, idx):
-    input_im = skimage.io.imread(self.input_files[idx])
-    label = skimage.io.imread(self.output_files[idx])
-
-    input_im = input_im.astype(np.float)/255.0
-
-    size = 256
-    sz = input_im.shape
-    ratio = max(size*1.0/sz[0], size*1.0/sz[1])
-    new_height = int(np.ceil(ratio*sz[0]))
-    new_width = int(np.ceil(ratio*sz[1]))
-
-    # TODO: data aug
-    input_im = input_im[:size, :size, :]
-    label = label[:size, :size]
-
-    # input_im = np.transpose(input_im, [2, 0, 1])
-
-    sample = {"input": input_im, "label": label}
-    if self.transform is not None:
-      sample = self.transform(sample)
-
-    return sample
+    return len(self.list_sample)
 
 
 class ToBatch(object):

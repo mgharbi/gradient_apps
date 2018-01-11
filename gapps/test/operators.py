@@ -154,8 +154,6 @@ def _test_bilateral_layer_(gpu=False):
   kw = 3
   kd = 3
 
-  sx, sy, sz = 4, 4, 8
-
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
   guide = skimage.io.imread(os.path.join(data_dir, "gray.png"))
 
@@ -172,23 +170,21 @@ def _test_bilateral_layer_(gpu=False):
   guide = Variable(th.from_numpy(guide), requires_grad=False)
   kernels = Variable(th.randn(co, ci, kd, kh, kw), requires_grad=True)
 
-  conv = th.nn.Conv2d(ci, co, [kh*sy, kw*sx])
-
   if gpu:
     image = image.cuda()
     guide = guide.cuda()
     kernels = kernels.cuda()
-    conv.cuda()
 
   print("profiling")
   with profiler.profile() as prof:
     output = funcs.BilateralLayer.apply(
-        image, guide, kernels, sx, sy, sz)
-    output2 = conv(image)
+        image, guide, kernels)
     loss = output.sum()
     loss.backward()
 
   print(prof)
+
+  print output.shape
 
   print("testing dimensions")
   assert output.shape[0] == bs
@@ -197,7 +193,7 @@ def _test_bilateral_layer_(gpu=False):
   assert output.shape[3] == w
 
   print("testing forward")
-  for i, o in enumerate([output, output2]):
+  for i, o in enumerate([output]):
     mini, maxi = o.min(), o.max()
     o -= mini
     o /= (maxi-mini)
@@ -208,12 +204,12 @@ def _test_bilateral_layer_(gpu=False):
     skimage.io.imsave(
         os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), o)
 
-  # print "testing gradient"
-  # gradcheck(
-  #     funcs.BilateralLayer.apply,
-  #     (image, guide, kernels, sx, sy, sz),
-  #     eps=1e-4, atol=5e-2, rtol=5e-4,
-  #      raise_exception=True)
+  print "testing gradient"
+  gradcheck(
+      funcs.BilateralLayer.apply,
+      (image, guide, kernels),
+      eps=1e-4, atol=5e-2, rtol=5e-4,
+       raise_exception=True)
 
 def _test_bilateral_grid_(gpu=False):
   bs = 1
@@ -580,3 +576,32 @@ def _test_deconv_cg(gpu=False):
   skimage.io.imsave(
       os.path.join(out_dir, "deconv.png"), output)
 
+def test_bilateral_layer_op():
+  bs = 4
+  h = 128
+  w = 128
+  ci = 3
+  co = 3
+  ksize = 3
+  op = modules.BilateralLayerTorch(ci, co, ksize, False)
+  op2 = modules.BilateralLayer(ci, co, ksize, False)
+  image = Variable(th.randn(bs, ci, h, w))
+  guide = Variable(th.rand(bs, h, w), requires_grad=True)
+
+  nits_burns = 2
+  nits = 5
+  names = ["torch", "ours"]
+  for i, o in enumerate([op, op2]):
+    for it in range(nits_burns):
+      output = o(image, guide)
+      loss = output.sum()
+      loss.backward()
+
+    start = time.time()
+    for it in range(nits):
+      output = o(image, guide)
+      loss = output.sum()
+      loss.backward()
+    end = time.time()
+
+    print "{}: running time {}ms".format(names[i], (end-start)*1000/nits)

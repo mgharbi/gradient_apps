@@ -56,6 +56,7 @@ EXT_DIR = _ext
 OPS = \
 	  		deconv_grad_init_forward deconv_grad_init_backward \
 	  		deconv_grad_iter_forward deconv_grad_iter_backward \
+	  		# bilateral_layer_forward bilateral_layer_backward \
 	  		# non_local_means_forward non_local_means_backward \
 			# naive_demosaick_forward naive_demosaick_backward \
 			# learnable_demosaick_forward learnable_demosaick_backward \

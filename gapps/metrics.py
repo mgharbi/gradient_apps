@@ -162,3 +162,9 @@ def ssim(img1, img2, window_size = 11, sigma=1.5, size_average = True):
     
     return _ssim(img1, img2, window, window_size, channel, size_average)
 
+def accuracy(batch_data, pred):
+  (imgs, segs, infos) = batch_data
+  _, preds = th.max(pred.data.cpu(), dim=1)
+  valid = (segs >= 0)
+  acc = 1.0 * th.sum(valid * (preds == segs)) / (th.sum(valid) + 1e-10)
+  return acc, th.sum(valid)
