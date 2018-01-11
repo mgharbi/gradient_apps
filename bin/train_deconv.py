@@ -24,7 +24,7 @@ import gapps.datasets as datasets
 import gapps.modules as models
 import gapps.metrics as metrics
 
-log = logging.getLogger("gapps_deconvolution2")
+log = logging.getLogger("gapps_deconvolution")
 
 irls_iter = 1
 cg_iter = 20
@@ -184,7 +184,7 @@ def main(args):
 
   checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=True)
   callback = DeconvCallback(
-      model, ref_model, val_loader, args.cuda, env="gapps_deconv2")
+      model, ref_model, val_loader, args.cuda, env="gapps_deconv")
 
   smooth_loss = 0
   smooth_psnr = 0

@@ -49,7 +49,6 @@ class LearnableDemosaick(nn.Module):
         self.h_chroma_filter, self.v_chroma_filter, self.q_chroma_filter)
     return output
 
-
 class DeconvCG(nn.Module):
   def __init__(self,
                data_kernel_size=5,
@@ -224,6 +223,128 @@ class DeconvCG(nn.Module):
     assert(not np.isnan(result.data.cpu()).any())
     return result
 
+class DeconvCGAuto(nn.Module):
+  def __init__(self,
+               data_kernel_size=5,
+               num_data_kernels=6,
+               reg_kernel_size=5,
+               num_reg_kernels=5,
+               filter_s_size=11,
+               filter_r_size=5,
+               num_stages=1,
+               ref=False):
+    super(DeconvCGAuto, self).__init__()
+    self.num_stages = num_stages
+    self.ref = ref
+
+    # Use different kernels for first & second phases
+    self.data_kernels = nn.Parameter(th.zeros(num_stages + 1, num_data_kernels, data_kernel_size, data_kernel_size))
+    self.data_kernel_weights = nn.Parameter(th.zeros(num_stages + 1, num_data_kernels))
+    self.reg_kernels = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels, reg_kernel_size, reg_kernel_size))
+    self.reg_kernel_weights = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels))
+    self.filter_s = nn.Parameter(th.zeros(num_stages, filter_s_size))
+    self.filter_r = nn.Parameter(th.zeros(num_stages, filter_r_size))
+    self.reg_thresholds = nn.Parameter(th.zeros(num_stages, num_reg_kernels))
+
+    assert reg_kernel_size % 2 == 1
+    assert filter_s_size % 2 == 1
+    assert filter_r_size % 2 == 1
+
+    reg_kernel_center = int(reg_kernel_size / 2)
+    # dx
+    self.reg_kernels.data[:, 0, reg_kernel_center, reg_kernel_center] = -1.0
+    self.reg_kernels.data[:, 0, reg_kernel_center + 1, reg_kernel_center] = 1.0
+    # dy
+    self.reg_kernels.data[:, 1, reg_kernel_center, reg_kernel_center] = -1.0
+    self.reg_kernels.data[:, 1, reg_kernel_center, reg_kernel_center + 1] = 1.0
+    # dxdy
+    self.reg_kernels.data[:, 2, reg_kernel_center    , reg_kernel_center    ] =  1.0
+    self.reg_kernels.data[:, 2, reg_kernel_center + 1, reg_kernel_center    ] = -1.0
+    self.reg_kernels.data[:, 2, reg_kernel_center    , reg_kernel_center + 1] = -1.0
+    self.reg_kernels.data[:, 2, reg_kernel_center + 1, reg_kernel_center + 1] =  1.0
+    # d^2x
+    self.reg_kernels.data[:, 3, reg_kernel_center - 1, reg_kernel_center] = 1.0
+    self.reg_kernels.data[:, 3, reg_kernel_center, reg_kernel_center] = -2.0
+    self.reg_kernels.data[:, 3, reg_kernel_center + 1, reg_kernel_center] = 1.0
+    # d^2y
+    self.reg_kernels.data[:, 4, reg_kernel_center, reg_kernel_center - 1] = 1.0
+    self.reg_kernels.data[:, 4, reg_kernel_center, reg_kernel_center] = -2.0
+    self.reg_kernels.data[:, 4, reg_kernel_center, reg_kernel_center + 1] = 1.0
+   
+    self.data_kernels.data[:, 0, reg_kernel_center, reg_kernel_center] = 1.0
+    self.data_kernels.data[:, 1:, :, :] = self.reg_kernels.data[:, :, :, :]
+
+    self.data_kernel_weights.data[:, 0] = 1.0
+    self.reg_kernel_weights.data[0, :] = 0.001
+    self.reg_kernel_weights.data[1:, :] = 0.05
+
+    self.filter_s.data[:, 3] = 0.0
+    self.filter_s.data[:, 4] = 1.0
+    self.filter_s.data[:, 5] = 2.0
+    self.filter_s.data[:, 6] = 1.0
+    self.filter_s.data[:, 7] = 0.0
+    self.filter_r.data[:, :] = self.filter_s.data[:, 3:8]
+
+    self.reg_thresholds.data[:, 0] = 0.065
+    self.reg_thresholds.data[:, 1] = 0.065
+    self.reg_thresholds.data[:, 2] = 0.0325
+    self.reg_thresholds.data[:, 3] = 0.0325
+    self.reg_thresholds.data[:, 4] = 0.0325
+
+  def train(self, mode=True):
+    super(DeconvCG, self).train(mode)
+    for p in self.parameters():
+      p.requires_grad = mode
+    return self
+
+  def forward(self, blurred_batch, kernel_batch, num_cg_iter):
+    begin = time.time()
+    num_batches = blurred_batch.shape[0]
+    result = blurred_batch.new(
+      blurred_batch.shape[0], blurred_batch.shape[1], blurred_batch.shape[2], blurred_batch.shape[3])
+    for b in range(num_batches):
+      blurred = blurred_batch[b, :, :, :]
+      kernel = kernel_batch[b, :, :]
+
+      # Solve the deconvolution using reg_targets == 0 with CG first
+      reg_targets = \
+        blurred.new(self.reg_kernels.shape[1],
+                blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
+      x = blurred.clone()
+      hess_dir = blurred.new(blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
+      grad_hess = funcs.DeconvGrad.apply(blurred, x, kernel,
+        self.data_kernel_weights[0, :], self.data_kernels[0, :, :],
+        self.reg_kernel_weights[0, :], self.reg_kernels[0, :, :],
+        reg_targets, hess_dir, True)
+      grad = grad_hess[0, :, :, :]
+      hess_p = grad_hess[1, :, :, :]
+      r = -grad
+      r_norm = th.dot(r, r)
+      p = r
+      for cg_it in range(num_cg_iter):
+        # One step line search
+        alpha = -th.dot(grad, p) / (th.dot(hess_p, p))
+        x += alpha * p
+        grad_hess = funcs.DeconvGrad.apply(blurred, x, kernel,
+          self.data_kernel_weights[0, :], self.data_kernels[0, :, :],
+          self.reg_kernel_weights[0, :], self.reg_kernels[0, :, :],
+          reg_targets, p, False)
+        grad = grad_hess[0, :, :, :]
+        hess_p = grad_hess[1, :, :, :]
+        r = -grad
+        new_r_norm = th.dot(r, r)
+        # Fletcher-Reeves update rule
+        beta = new_r_norm / r_norm
+        r_norm = new_r_norm
+        if (r_norm < 1e-5):
+            break
+        p = r + beta * p
+      result[b, :, :, :] = x
+   
+    assert(not np.isnan(result.data.cpu()).any())
+    return result
+
+
 class NonLocalMeans(nn.Module):
   def __init__(self,
                feature_filter_size=7,
@@ -288,7 +409,7 @@ class BilateralLayerTorch(BilateralLayerBase):
     self.sigma_r = 8
 
   def apply(self, input, guide):
-    print "torch!"
+    print("torch!")
     bs, ci, h, w = input.shape
     sigma_s = self.sigma_s
     sigma_r = self.sigma_r
@@ -364,7 +485,7 @@ class BilateralLayer(BilateralLayerBase):
     super(BilateralLayer, self).__init__(ninputs, noutputs, kernel_size=kernel_size, use_bias=use_bias)
 
   def apply(self, input, guide):
-    print "ours!"
+    print("ours!")
     return funcs.BilateralLayer.apply(input, guide, self.weights)
 
 

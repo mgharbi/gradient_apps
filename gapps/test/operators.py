@@ -67,7 +67,6 @@ def test_learnable_demosaick_cpu():
 def test_learnable_demosaick_gpu():
   _test_learnable_demosaick(True)
 
-
 def test_deconv_cg_init_cpu():
   _test_deconv_cg_init(False)
 
@@ -82,6 +81,9 @@ def test_profile_deconv_cg_gpu():
 
 def test_deconv_cg_cpu():
   _test_deconv_cg(False)
+
+def test_deconv_cg_auto_cpu():
+  _test_deconv_cg_auto(False)
 
 # ---------------------------------------------------------------------------
 
@@ -184,7 +186,7 @@ def _test_bilateral_layer_(gpu=False):
 
   print(prof)
 
-  print output.shape
+  print(output.shape)
 
   print("testing dimensions")
   assert output.shape[0] == bs
@@ -204,7 +206,7 @@ def _test_bilateral_layer_(gpu=False):
     skimage.io.imsave(
         os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), o)
 
-  print "testing gradient"
+  print("testing gradient")
   gradcheck(
       funcs.BilateralLayer.apply,
       (image, guide, kernels),
@@ -352,7 +354,7 @@ def _test_naive_demosaick(gpu=False):
       loss = output.sum()
       loss.backward()
 
-  print prof
+  print(prof)
 
   # assert output.shape[0] == 3
   # assert output.shape[1] == h
@@ -554,7 +556,7 @@ def _test_deconv_cg(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
   image = image[:256, :256, :]
-  kernel = utils.sample_kernel(11)
+  kernel = utils.sample_psf(11)
   blurred = utils.make_blur(image, kernel)
   skimage.io.imsave(
       os.path.join(out_dir, "blurred.png"), blurred)
@@ -569,6 +571,31 @@ def _test_deconv_cg(gpu=False):
     op.cuda()
 
   output = op(blurred, kernel).view(3, 256, 256)
+
+  output = output.data.cpu().numpy()
+  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  output = np.squeeze(output)
+  skimage.io.imsave(
+      os.path.join(out_dir, "deconv.png"), output)
+
+def _test_deconv_cg_auto(gpu=False):
+  image = skimage.io.imread(
+      os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
+  image = image[100:356, 100:356, :]
+  kernel = utils.sample_psf(11)
+  blurred = utils.make_blur(image, kernel)
+  skimage.io.imsave(
+      os.path.join(out_dir, "blurred.png"), blurred)
+  blurred = blurred.transpose((2, 0, 1))
+  blurred = Variable(th.from_numpy(blurred), requires_grad=True).contiguous().view(1, 3, 256, 256)
+  kernel = Variable(th.from_numpy(kernel), requires_grad=False).contiguous().view(1, 11, 11)
+  op = modules.DeconvCGAuto()
+
+  if gpu:
+    blurred = blurred.cuda()
+    op.cuda()
+
+  output = op(blurred, kernel, num_cg_iter = 20).view(3, 256, 256)
 
   output = output.data.cpu().numpy()
   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
@@ -604,4 +631,4 @@ def test_bilateral_layer_op():
       loss.backward()
     end = time.time()
 
-    print "{}: running time {}ms".format(names[i], (end-start)*1000/nits)
+    print("{}: running time {}ms".format(names[i], (end-start)*1000/nits))

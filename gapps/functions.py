@@ -647,10 +647,14 @@ class DeconvGrad(Function):
     output.resize_(2, ci, h, w)
     if init:
       ops.deconv_grad_init_forward(
-        blurred, xk, kernel, data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, hess_dir, output)
+        blurred, xk, kernel,
+        data_kernel_weights, data_kernels,
+        reg_kernel_weights, reg_kernels, reg_targets, hess_dir, output)
     else:
       ops.deconv_grad_iter_forward(
-        blurred, xk, kernel, data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, hess_dir, output)
+        blurred, xk, kernel,
+        data_kernel_weights, data_kernels,
+        reg_kernel_weights, reg_kernels, reg_targets, hess_dir, output)
 
     return output
 
