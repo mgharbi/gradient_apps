@@ -32,9 +32,9 @@ std::map<std::string, Func> bilateral_layer(
     Expr guide_pos = clamp(
         f_guide(x*sigma_s + rgrid.x, y*sigma_s + rgrid.y, n)*cast<float>(sigma_r),
         0, cast<float>(sigma_r));
-    Expr lower_bin = cast<int>(floor(guide_pos));
-    Expr upper_bin = cast<int>(ceil(guide_pos));
-    Expr w = guide_pos - lower_bin;
+    Expr lower_bin = max(cast<int>(floor(guide_pos-0.5f)), 0);
+    Expr upper_bin = min(lower_bin+1, sigma_r-1);
+    Expr w = abs(guide_pos-0.5f - cast<float>(lower_bin));
 
     Func f_grid("f_grid");
     f_grid(x, y, z, ci, n) = 0.f;
@@ -64,15 +64,18 @@ std::map<std::string, Func> bilateral_layer(
     Expr gx = (x+0.5f)/(1.0f*sigma_s);
     Expr gy = (y+0.5f)/(1.0f*sigma_s);
     Expr gz = clamp(f_guide(x, y, n)*cast<float>(sigma_r), 0.f, cast<float>(sigma_r));
+    Expr fz = max(cast<int>(floor(gz-0.5f)), 0);
+    Expr cz = min(fz+1, sigma_r-1);
     Expr fx = cast<int>(floor(gx-0.5f));
     Expr fy = cast<int>(floor(gy-0.5f));
-    Expr fz = cast<int>(floor(gz));
+    // Expr fz = cast<int>(floor(gz));
     Expr cx = fx+1;
     Expr cy = fy+1;
-    Expr cz = cast<int>(ceil(gz));
+    // Expr cz = cast<int>(ceil(gz));
     Expr wx = gx-0.5f - fx;
     Expr wy = gy-0.5f - fy;
-    Expr wz = gz - fz;
+    // Expr wz = gz - fz;
+    Expr wz = abs(gz-0.5f - cast<float>(fz));
 
     // trilerp
     Func output("output");

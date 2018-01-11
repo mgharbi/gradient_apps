@@ -58,6 +58,7 @@ class DemosaickCallback(object):
     self.viz = viz.BatchVisualizer("demosaick", env=env)
     self.sel_kernels = viz.BatchVisualizer("selection_kernels", env=env)
     self.green_kernels = viz.BatchVisualizer("green_kernels", env=env)
+    self.chroma_kernels = viz.BatchVisualizer("chroma_kernels", env=env)
 
     self.green_scalar = viz.ScalarVisualizer(
         "green_distribution",
@@ -134,6 +135,18 @@ class DemosaickCallback(object):
     k -= mini
     k /= maxi-mini
     self.green_kernels.update(k, caption="{:.2f} {:2f}".format(mini, maxi))
+
+    k1 = self.model.h_chroma_filter.data.clone().cpu().unsqueeze(0)
+    k2 = self.model.v_chroma_filter.data.clone().cpu().unsqueeze(0)
+    k3 = self.model.q_chroma_filter.data.clone().cpu().unsqueeze(0)
+
+    k = th.cat([k1, k2, k3], 0)
+    k = k.view(
+        3, 1, self.model.fsize, self.model.fsize)
+    mini, maxi = k.min(), k.max()
+    k -= mini
+    k /= maxi-mini
+    self.chroma_kernels.update(k, caption="{:.2f} {:2f}".format(mini, maxi))
 
 
   def on_batch_end(self, batch, logs):

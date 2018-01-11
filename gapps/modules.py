@@ -303,7 +303,7 @@ class BilateralLayerTorch(BilateralLayerBase):
 
     guide_pos = guide*sigma_r
     lower_bin = th.clamp(th.floor(guide_pos-0.5), min=0)
-    upper_bin = th.clamp(lower_bin+1, max=sigma_s-1)
+    upper_bin = th.clamp(lower_bin+1, max=sigma_r-1)
     weight = th.abs(guide_pos-0.5 - lower_bin)
 
     lower_bin = lower_bin.long()
@@ -339,8 +339,7 @@ class BilateralLayerTorch(BilateralLayerBase):
     fz = th.clamp(th.floor(gz-0.5), min=0)
     cx = np.minimum(fx+1, gw-1);
     cy = np.minimum(fy+1, gh-1);
-    cz = th.clamp(th.ceil(gz), max=sigma_s-1)
-    cz = th.clamp(fz+1, max=sigma_s-1)
+    cz = th.clamp(fz+1, max=sigma_r-1)
 
     # Trilerp weights
     wx = Variable(th.from_numpy((gx - 0.5 - fx).astype(np.float32)));

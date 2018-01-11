@@ -55,7 +55,8 @@ def main(args):
     # model.softmax_scale.cuda()
 
   # params = [p for n, p in model.named_parameters() if n != "green_filts"]
-  optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
+  optimizer = th.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, nesterov=True)
+  # optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
 
   # mse_fn = metrics.CroppedMSELoss(crop=args.fsize//2)
   l1_fn = th.nn.L1Loss()
@@ -66,19 +67,18 @@ def main(args):
   crop = args.fsize // 2
   psnr_fn = metrics.PSNR(crop=args.fsize//2)
 
-
   env = os.path.basename(args.output)
   checkpointer = utils.Checkpointer(
       args.output, model, optimizer, verbose=False, interval=600)
   callback = demosaick.DemosaickCallback(
       model, reference_model, len(loader), val_loader, env=env)
 
-  chkpt_name, _ = checkpointer.load_latest()
-  log.info("Resuming from latest checkpoint {}.".format(chkpt_name))
-
   if args.chkpt is not None:
     log.info("Loading checkpoint {}".format(args.chkpt))
-    checkpointer.load_checkpoint(args.chkpt)
+    checkpointer.load_checkpoint(args.chkpt, ignore_optim=True)
+  else:
+    chkpt_name, _ = checkpointer.load_latest()
+    log.info("Resuming from latest checkpoint {}.".format(chkpt_name))
 
   ema = utils.ExponentialMovingAverage(["loss", "psnr", "ssim", "l1"])
   for epoch in range(args.num_epochs):
