@@ -56,13 +56,16 @@ EXT_DIR = _ext
 OPS = \
 	  		deconv_grad_init_forward deconv_grad_init_backward \
 	  		deconv_grad_iter_forward deconv_grad_iter_backward \
+			bilateral_grid_forward bilateral_grid_backward \
+			deconv_prior_forward deconv_prior_backward
+			#deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
+			#deconv_cg_weight_forward deconv_cg_weight_backward 
 	  		# bilateral_layer_forward bilateral_layer_backward \
 	  		# non_local_means_forward non_local_means_backward \
 			# naive_demosaick_forward naive_demosaick_backward \
 			# learnable_demosaick_forward learnable_demosaick_backward \
 			# deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
 			# deconv_cg_weight_forward deconv_cg_weight_backward bilateral_grid_forward bilateral_grid_backward \
-			# deconv_prior_forward deconv_prior_backward
 			# conv1d_forward conv1d_backward conv1d_manual_backward \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
@@ -76,7 +79,7 @@ _ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	@echo Op $(subst $(BUILD_DIR)/,, $@)
-	cd $(BUILD_DIR); \
+	@cd $(BUILD_DIR); \
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(basename $(@F)) -g $(basename $(@F)) \
 										-e static_library,h,pytorch_wrapper,html\

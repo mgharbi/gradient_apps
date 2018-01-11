@@ -292,7 +292,7 @@ class DeconvCGAuto(nn.Module):
     self.reg_thresholds.data[:, 4] = 0.0325
 
   def train(self, mode=True):
-    super(DeconvCG, self).train(mode)
+    super(DeconvCGAuto, self).train(mode)
     for p in self.parameters():
       p.requires_grad = mode
     return self
@@ -366,7 +366,8 @@ class NonLocalMeans(nn.Module):
                search_radius=9):
     super(NonLocalMeans, self).__init__()
 
-    self.feature_filter = nn.Parameter(th.zeros(feature_filter_size, feature_filter_size, 3, feature_channel_size))
+    self.feature_filter = nn.Parameter(
+            th.zeros(feature_filter_size, feature_filter_size, 3, feature_channel_size))
     self.patch_filter = nn.Parameter(th.zeros(patch_filter_size, patch_filter_size))
     self.inv_sigma = nn.Parameter(th.zeros(1))
     self.search_radius = Variable(th.IntTensor([search_radius]))
