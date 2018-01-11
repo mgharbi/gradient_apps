@@ -54,7 +54,9 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-	  		non_local_means_forward non_local_means_backward \
+	  		deconv_grad_init_forward deconv_grad_init_backward \
+	  		deconv_grad_iter_forward deconv_grad_iter_backward \
+	  		# non_local_means_forward non_local_means_backward \
 			# naive_demosaick_forward naive_demosaick_backward \
 			# learnable_demosaick_forward learnable_demosaick_backward \
 			# deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
@@ -73,7 +75,7 @@ _ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	@echo Op $(subst $(BUILD_DIR)/,, $@)
-	@cd $(BUILD_DIR); \
+	cd $(BUILD_DIR); \
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
 										./$(basename $(@F)) -g $(basename $(@F)) \
 										-e static_library,h,pytorch_wrapper,html\
