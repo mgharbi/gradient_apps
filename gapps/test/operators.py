@@ -555,7 +555,8 @@ def _test_deconv_cg_iteration(gpu=False):
 def _test_deconv_cg(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
-  image = image[:256, :256, :]
+  image = image[100:356, 100:356, :]
+  np.random.seed(1234)
   kernel = utils.sample_psf(11)
   blurred = utils.make_blur(image, kernel)
   skimage.io.imsave(
@@ -563,14 +564,16 @@ def _test_deconv_cg(gpu=False):
   blurred = blurred.transpose((2, 0, 1))
 
   blurred = Variable(th.from_numpy(blurred), requires_grad=False).contiguous().view(1, 3, 256, 256)
-  kernel = Variable(th.from_numpy(kernel), requires_grad=False)
+  kernel = Variable(th.from_numpy(kernel), requires_grad=False).contiguous().view(1, 11, 11)
   op = modules.DeconvCG()
 
   if gpu:
     blurred = blurred.cuda()
     op.cuda()
 
-  output = op(blurred, kernel).view(3, 256, 256)
+  output = op(blurred, kernel, num_irls_iter=1, num_cg_iter=20).view(3, 256, 256)
+  loss = output.sum()
+  loss.backward()
 
   output = output.data.cpu().numpy()
   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
@@ -582,6 +585,7 @@ def _test_deconv_cg_auto(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
   image = image[100:356, 100:356, :]
+  np.random.seed(1234)
   kernel = utils.sample_psf(11)
   blurred = utils.make_blur(image, kernel)
   skimage.io.imsave(
@@ -596,6 +600,8 @@ def _test_deconv_cg_auto(gpu=False):
     op.cuda()
 
   output = op(blurred, kernel, num_cg_iter = 20).view(3, 256, 256)
+  loss = output.sum()
+  loss.backward()
 
   output = output.data.cpu().numpy()
   output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)

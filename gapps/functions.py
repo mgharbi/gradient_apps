@@ -635,9 +635,12 @@ class DeconvGrad(Function):
   """"""
 
   @staticmethod
-  def forward(ctx, blurred, xk, kernel, data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, hess_dir, init):
+  def forward(ctx, blurred, xk, kernel,
+          data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels,
+          reg_targets, hess_dir, init):
     if any(ctx.needs_input_grad):
-      ctx.save_for_backward(blurred, xk, kernel, data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, hess_dir)
+      ctx.save_for_backward(blurred, xk, kernel,
+              data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, hess_dir)
       ctx.init = init
 
     output = blurred.new()
@@ -660,7 +663,8 @@ class DeconvGrad(Function):
 
   @staticmethod
   def backward(ctx, d_output):
-    blurred, xk, kernel, data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, hess_dir = ctx.saved_variables
+    blurred, xk, kernel, data_kernel_weights, data_kernels, \
+        reg_kernel_weights, reg_kernels, reg_targets, hess_dir = ctx.saved_variables
     init = ctx.init
 
     d_xk = xk.data.new()
@@ -697,5 +701,6 @@ class DeconvGrad(Function):
     d_reg_targets = Variable(d_reg_targets)
     d_hess_dir = Variable(d_hess_dir)
 
-    return None, d_xk, None, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir
+    return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
+           d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir, None
 

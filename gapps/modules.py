@@ -311,39 +311,51 @@ class DeconvCGAuto(nn.Module):
         blurred.new(self.reg_kernels.shape[1],
                 blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
       x = blurred.clone()
-      hess_dir = blurred.new(blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
-      grad_hess = funcs.DeconvGrad.apply(blurred, x, kernel,
-        self.data_kernel_weights[0, :], self.data_kernels[0, :, :],
-        self.reg_kernel_weights[0, :], self.reg_kernels[0, :, :],
-        reg_targets, hess_dir, True)
-      grad = grad_hess[0, :, :, :]
-      hess_p = grad_hess[1, :, :, :]
-      r = -grad
-      r_norm = th.dot(r, r)
-      p = r
-      for cg_it in range(num_cg_iter):
-        # One step line search
-        alpha = -th.dot(grad, p) / (th.dot(hess_p, p))
-        x += alpha * p
+      def conjugate_gradient(x, index, reg_targets):
+        hess_dir = blurred.new(blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
         grad_hess = funcs.DeconvGrad.apply(blurred, x, kernel,
-          self.data_kernel_weights[0, :], self.data_kernels[0, :, :],
-          self.reg_kernel_weights[0, :], self.reg_kernels[0, :, :],
-          reg_targets, p, False)
+          self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
+          self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
+          reg_targets, hess_dir, True)
         grad = grad_hess[0, :, :, :]
         hess_p = grad_hess[1, :, :, :]
         r = -grad
-        new_r_norm = th.dot(r, r)
-        # Fletcher-Reeves update rule
-        beta = new_r_norm / r_norm
-        r_norm = new_r_norm
-        if (r_norm < 1e-5):
-            break
-        p = r + beta * p
-      result[b, :, :, :] = x
-   
+        r_norm = th.dot(r, r)
+        p = r
+        for cg_it in range(num_cg_iter):
+          # One step line search
+          alpha = -th.dot(grad, p) / (th.dot(hess_p, p))
+          x = x + alpha * p
+          grad_hess = funcs.DeconvGrad.apply(blurred, x, kernel,
+            self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
+            self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
+            reg_targets, p, False)
+          grad = grad_hess[0, :, :, :]
+          hess_p = grad_hess[1, :, :, :]
+          r = -grad
+          new_r_norm = th.dot(r, r)
+          # Fletcher-Reeves update rule
+          beta = new_r_norm / r_norm
+          r_norm = new_r_norm
+          if (r_norm < 1e-5):
+              break
+          p = r + beta * p
+        return x
+      x = conjugate_gradient(x, 0, reg_targets)
+  
+      for stage in range(self.num_stages):
+        # Smooth out the resulting image with bilateral grid
+        x = funcs.BilateralGrid.apply(x, self.filter_s[stage, :], self.filter_r[stage, :])
+
+        # Compute the adaptive prior
+        reg_targets = funcs.DeconvPrior.apply(x,
+          self.reg_kernels[stage + 1, :], self.reg_thresholds[stage, :])
+
+        # Solve the deconvolution again using the new targets
+        x = conjugate_gradient(x, stage + 1, reg_targets)
+
     assert(not np.isnan(result.data.cpu()).any())
     return result
-
 
 class NonLocalMeans(nn.Module):
   def __init__(self,
