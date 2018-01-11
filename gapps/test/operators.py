@@ -605,3 +605,41 @@ def test_bilateral_layer_op():
     end = time.time()
 
     print "{}: running time {}ms".format(names[i], (end-start)*1000/nits)
+
+
+def test_bilateral_layer_output():
+  image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
+  guide = skimage.io.imread(os.path.join(data_dir, "gray.png"))
+
+  skimage.io.imsave(os.path.join(out_dir, "bilateral_layer_input.png"), image)
+  sz = 256
+  image = image[:sz, :sz, :]
+  guide = guide[:sz, :sz]
+
+  h, w = guide.shape
+  image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
+  guide = np.expand_dims(guide/255.0, 0).astype(np.float32)
+
+  image = Variable(th.from_numpy(image), requires_grad=False)
+  guide = Variable(th.from_numpy(guide), requires_grad=False)
+
+  op = modules.BilateralLayerTorch(3, 3, 1, False)
+  op2 = modules.BilateralLayer(3, 3, 1, False)
+
+  op2.weights.data.fill_(1.0)
+  op2.weights.data.copy_(op.conv.weight.data)
+
+  for i, o in enumerate([op, op2]):
+    output = o(image, guide)
+
+    mini, maxi = output.min(), output.max()
+    output -= mini
+    output /= (maxi-mini)
+
+    print mini, maxi
+
+    output = output.data[0].cpu().numpy()
+    output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+    output = np.squeeze(output)
+    skimage.io.imsave(
+        os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), output)

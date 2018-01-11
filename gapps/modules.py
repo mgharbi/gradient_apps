@@ -266,9 +266,6 @@ class BilateralLayerBase(nn.Module):
     self.kernel_size = kernel_size
     self.use_bias = use_bias
 
-    self.weights = nn.Parameter(th.rand(noutputs, ninputs, kernel_size, kernel_size, kernel_size))
-    if self.use_bias:
-      self.bias = nn.Parameter(th.zeros(noutputs))
 
   @abstractmethod
   def apply(self, input, guide):
@@ -276,19 +273,27 @@ class BilateralLayerBase(nn.Module):
 
   def forward(self, input, guide):
     filtered = self.apply(input, guide)
-    if self.use_bias:
-      filtered = filtered + self.bias.view(1, self.noutputs, 1, 1)
     return filtered
 
 
 class BilateralLayerTorch(BilateralLayerBase):
   def __init__(self, ninputs, noutputs, kernel_size=3, use_bias=True):
-    super(BilateralLayerTorch, self).__init__(ninputs, noutputs, kernel_size=kernel_size, use_bias=use_bias)
+    super(BilateralLayerTorch, self).__init__(
+        ninputs, noutputs, kernel_size=kernel_size, use_bias=use_bias)
     self.sigma_s = 8
     self.sigma_r = 8
 
+    self.conv = th.nn.Conv3d(
+        ninputs, noutputs, self.kernel_size, bias=self.use_bias, 
+        padding=self.kernel_size // 2)
+
+    self.reset_params()
+
+  def reset_params(self):
+    if self.use_bias:
+      self.conv.bias.data.zero_()
+
   def apply(self, input, guide):
-    print "torch!"
     bs, ci, h, w = input.shape
     sigma_s = self.sigma_s
     sigma_r = self.sigma_r
@@ -297,9 +302,9 @@ class BilateralLayerTorch(BilateralLayerBase):
     guide = guide.unsqueeze(1)
 
     guide_pos = guide*sigma_r
-    lower_bin = th.floor(guide_pos)
-    upper_bin = th.clamp(th.ceil(guide_pos), max=sigma_s-1)
-    weight = guide_pos - lower_bin
+    lower_bin = th.clamp(th.floor(guide_pos-0.5), min=0)
+    upper_bin = th.clamp(lower_bin+1, max=sigma_s-1)
+    weight = th.abs(guide_pos-0.5 - lower_bin)
 
     lower_bin = lower_bin.long()
     upper_bin = upper_bin.long()
@@ -309,6 +314,7 @@ class BilateralLayerTorch(BilateralLayerBase):
     gh = h // sigma_s
     grid = input.new()
     grid.resize_(bs, ci, gh, gw, sigma_r)
+    grid.zero_()
 
     # Splat
     batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
@@ -319,6 +325,7 @@ class BilateralLayerTorch(BilateralLayerBase):
     grid[batch_idx, c_idx, h_idx, w_idx, upper_bin] += weight*norm*input
 
     # Conv3D
+    grid = self.conv(grid)
 
     # Slice
     xx, yy = np.meshgrid(np.arange(0, w), np.arange(0, h))
@@ -327,17 +334,18 @@ class BilateralLayerTorch(BilateralLayerBase):
     gz = guide*sigma_r
 
     # Enclosing cell
-    fx = np.floor(gx).astype(np.int64);
-    fy = np.floor(gy).astype(np.int64);
+    fx = np.floor(gx - 0.5).astype(np.int64);
+    fy = np.floor(gy - 0.5).astype(np.int64);
+    fz = th.clamp(th.floor(gz-0.5), min=0)
     cx = np.minimum(fx+1, gw-1);
     cy = np.minimum(fy+1, gh-1);
-    fz = th.floor(gz)
     cz = th.clamp(th.ceil(gz), max=sigma_s-1)
+    cz = th.clamp(fz+1, max=sigma_s-1)
 
     # Trilerp weights
-    wx = Variable(th.from_numpy((gx-0.5 - fx).astype(np.float32)));
-    wy = Variable(th.from_numpy((gy-0.5 - fy).astype(np.float32)));
-    wz = gz - fz;
+    wx = Variable(th.from_numpy((gx - 0.5 - fx).astype(np.float32)));
+    wy = Variable(th.from_numpy((gy - 0.5 - fy).astype(np.float32)));
+    wz = th.abs(gz-0.5 - fz)
 
     # Make indices broadcastable
     # fx = np.expand_dims(fx, 0)
@@ -347,7 +355,7 @@ class BilateralLayerTorch(BilateralLayerBase):
 
     batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
     c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
-    
+
     out = grid[batch_idx, c_idx, fx, fy, fz]*(1-wx)*(1-wy)*(1-wz) + \
           grid[batch_idx, c_idx, fx, fy, cz]*(1-wx)*(1-wy)*(  wz) + \
           grid[batch_idx, c_idx, fx, cy, fz]*(1-wx)*(  wy)*(1-wz) + \
@@ -363,8 +371,14 @@ class BilateralLayer(BilateralLayerBase):
   def __init__(self, ninputs, noutputs, kernel_size=3, use_bias=True):
     super(BilateralLayer, self).__init__(ninputs, noutputs, kernel_size=kernel_size, use_bias=use_bias)
 
+    self.weights = nn.Parameter(th.rand(noutputs, ninputs, kernel_size, kernel_size, kernel_size))
+    if self.use_bias:
+      self.bias = nn.Parameter(th.zeros(noutputs))
+
   def apply(self, input, guide):
-    print "ours!"
-    return funcs.BilateralLayer.apply(input, guide, self.weights)
+    filtered = funcs.BilateralLayer.apply(input, guide, self.weights)
+    if self.use_bias:
+      filtered = filtered + self.bias.view(1, self.noutputs, 1, 1)
+    return filtered
 
 
