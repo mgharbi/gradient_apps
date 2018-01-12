@@ -618,16 +618,19 @@ def test_bilateral_layer_output():
 
   h, w = guide.shape
   image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
-  guide = np.expand_dims(guide/255.0, 0).astype(np.float32)
+  guide = np.expand_dims(guide/255.0, 0).astype(np.float32)*0.8 + 0.1
 
   image = Variable(th.from_numpy(image), requires_grad=False)
   guide = Variable(th.from_numpy(guide), requires_grad=False)
 
+  guide.data.fill_(0.5)
+
   op = modules.BilateralLayerTorch(3, 3, 1, False)
   op2 = modules.BilateralLayer(3, 3, 1, False)
 
-  op2.weights.data.fill_(1.0)
+  op.conv.weight.data.fill_(1.0)
   op2.weights.data.copy_(op.conv.weight.data)
+
 
   for i, o in enumerate([op, op2]):
     output = o(image, guide)
@@ -636,7 +639,7 @@ def test_bilateral_layer_output():
     output -= mini
     output /= (maxi-mini)
 
-    print mini, maxi
+    print mini.cpu().data[0], maxi.cpu().data[0]
 
     output = output.data[0].cpu().numpy()
     output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)

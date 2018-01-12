@@ -355,14 +355,14 @@ class BilateralLayerTorch(BilateralLayerBase):
     batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
     c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
 
-    out = grid[batch_idx, c_idx, fx, fy, fz]*(1-wx)*(1-wy)*(1-wz) + \
-          grid[batch_idx, c_idx, fx, fy, cz]*(1-wx)*(1-wy)*(  wz) + \
-          grid[batch_idx, c_idx, fx, cy, fz]*(1-wx)*(  wy)*(1-wz) + \
-          grid[batch_idx, c_idx, fx, cy, cz]*(1-wx)*(  wy)*(  wz) + \
-          grid[batch_idx, c_idx, cx, fy, fz]*(  wx)*(1-wy)*(1-wz) + \
-          grid[batch_idx, c_idx, cx, fy, cz]*(  wx)*(1-wy)*(  wz) + \
-          grid[batch_idx, c_idx, cx, cy, fz]*(  wx)*(  wy)*(1-wz) + \
-          grid[batch_idx, c_idx, cx, cy, cz]*(  wx)*(  wy)*(  wz)
+    out = grid[batch_idx, c_idx, fy, fx, fz]*(1-wx)*(1-wy)*(1-wz) + \
+          grid[batch_idx, c_idx, fy, fx, cz]*(1-wx)*(1-wy)*(  wz) + \
+          grid[batch_idx, c_idx, cy, fx, fz]*(1-wx)*(  wy)*(1-wz) + \
+          grid[batch_idx, c_idx, cy, fx, cz]*(1-wx)*(  wy)*(  wz) + \
+          grid[batch_idx, c_idx, fy, cx, fz]*(  wx)*(1-wy)*(1-wz) + \
+          grid[batch_idx, c_idx, fy, cx, cz]*(  wx)*(1-wy)*(  wz) + \
+          grid[batch_idx, c_idx, cy, cx, fz]*(  wx)*(  wy)*(1-wz) + \
+          grid[batch_idx, c_idx, cy, cx, cz]*(  wx)*(  wy)*(  wz)
 
     return out
 

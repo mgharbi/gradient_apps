@@ -63,7 +63,7 @@ def main(args):
   msssim_fn = metrics.MSSSIM()
   # grad_l1_fn = metrics.CroppedGradientLoss(crop=args.fsize//2)
   # loss_fn = lambda a, b: 0.84*msssim_fn(a, b) + (1-0.84)*l1_fn(a, b)
-  alpha = 0.84
+  alpha = args.alpha
   crop = args.fsize // 2
   psnr_fn = metrics.PSNR(crop=args.fsize//2)
 
@@ -72,6 +72,9 @@ def main(args):
       args.output, model, optimizer, verbose=False, interval=600)
   callback = demosaick.DemosaickCallback(
       model, reference_model, len(loader), val_loader, env=env)
+
+  if args.regularize:
+    log.info("Using L1 weight regularization")
 
   if args.chkpt is not None:
     log.info("Loading checkpoint {}".format(args.chkpt))
@@ -108,6 +111,15 @@ def main(args):
         ssim_ = 1-msssim_fn(output, reference)
         l1_ = l1_fn(output, reference)
         loss = ssim_*alpha + (1-alpha)*l1_
+        if args.regularize:
+          l1_reg = None
+          reg_w = 1e-6
+          for n, p in model.named_parameters():
+            if l1_reg is None:
+              l1_reg = p.norm(1)
+            else:
+              l1_reg = l1_reg + p.norm(1)
+          loss += l1_reg*reg_w
         loss.backward()
         optimizer.step()
 
@@ -176,9 +188,11 @@ if __name__ == "__main__":
   parser.add_argument("--batch_size", type=int, default=32)
   parser.add_argument("--num_epochs", type=int, default=100)
   parser.add_argument("--no-cuda", dest="cuda", action="store_false")
+  parser.add_argument("--regularize", dest="regularize", action="store_true")
   parser.add_argument("--nfilters", type=int, default=9)
   parser.add_argument("--fsize", type=int, default=5)
-  parser.set_defaults(cuda=True)
+  parser.add_argument("--alpha", type=float, default=0.84)
+  parser.set_defaults(cuda=True, regularize=False)
   args = parser.parse_args()
 
   logging.basicConfig(
