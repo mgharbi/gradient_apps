@@ -667,6 +667,8 @@ class DeconvGrad(Function):
         reg_kernel_weights, reg_kernels, reg_targets, hess_dir = ctx.saved_variables
     init = ctx.init
 
+    assert(not np.isnan(d_output.data.cpu()).any())
+
     d_xk = xk.data.new()
     d_xk.resize_as_(xk.data)
     d_data_kernel_weights = data_kernel_weights.data.new()
@@ -700,6 +702,7 @@ class DeconvGrad(Function):
     d_reg_kernels = Variable(d_reg_kernels)
     d_reg_targets = Variable(d_reg_targets)
     d_hess_dir = Variable(d_hess_dir)
+    assert(not np.isnan(d_xk.data.cpu()).any())
 
     return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
            d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir, None

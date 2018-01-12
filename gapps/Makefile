@@ -72,7 +72,7 @@ OPS = \
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
-_ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
+_ext/operators/_operators.so: $(OPS_LIBS)# $(CUDA_OPS_LIBS)
 	@echo Python CFFI wrapper
 	@$(PYTHON) build.py
 
