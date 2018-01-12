@@ -750,3 +750,43 @@ class SpatialTransformer(Function):
     d_affine_mtx = Variable(d_affine_mtx)
 
     return d_input, d_affine_mtx
+
+
+class BilinearResampling(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, warp):
+    ctx.save_for_backward(input, warp)
+
+    output = input.new()
+    bs, ci, h, w = input.shape
+
+    assert warp.shape[0] == bs
+    assert warp.shape[1] == 2
+    assert warp.shape[2] == h
+    assert warp.shape[3] == w
+
+    output.resize_(bs, ci, h, w)
+    ops.bilinear_resampling_forward(
+        input, warp, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    input, warp = ctx.saved_variables
+
+    d_input = input.data.new()
+    d_input.resize_as_(input.data)
+    d_warp = warp.data.new()
+    d_warp.resize_as_(warp.data)
+
+    ops.bilinear_resampling_backward(
+        input.data, warp.data, d_output.data,
+        d_input, d_warp)
+
+    d_input = Variable(d_input)
+    d_warp = Variable(d_warp)
+
+    return d_input, d_warp

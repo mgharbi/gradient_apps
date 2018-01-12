@@ -57,6 +57,10 @@ OPS = \
 	  		deconv_grad_init_forward deconv_grad_init_backward \
 	  		deconv_grad_iter_forward deconv_grad_iter_backward \
 			#spatial_transformer_forward spatial_transformer_backward \
+			#bilinear_resampling_forward bilinear_resampling_backward \
+			#spatial_transformer_forward spatial_transformer_backward \
+	  		# deconv_grad_init_forward deconv_grad_init_backward \
+	  		# deconv_grad_iter_forward deconv_grad_iter_backward \
 			# bilateral_grid_forward bilateral_grid_backward \
 			# deconv_prior_forward deconv_prior_backward
 			#deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
@@ -72,7 +76,7 @@ OPS = \
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
-_ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
+_ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS)
 	@echo Python CFFI wrapper
 	@$(PYTHON) build.py
 
