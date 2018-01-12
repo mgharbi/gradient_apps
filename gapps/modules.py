@@ -515,9 +515,9 @@ class BilateralLayer(BilateralLayerBase):
     return filtered
 
 
-class SpatialTransformerLayer(nn.Module):
+class SpatialTransformer(nn.Module):
   def __init__(self, pytorch=False):
-    super(SpatialTransformerLayer, self).__init__()
+    super(SpatialTransformer, self).__init__()
     self.pytorch = pytorch
 
   def forward(self, x, affine_matrices):
@@ -532,5 +532,25 @@ class SpatialTransformerLayer(nn.Module):
       out = nn.functional.grid_sample(x, flowfield, 'bilinear', 'zeros')
     else:
       out = funcs.SpatialTransformer.apply(x, affine_matrices)
+
+    return out
+
+class BilinearResampling(nn.Module):
+  def __init__(self, pytorch=False):
+    super(BilinearResampling, self).__init__()
+    self.pytorch = pytorch
+
+  def forward(self, x, warp):
+    bs = x.shape[0]
+
+    assert warp.shape[0] == bs
+    assert warp.shape[1] == 2
+    assert warp.shape[2] == x.shape[2]
+    assert warp.shape[3] == x.shape[3]
+
+    if self.pytorch:
+      raise NotImplemented
+    else:
+      out = funcs.BilinearResampling.apply(x, warp)
 
     return out

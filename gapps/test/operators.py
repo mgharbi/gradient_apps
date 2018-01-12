@@ -710,7 +710,7 @@ def test_stn(cuda=False):
   nits_burns = 5
   nits = 10
   for pytorch in [False, True]:
-    op = modules.SpatialTransformerLayer(pytorch=pytorch)
+    op = modules.SpatialTransformer(pytorch=pytorch)
     if cuda:
       op = op.cuda()
 
@@ -738,3 +738,67 @@ def test_stn(cuda=False):
     # output = np.squeeze(output)
     # skimage.io.imsave(
     #     os.path.join(out_dir, name), output)
+
+def test_bilinear_resampling(cuda=False):
+  image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
+
+  sz = 256
+  image = image[:sz, :sz, :]
+
+  bs = 1
+  h, w, _ = image.shape
+  image = np.expand_dims(
+      image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
+  image = np.tile(image, [bs, 1 ,1 ,1])
+
+  xx, yy = np.meshgrid(np.linspace(0, 1, sz), np.linspace(0, 1, sz))
+  xx = th.from_numpy(xx.astype(np.float32))
+  yy = th.from_numpy(yy.astype(np.float32))
+
+  dx = 10.0*th.cos(yy*2*np.pi*8.0)
+  dy = 0.0*th.sin(yy*2*np.pi*8.0)
+  dx = dx.unsqueeze(0).unsqueeze(0)
+  dy = dy.unsqueeze(0).unsqueeze(0)
+  warp = th.cat([dx, dy], 1)
+  warp = warp.repeat(bs, 1, 1, 1)
+
+  image = Variable(th.from_numpy(image), requires_grad=True)
+  warp = Variable(warp, requires_grad=True)
+
+  if cuda:
+    image = image.cuda()
+    warp = warp.cuda()
+
+  nits_burns = 5
+  nits = 10
+  for pytorch in [False]:
+    op = modules.BilinearResampling(pytorch=pytorch)
+    if cuda:
+      op = op.cuda()
+
+    if pytorch:
+      name = "resampling_torch_output.png"
+    else:
+      name = "resampling_ours_output.png"
+
+    for it in range(nits_burns):
+      output = op(image, warp)
+      loss = output.sum()
+      loss.backward()
+
+      start = time.time()
+      for it in range(nits):
+        output = op(image, warp)
+        loss = output.sum()
+        loss.backward()
+      end = time.time()
+
+    print "{}: running time {}ms".format(name, (end-start)*1000/nits)
+
+    print output.min(), output.max()
+
+    output = output.data[0].cpu().numpy()
+    output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+    output = np.squeeze(output)
+    skimage.io.imsave(
+        os.path.join(out_dir, name), output)
