@@ -54,10 +54,11 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-	  		deconv_grad_init_forward deconv_grad_init_backward \
-	  		deconv_grad_iter_forward deconv_grad_iter_backward \
-			bilateral_grid_forward bilateral_grid_backward \
-			deconv_prior_forward deconv_prior_backward
+			spatial_transformer_forward spatial_transformer_backward \
+	  		# deconv_grad_init_forward deconv_grad_init_backward \
+	  		# deconv_grad_iter_forward deconv_grad_iter_backward \
+			# bilateral_grid_forward bilateral_grid_backward \
+			# deconv_prior_forward deconv_prior_backward
 			#deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
 			#deconv_cg_weight_forward deconv_cg_weight_backward 
 	  		# bilateral_layer_forward bilateral_layer_backward \

@@ -515,3 +515,18 @@ class BilateralLayer(BilateralLayerBase):
     return filtered
 
 
+class SpatialTransformerLayer(nn.Module):
+  def __init__(self):
+    super(SpatialTransformerLayer, self).__init__()
+
+  def forward(self, x, affine_matrices):
+    bs = x.shape[0]
+
+    assert affine_matrices.shape[0] == bs
+    assert affine_matrices.shape[1] == 2
+    assert affine_matrices.shape[2] == 3
+
+    flowfield = nn.functional.affine_grid(affine_matrices, x.shape)
+    out = nn.functional.grid_sample(x, flowfield, 'bilinear', 'zeros')
+
+    return out

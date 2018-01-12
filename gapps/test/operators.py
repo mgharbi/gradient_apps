@@ -651,12 +651,10 @@ def test_bilateral_layer_output():
 
   h, w = guide.shape
   image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
-  guide = np.expand_dims(guide/255.0, 0).astype(np.float32)*0.8 + 0.1
+  guide = np.expand_dims(guide/255.0, 0).astype(np.float32)
 
   image = Variable(th.from_numpy(image), requires_grad=False)
   guide = Variable(th.from_numpy(guide), requires_grad=False)
-
-  guide.data.fill_(0.5)
 
   op = modules.BilateralLayerTorch(3, 3, 1, False)
   op2 = modules.BilateralLayer(3, 3, 1, False)
@@ -679,3 +677,29 @@ def test_bilateral_layer_output():
     output = np.squeeze(output)
     skimage.io.imsave(
         os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), output)
+
+def test_stn():
+  image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
+
+  sz = 256
+  image = image[:sz, :sz, :]
+
+  h, w, _ = image.shape
+  image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
+
+  affine_mtx = th.zeros(1, 2, 3)
+  affine_mtx[0, 0, 1] = 1.0
+  affine_mtx[0, 1, 0] = 1.0
+
+  image = Variable(th.from_numpy(image), requires_grad=False)
+  affine_mtx = Variable(affine_mtx, requires_grad=False)
+
+  op = modules.SpatialTransformerLayer()
+
+  output = op(image, affine_mtx)
+
+  output = output.data[0].cpu().numpy()
+  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+  output = np.squeeze(output)
+  skimage.io.imsave(
+      os.path.join(out_dir, "stn_output.png"), output)
