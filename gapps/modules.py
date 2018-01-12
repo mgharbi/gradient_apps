@@ -516,8 +516,9 @@ class BilateralLayer(BilateralLayerBase):
 
 
 class SpatialTransformerLayer(nn.Module):
-  def __init__(self):
+  def __init__(self, pytorch=False):
     super(SpatialTransformerLayer, self).__init__()
+    self.pytorch = pytorch
 
   def forward(self, x, affine_matrices):
     bs = x.shape[0]
@@ -526,7 +527,10 @@ class SpatialTransformerLayer(nn.Module):
     assert affine_matrices.shape[1] == 2
     assert affine_matrices.shape[2] == 3
 
-    flowfield = nn.functional.affine_grid(affine_matrices, x.shape)
-    out = nn.functional.grid_sample(x, flowfield, 'bilinear', 'zeros')
+    if self.pytorch:
+      flowfield = nn.functional.affine_grid(affine_matrices, x.shape)
+      out = nn.functional.grid_sample(x, flowfield, 'bilinear', 'zeros')
+    else:
+      out = funcs.SpatialTransformer.apply(x, affine_matrices)
 
     return out

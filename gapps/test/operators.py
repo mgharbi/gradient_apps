@@ -678,28 +678,63 @@ def test_bilateral_layer_output():
     skimage.io.imsave(
         os.path.join(out_dir, "bilateral_layer_{}.png".format(i)), output)
 
-def test_stn():
+def test_stn_gpu():
+  test_stn(True)
+
+def test_stn_cpu():
+  test_stn(False)
+
+def test_stn(cuda=False):
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
 
   sz = 256
   image = image[:sz, :sz, :]
 
+  bs = 16
   h, w, _ = image.shape
-  image = np.expand_dims(image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
+  image = np.expand_dims(
+      image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
+  image = np.tile(image, [bs, 1 ,1 ,1])
 
-  affine_mtx = th.zeros(1, 2, 3)
-  affine_mtx[0, 0, 1] = 1.0
-  affine_mtx[0, 1, 0] = 1.0
+  affine_mtx = th.zeros(bs, 2, 3)
+  affine_mtx[:, 0, 1] = 1.0
+  affine_mtx[:, 1, 0] = 1.0
 
-  image = Variable(th.from_numpy(image), requires_grad=False)
-  affine_mtx = Variable(affine_mtx, requires_grad=False)
+  image = Variable(th.from_numpy(image), requires_grad=True)
+  affine_mtx = Variable(affine_mtx, requires_grad=True)
 
-  op = modules.SpatialTransformerLayer()
+  if cuda:
+    image = image.cuda()
+    affine_mtx = affine_mtx.cuda()
 
-  output = op(image, affine_mtx)
+  nits_burns = 5
+  nits = 10
+  for pytorch in [False, True]:
+    op = modules.SpatialTransformerLayer(pytorch=pytorch)
+    if cuda:
+      op = op.cuda()
 
-  output = output.data[0].cpu().numpy()
-  output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
-  output = np.squeeze(output)
-  skimage.io.imsave(
-      os.path.join(out_dir, "stn_output.png"), output)
+    if pytorch:
+      name = "stn_torch_output.png"
+    else:
+      name = "stn_ours_output.png"
+
+    for it in range(nits_burns):
+      output = op(image, affine_mtx)
+      loss = output.sum()
+      loss.backward()
+
+      start = time.time()
+      for it in range(nits):
+        output = op(image, affine_mtx)
+        loss = output.sum()
+        loss.backward()
+      end = time.time()
+
+    print "{}: running time {}ms".format(name, (end-start)*1000/nits)
+
+    # output = output.data[0].cpu().numpy()
+    # output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
+    # output = np.squeeze(output)
+    # skimage.io.imsave(
+    #     os.path.join(out_dir, name), output)

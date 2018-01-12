@@ -21,18 +21,31 @@ std::map<std::string, Func> spatial_transformer(
     Func f_affine_mtx("f_affine_mtx");
     f_affine_mtx(x, y, n) = affine_mtx(x, y, n);
 
+    Expr width = input.dim(0).extent();
+    Expr height = input.dim(1).extent();
+
     // Normalize image coordinates to [-1, 1]^2
-    Expr nrm_x = 2.0f*(x * 1.0f / input.dim(0).extent()) - 1.0f;
-    Expr nrm_y = 2.0f*(y * 1.0f / input.dim(1).extent()) - 1.0f;
+    Expr nrm_x = 2.0f*(x * 1.0f / width) - 1.0f;
+    Expr nrm_y = 2.0f*(y * 1.0f / height) - 1.0f;
 
-    // Sampling location
-    Expr new_x = f_affine_mtx(0, 0, n)*nrm_x 
-               + f_affine_mtx(0, 1, n)*nrm_y 
-               + f_affine_mtx(0, 2, n);
+    // Normalized sampling location
+    Expr xformed_x = 
+          f_affine_mtx(0, 0, n)*nrm_x 
+        + f_affine_mtx(1, 0, n)*nrm_y 
+        + f_affine_mtx(2, 0, n);
 
-    Expr new_y = f_affine_mtx(1, 0, n)*nrm_x 
-               + f_affine_mtx(1, 1, n)*nrm_y 
-               + f_affine_mtx(1, 2, n);
+    Expr xformed_y = 
+          f_affine_mtx(0, 1, n)*nrm_x 
+        + f_affine_mtx(1, 1, n)*nrm_y 
+        + f_affine_mtx(2, 1, n);
+
+    // Convert back to image space
+    Expr new_x = clamp(
+        width*0.5f*(xformed_x + 1.0f),
+        -1.0f, cast<float>(width));
+    Expr new_y = clamp(
+        height*0.5f*(xformed_y + 1.0f),
+        -1.0f, cast<float>(height));
 
     // Bilinear interpolation
     Expr fx = cast<int>(floor(new_x));
@@ -42,10 +55,10 @@ std::map<std::string, Func> spatial_transformer(
 
     Func f_output("f_output");
     f_output(x, y, c, n) = 
-        f_input(fx,   fy,   c, n)*(1-wx)*(1-wy)
-      + f_input(fx,   fy+1, c, n)*(1-wx)*(  wy)
-      + f_input(fx+1, fy,   c, n)*(  wx)*(1-wy)
-      + f_input(fx+1, fy+1, c, n)*(  wx)*(  wy);
+        f_input(fx,   fy,   c, n)*(1.0f-wx)*(1.0f-wy)
+      + f_input(fx,   fy+1, c, n)*(1.0f-wx)*(     wy)
+      + f_input(fx+1, fy,   c, n)*(     wx)*(1.0f-wy)
+      + f_input(fx+1, fy+1, c, n)*(     wx)*(     wy);
 
     std::map<std::string, Func> func_map;
     func_map["input"]  = input;
