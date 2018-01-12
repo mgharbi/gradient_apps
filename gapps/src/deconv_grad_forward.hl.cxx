@@ -27,9 +27,10 @@ public:
         std::tie(xk_re, clamped_xk) = select_repeat_edge(xk, xk.width(), xk.height());
         RDom r_image(0, xk.width(), 0, xk.height(), 0, xk.channels());
         Func grad = deconv_grad(
-            clamped_xk, clamped_blurred, r_image, kernel,
+            xk, blurred, kernel,
             data_kernel_weights, data_kernels,
             reg_kernel_weights, reg_kernels, reg_targets);
+
         // Use forward autodiff to get Hessian-vector product
         // Generate two versions of the function:
         // First version uses Hessian-gradient product

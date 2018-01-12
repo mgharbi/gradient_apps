@@ -298,6 +298,8 @@ class DeconvCGAuto(nn.Module):
     return self
 
   def forward(self, blurred_batch, kernel_batch, num_cg_iter):
+    assert(not np.isnan(self.data_kernel_weights.data.cpu()).any())
+    assert(not np.isnan(self.data_kernels.data.cpu()).any())
     begin = time.time()
     num_batches = blurred_batch.shape[0]
     result = blurred_batch.new(
@@ -319,6 +321,8 @@ class DeconvCGAuto(nn.Module):
           reg_targets, hess_dir, True)
         grad = grad_hess[0, :, :, :]
         hess_p = grad_hess[1, :, :, :]
+        assert(not np.isnan(grad.data.cpu()).any())
+        assert(not np.isnan(hess_p.data.cpu()).any())
         r = -grad
         r_norm = th.dot(r, r)
         p = r
@@ -342,7 +346,8 @@ class DeconvCGAuto(nn.Module):
           p = r + beta * p
         return x
       x = conjugate_gradient(x, 0, reg_targets)
-  
+
+      self.num_stages = 0
       for stage in range(self.num_stages):
         # Smooth out the resulting image with bilateral grid
         x = funcs.BilateralGrid.apply(x, self.filter_s[stage, :], self.filter_r[stage, :])
@@ -353,6 +358,8 @@ class DeconvCGAuto(nn.Module):
 
         # Solve the deconvolution again using the new targets
         x = conjugate_gradient(x, stage + 1, reg_targets)
+
+      result[b, :, :, :] = x
 
     assert(not np.isnan(result.data.cpu()).any())
     return result

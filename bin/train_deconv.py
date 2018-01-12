@@ -26,8 +26,8 @@ import gapps.metrics as metrics
 
 log = logging.getLogger("gapps_deconvolution")
 
-cg_iter = 20
-ref_cg_iter = 20
+cg_iter = 1
+ref_cg_iter = 1
 
 class DeconvCallback(object):
   def __init__(self, model, ref_model, val_loader, cuda, env=None):
