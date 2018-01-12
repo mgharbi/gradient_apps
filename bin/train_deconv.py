@@ -24,11 +24,9 @@ import gapps.datasets as datasets
 import gapps.modules as models
 import gapps.metrics as metrics
 
-log = logging.getLogger("gapps_deconvolution2")
+log = logging.getLogger("gapps_deconvolution")
 
-irls_iter = 1
 cg_iter = 20
-ref_irls_iter = 1
 ref_cg_iter = 20
 
 class DeconvCallback(object):
@@ -74,8 +72,8 @@ class DeconvCallback(object):
         batchv = batchv.cuda()
         psf = psf.cuda()
 
-      out = self.model(batchv, psf, ref_irls_iter, ref_cg_iter)
-      out_ref = self.ref_model(batchv, psf, ref_irls_iter, ref_cg_iter)
+      out = self.model(batchv, psf, ref_cg_iter)
+      out_ref = self.ref_model(batchv, psf, ref_cg_iter)
       out = out.data.cpu().numpy()
       out_ref = out_ref.data.cpu().numpy()
 
@@ -152,8 +150,8 @@ class DeconvCallback(object):
     self.reg_thresholds_viz.update(iteration, self.model.reg_thresholds.data[0, :].cpu().numpy())
 
 def main(args):
-  model = models.DeconvCG(num_stages = 3)
-  ref_model = models.DeconvCG(ref = True)
+  model = models.DeconvCGAuto(num_stages = 3)
+  ref_model = models.DeconvCGAuto(ref = True)
 
   if not os.path.exists(args.output):
     os.makedirs(args.output)
@@ -176,15 +174,15 @@ def main(args):
     params_to_train.append(p)
   optimizer = th.optim.Adam(params_to_train, lr=args.lr)
   # optimizer = th.optim.SGD(model.parameters(), lr=args.lr)
-  loss_fn = metrics.CroppedL1Loss(crop=20)
-  psnr_fn = metrics.PSNR(crop=20)
+  loss_fn = metrics.CroppedL1Loss(crop=16)
+  psnr_fn = metrics.PSNR(crop=16)
 
   loader = DataLoader(dset, batch_size=args.batch_size, num_workers=1, shuffle=True)
   val_loader = DataLoader(val_dset, batch_size=8)
 
   checkpointer = utils.Checkpointer(args.output, model, optimizer, verbose=True)
   callback = DeconvCallback(
-      model, ref_model, val_loader, args.cuda, env="gapps_deconv2")
+      model, ref_model, val_loader, args.cuda, env="gapps_deconv")
 
   smooth_loss = 0
   smooth_psnr = 0
@@ -217,7 +215,7 @@ def main(args):
       kernel = kernel.cuda()
 
     # Run the model
-    output = model(blurred, kernel, irls_iter, cg_iter)
+    output = model(blurred, kernel, cg_iter)
 
     # Compute loss & optimize
     optimizer.zero_grad()
@@ -263,11 +261,11 @@ def main(args):
           reference = reference.cuda()
           kernel = kernel.cuda()
 
-        output = model(blurred, kernel, ref_irls_iter, ref_cg_iter)
+        output = model(blurred, kernel, ref_cg_iter)
         loss = loss_fn(output, reference)
         psnr = psnr_fn(output, reference)
 
-        ref_output = ref_model(blurred, kernel, ref_irls_iter, ref_cg_iter)
+        ref_output = ref_model(blurred, kernel, ref_cg_iter)
         ref_loss = loss_fn(ref_output, reference)
         ref_psnr = psnr_fn(ref_output, reference)
 

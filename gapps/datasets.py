@@ -40,7 +40,7 @@ class DeconvDataset(Dataset):
   def __getitem__(self, idx):
     kernel_size = 11
     # 20 pixels of boundaries since we are going to clamp them
-    crop_size = [256 + 40, 256 + 40]
+    crop_size = [256 + 32, 256 + 32]
     try:
       reference = skimage.io.imread(os.path.join(os.path.join(self.root, "imagenet_raw"), self.files[idx]))
       #reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))

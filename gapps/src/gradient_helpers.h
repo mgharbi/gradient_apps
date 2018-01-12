@@ -91,9 +91,9 @@ void print_adjoints(std::map<FuncKey, Func> adjoints) {
   }
 }
 
-template <typename Output>
+template <typename Input, typename Output>
 void assign_gradient(std::map<FuncKey, Func> &adjoints,
-                     const Func &func,
+                     const Input &func,
                      Output &output) {
     if (adjoints.find(FuncKey{func.name(), -1}) != adjoints.end()) {
         output(_) = adjoints[FuncKey{func.name(), -1}](_);
