@@ -85,6 +85,9 @@ def test_deconv_cg_cpu():
 def test_deconv_cg_auto_cpu():
   _test_deconv_cg_auto(False)
 
+def test_deconv_cg_auto_gpu():
+  _test_deconv_cg_auto(True)
+
 # ---------------------------------------------------------------------------
 
 def _test_conv1d(gpu=False):
@@ -584,22 +587,25 @@ def _test_deconv_cg(gpu=False):
 def _test_deconv_cg_auto(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
-  image = image[100:356, 100:356, :]
+  w = 32
+  h = 32
+  image = image[100:100 + w, 100:100 + h, :]
   np.random.seed(1234)
   kernel = utils.sample_psf(11)
   blurred = utils.make_blur(image, kernel)
   skimage.io.imsave(
       os.path.join(out_dir, "blurred.png"), blurred)
   blurred = blurred.transpose((2, 0, 1))
-  blurred = Variable(th.from_numpy(blurred), requires_grad=True).contiguous().view(1, 3, 256, 256)
+  blurred = Variable(th.from_numpy(blurred), requires_grad=True).contiguous().view(1, 3, w, h)
   kernel = Variable(th.from_numpy(kernel), requires_grad=False).contiguous().view(1, 11, 11)
   op = modules.DeconvCGAuto()
 
   if gpu:
     blurred = blurred.cuda()
+    kernel = kernel.cuda()
     op.cuda()
 
-  output = op(blurred, kernel, num_cg_iter = 20).view(3, 256, 256)
+  output = op(blurred, kernel, num_cg_iter = 1).view(3, w, h)
   loss = output.sum()
   loss.backward()
 
@@ -637,8 +643,7 @@ def test_bilateral_layer_op():
       loss.backward()
     end = time.time()
 
-    print "{}: running time {}ms".format(names[i], (end-start)*1000/nits)
-
+    print("{}: running time {}ms".format(names[i], (end-start)*1000/nits))
 
 def test_bilateral_layer_output():
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
@@ -670,7 +675,7 @@ def test_bilateral_layer_output():
     output -= mini
     output /= (maxi-mini)
 
-    print mini.cpu().data[0], maxi.cpu().data[0]
+    print(mini.cpu().data[0], maxi.cpu().data[0])
 
     output = output.data[0].cpu().numpy()
     output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
@@ -731,7 +736,7 @@ def test_stn(cuda=False):
         loss.backward()
       end = time.time()
 
-    print "{}: running time {}ms".format(name, (end-start)*1000/nits)
+    print("{}: running time {}ms".format(name, (end-start)*1000/nits))
 
     # output = output.data[0].cpu().numpy()
     # output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)

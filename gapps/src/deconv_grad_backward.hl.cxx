@@ -50,7 +50,7 @@ public:
         Func output("output");
         output(x, y, c, n) = 0.f;
         output(x, y, c, 0) = grad(x, y, c);
-        //output(x, y, c, 1) = hess(x, y, c);
+        output(x, y, c, 1) = hess(x, y, c);
 
         Derivative d = propagate_adjoints(
             output,
@@ -62,23 +62,22 @@ public:
         );
         std::map<FuncKey, Func> adjoints = d.adjoints;
         //print_func(d(xk_re));
-        //assign_gradient(adjoints, xk, d_xk);
-        //assign_gradient(adjoints, data_kernel_weights, d_data_kernel_weights);
-        //assign_gradient(adjoints, data_kernels, d_data_kernels);
-        //assign_gradient(adjoints, reg_kernel_weights, d_reg_kernel_weights);
-        //assign_gradient(adjoints, reg_kernels, d_reg_kernels);
-        //assign_gradient(adjoints, reg_targets, d_reg_targets);
-        d_xk(x, y, c) = 0.f;
-        d_data_kernel_weights(n) = 0.f;
-        d_data_kernels(x, y, n) = 0.f;     
-        d_reg_kernel_weights(n) = 0.f;
-        d_reg_kernels(x, y, n) = 0.f;
-        d_reg_targets(x, y, c, n) = 0.f;
+        assign_gradient(adjoints, xk, d_xk);
+        assign_gradient(adjoints, data_kernel_weights, d_data_kernel_weights);
+        assign_gradient(adjoints, data_kernels, d_data_kernels);
+        assign_gradient(adjoints, reg_kernel_weights, d_reg_kernel_weights);
+        assign_gradient(adjoints, reg_kernels, d_reg_kernels);
+        assign_gradient(adjoints, reg_targets, d_reg_targets);
+        //d_data_kernel_weights(n) = 0.f;
+        //d_data_kernels(x, y, n) = 0.f;     
+        //d_reg_kernel_weights(n) = 0.f;
+        //d_reg_kernels(x, y, n) = 0.f;
+        //d_reg_targets(x, y, c, n) = 0.f;
 #if INIT
         d_hess_dir(x, y, c) = 0.f;
 #else
-        d_hess_dir(x, y, c) = 0.f;
-        //assign_gradient(adjoints, hess_dir, d_hess_dir);
+        //d_hess_dir(x, y, c) = 0.f;
+        assign_gradient(adjoints, hess_dir, d_hess_dir);
 #endif
 
         if (auto_schedule) {

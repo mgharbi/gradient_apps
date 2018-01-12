@@ -684,6 +684,8 @@ class DeconvGrad(Function):
     d_hess_dir = hess_dir.data.new()
     d_hess_dir.resize_as_(hess_dir.data)
 
+    d_xk.zero_()
+
     if init:
       ops.deconv_grad_init_backward(
         blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data, hess_dir.data,
@@ -694,6 +696,8 @@ class DeconvGrad(Function):
         blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data, hess_dir.data,
         d_output.data,
         d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir)
+
+    print(d_xk)
 
     d_xk = Variable(d_xk)
     d_data_kernel_weights = Variable(d_data_kernel_weights)

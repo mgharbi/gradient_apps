@@ -20,35 +20,16 @@ public:
 
     void generate() {
         // Boundary condition
-        //Func blurred_re, clamped_blurred;
-        //std::tie(blurred_re, clamped_blurred) =
-        //    select_repeat_edge(blurred, blurred.width(), blurred.height());
-        //Func xk_re, clamped_xk;
-        //std::tie(xk_re, clamped_xk) = select_repeat_edge(xk, xk.width(), xk.height());
-        //RDom r_image(0, xk.width(), 0, xk.height(), 0, xk.channels());
-        //Func grad = deconv_grad(
-        //    xk, blurred, kernel,
-        //    data_kernel_weights, data_kernels,
-        //    reg_kernel_weights, reg_kernels, reg_targets);
-        RDom r_kernel(kernel);
+        Func blurred_re, clamped_blurred;
+        std::tie(blurred_re, clamped_blurred) =
+            select_repeat_edge(blurred, blurred.width(), blurred.height());
+        Func xk_re, clamped_xk;
+        std::tie(xk_re, clamped_xk) = select_repeat_edge(xk, xk.width(), xk.height());
         RDom r_image(0, xk.width(), 0, xk.height(), 0, xk.channels());
-        Func clamped_xk = BoundaryConditions::repeat_edge(xk);
-        // Define cost function
-        // data term
-        Func kx("kx");
-        kx(x, y, c) = 0.f;
-        kx(x, y, c) += clamped_xk(x + r_kernel.x - kernel.width()  / 2,
-                                  y + r_kernel.y - kernel.height() / 2,
-                                  c) *
-                       kernel(r_kernel.x, r_kernel.y);
-
-        Func data_term("data_term");
-        data_term() = 0.f;
-        data_term() += pow(kx(r_image.x, r_image.y, r_image.z) -
-                           blurred(r_image.x, r_image.y, r_image.z), 2.f);
-
-        Derivative d = propagate_adjoints(data_term);
-        Func grad = d(xk);
+        Func grad = deconv_grad(
+            xk, blurred, kernel,
+            data_kernel_weights, data_kernels,
+            reg_kernel_weights, reg_kernels, reg_targets);
 
         // Use forward autodiff to get Hessian-vector product
         // Generate two versions of the function:
