@@ -707,3 +707,42 @@ class DeconvGrad(Function):
     return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
            d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir, None
 
+
+
+class SpatialTransformer(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, affine_mtx):
+    ctx.save_for_backward(input, affine_mtx)
+
+    output = input.new()
+    bs, ci, h, w = input.shape
+
+    assert affine_mtx.shape[0] == bs
+    assert affine_mtx.shape[1] == 2
+    assert affine_mtx.shape[2] == 3
+
+    output.resize_(bs, ci, h, w)
+    ops.spatial_transformer_forward(
+        input, affine_mtx, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    input, affine_mtx = ctx.saved_variables
+
+    d_input = input.data.new()
+    d_input.resize_as_(input.data)
+    d_affine_mtx = affine_mtx.data.new()
+    d_affine_mtx.resize_as_(affine_mtx.data)
+
+    ops.spatial_transformer_backward(
+        input.data, affine_mtx.data, d_output.data,
+        d_input, d_affine_mtx)
+
+    d_input = Variable(d_input)
+    d_affine_mtx = Variable(d_affine_mtx)
+
+    return d_input, d_affine_mtx
