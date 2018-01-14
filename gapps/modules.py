@@ -16,7 +16,6 @@ class NaiveDemosaick(nn.Module):
   def forward(self, mosaick):
     output = funcs.NaiveDemosaick.apply(mosaick)
     return output
-    # return output[:, 1:2, ...]
 
 class LearnableDemosaick(nn.Module):
   def __init__(self, num_filters=8, fsize=5, sigmoid_param=1.0):
@@ -561,3 +560,13 @@ class BilinearResampling(nn.Module):
       out = funcs.BilinearResampling.apply(x, warp)
 
     return out
+
+
+class BurstDemosaicking(nn.Module):
+  def __init__(self):
+    super(BurstDemosaicking, self).__init__()
+
+  def forward(self, inputs, homographies, reconstructed, gradient_weight):
+    out, reproj_error = funcs.BurstDemosaicking.apply(
+        inputs, homographies, reconstructed, gradient_weight)
+    return out, reproj_error

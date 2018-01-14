@@ -790,3 +790,50 @@ class BilinearResampling(Function):
     d_warp = Variable(d_warp)
 
     return d_input, d_warp
+
+
+class BurstDemosaicking(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, inputs, homographies, reconstructed, gradient_weight):
+    ctx.save_for_backward(inputs, homographies, reconstructed, gradient_weight)
+
+    loss = inputs.new()
+    bs, h, w = inputs.shape
+
+    reproj_error = inputs.new()
+
+    assert homographies.shape[0] == bs
+    assert homographies.shape[1] == 8
+
+    assert reconstructed.shape[0] == 3
+    assert reconstructed.shape[1] == h
+    assert reconstructed.shape[2] == w
+
+    loss.resize_(1)
+    reproj_error.resize_(bs, h, w)
+    ops.burst_demosaicking_forward(
+        inputs, homographies, reconstructed, 
+        gradient_weight, loss, reproj_error)
+
+    return loss, reproj_error 
+
+  @staticmethod
+  def backward(ctx, d_loss, d_reproj_error):
+    inputs, homographies, reconstructed, gradient_weight = ctx.saved_variables
+
+    d_homographies = homographies.data.new()
+    d_homographies.resize_as_(homographies.data)
+    d_reconstructed = reconstructed.data.new()
+    d_reconstructed.resize_as_(reconstructed.data)
+
+    ops.burst_demosaicking_backward(
+        inputs.data, homographies.data, reconstructed.data,
+        gradient_weight.data, d_loss.data,
+        d_homographies, d_reconstructed)
+
+    d_homographies = Variable(d_homographies)
+    d_reconstructed = Variable(d_reconstructed)
+
+    return None, d_homographies, d_reconstructed, None

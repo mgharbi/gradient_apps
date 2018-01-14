@@ -807,3 +807,104 @@ def test_bilinear_resampling(cuda=False):
     output = np.squeeze(output)
     skimage.io.imsave(
         os.path.join(out_dir, name), output)
+
+
+def test_burst_demosaicking(cuda=False):
+  images = []
+  shift_x = [1, 0, 1, 0]
+  shift_y = [1, 0, 1, 0]
+  for i in range(4):
+    im = skimage.io.imread(os.path.join(data_dir, "burst", "{}.png".format(i)))
+    im = im[:, :, 0].astype(np.float32)/255.0  # images are grayscales
+    im = im[shift_y[i]:, shift_x[i]:]
+    im = np.pad(im, ((0, shift_y[i]), (0, shift_x[i])), 'constant')
+    im = np.expand_dims(im, 0)
+    im = th.from_numpy(im)
+    images.append(im)
+  images = th.cat(images, 0)
+  images = Variable(images, requires_grad=True)
+
+  n, h, w = images.shape
+
+  demos = modules.NaiveDemosaick()
+
+
+  for i in range(n):
+    im = images[0].view(1, 1, h, w)
+    out = demos(im)
+    out = out.data[0].cpu().numpy()
+    out = np.clip(np.transpose(out, [1, 2, 0]), 0, 1)
+    out = np.squeeze(out)
+    skimage.io.imsave(
+        os.path.join(out_dir, "burst_demosaick_{}.png".format(i)), out)
+
+  images = images.data
+
+  # init to identity
+  homographies = th.zeros(n, 8)
+  homographies[:, 0] = 1.0
+  homographies[:, 4] = 1.0
+  homographies = homographies
+
+  # init to first image, with naive demosaick
+  init_idx = 1
+  im = images[init_idx].view(1, 1, h, w)
+  init = demos(im)
+  recons = init.data.clone().squeeze(0)
+
+  op = modules.BurstDemosaicking()
+
+  gradient_weight = th.ones(1)*1e-5
+
+  if cuda:
+    op = op.cuda()
+    recons = recons.cuda()
+    homographies = homographies.cuda()
+    images = images.cuda()
+    gradient_weight = gradient_weight.cuda()
+
+  images = Variable(images, False)
+  recons = Variable(recons, True)
+  gradient_weight = Variable(gradient_weight, False)
+  homographies = Variable(homographies, True)
+
+  lr = 1e1
+  optimizer = th.optim.SGD(
+      [{'params': [homographies], 'lr': 1e-5*lr},
+        {'params': [recons], 'lr': 1e-1*lr}],
+      momentum=0.9, nesterov=True)
+
+  for step in range(1000):
+    optimizer.zero_grad()
+    loss, reproj = op(images, homographies, recons, gradient_weight)
+    loss.backward()
+    # print recons.grad.abs().max().data[0]
+    # print homographies.grad.abs().max().data[0]
+    optimizer.step()
+    print "Step {} loss = {:.4f}".format(step, loss.data[0])
+
+  for i in range(n):
+    print list(homographies.cpu().data[i].numpy())
+
+  for i in range(n):
+    im = reproj[0].view(1, 1, h, w)
+    out = im.abs()*10
+    out = out.data[0].cpu().numpy()
+    out = np.clip(np.transpose(out, [1, 2, 0]), 0, 1)
+    out = np.squeeze(out)
+    skimage.io.imsave(
+        os.path.join(out_dir, "burst_demosaick_reproj_error{}.png".format(i)), out)
+
+  out = recons.data.cpu().numpy()
+  out = np.clip(np.transpose(out, [1, 2, 0]), 0, 1)
+  out = np.squeeze(out)
+  skimage.io.imsave(
+      os.path.join(out_dir, "burst_demosaicking_reconstructed.png"), out)
+
+  diff = (init.data - recons.data.cpu()).abs().numpy()
+  print "Max diff", diff.max()
+  diff = np.squeeze(diff)*100
+  diff = np.clip(np.transpose(diff, [1, 2, 0]), 0, 1)
+  skimage.io.imsave(
+      os.path.join(out_dir, "burst_demosaicking_diff_from_init.png"), diff)
+
