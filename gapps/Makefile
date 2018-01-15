@@ -54,9 +54,11 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
-			deconv_cg_weight_forward deconv_cg_weight_backward \
-			deconv_prior_forward deconv_prior_backward
+	  		deconv_grad_forward deconv_grad_backward \
+			deconv_grad_hess_forward deconv_grad_hess_backward \
+			#deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
+			#deconv_cg_weight_forward deconv_cg_weight_backward \
+			#deconv_prior_forward deconv_prior_backward
 			#spatial_transformer_forward spatial_transformer_backward \
 			#bilinear_resampling_forward bilinear_resampling_backward \
 			#spatial_transformer_forward spatial_transformer_backward \
