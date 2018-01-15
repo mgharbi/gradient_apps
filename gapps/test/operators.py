@@ -82,11 +82,11 @@ def test_profile_deconv_cg_gpu():
 def test_deconv_cg_cpu():
   _test_deconv_cg(False)
 
-def test_deconv_cg_auto_cpu():
-  _test_deconv_cg_auto(False)
+def test_deconv_nonlinear_cg_cpu():
+  _test_deconv_nonlinear_cg(False)
 
-def test_deconv_cg_auto_gpu():
-  _test_deconv_cg_auto(True)
+def test_deconv_nonlinear_cg_gpu():
+  _test_deconv_nonlinear_cg(True)
 
 # ---------------------------------------------------------------------------
 
@@ -584,11 +584,11 @@ def _test_deconv_cg(gpu=False):
   skimage.io.imsave(
       os.path.join(out_dir, "deconv.png"), output)
 
-def _test_deconv_cg_auto(gpu=False):
+def _test_deconv_nonlinear_cg(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
-  w = 32
-  h = 32
+  w = 256
+  h = 256
   image = image[100:100 + w, 100:100 + h, :]
   np.random.seed(1234)
   kernel = utils.sample_psf(11)
@@ -598,14 +598,14 @@ def _test_deconv_cg_auto(gpu=False):
   blurred = blurred.transpose((2, 0, 1))
   blurred = Variable(th.from_numpy(blurred), requires_grad=True).contiguous().view(1, 3, w, h)
   kernel = Variable(th.from_numpy(kernel), requires_grad=False).contiguous().view(1, 11, 11)
-  op = modules.DeconvCGAuto()
+  op = modules.DeconvNonlinearCG()
 
   if gpu:
     blurred = blurred.cuda()
     kernel = kernel.cuda()
     op.cuda()
 
-  output = op(blurred, kernel, num_cg_iter = 1).view(3, w, h)
+  output = op(blurred, kernel, num_cg_iter = 100).view(3, w, h)
   loss = output.sum()
   loss.backward()
 
@@ -798,9 +798,9 @@ def test_bilinear_resampling(cuda=False):
         loss.backward()
       end = time.time()
 
-    print "{}: running time {}ms".format(name, (end-start)*1000/nits)
+    print("{}: running time {}ms".format(name, (end-start)*1000/nits))
 
-    print output.min(), output.max()
+    print(output.min(), output.max())
 
     output = output.data[0].cpu().numpy()
     output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
@@ -881,10 +881,10 @@ def test_burst_demosaicking(cuda=False):
     # print recons.grad.abs().max().data[0]
     # print homographies.grad.abs().max().data[0]
     optimizer.step()
-    print "Step {} loss = {:.4f}".format(step, loss.data[0])
+    print("Step {} loss = {:.4f}".format(step, loss.data[0]))
 
   for i in range(n):
-    print list(homographies.cpu().data[i].numpy())
+    print(list(homographies.cpu().data[i].numpy()))
 
   for i in range(n):
     im = reproj[0].view(1, 1, h, w)
@@ -902,7 +902,7 @@ def test_burst_demosaicking(cuda=False):
       os.path.join(out_dir, "burst_demosaicking_reconstructed.png"), out)
 
   diff = (init.data - recons.data.cpu()).abs().numpy()
-  print "Max diff", diff.max()
+  print("Max diff", diff.max())
   diff = np.squeeze(diff)*100
   diff = np.clip(np.transpose(diff, [1, 2, 0]), 0, 1)
   skimage.io.imsave(

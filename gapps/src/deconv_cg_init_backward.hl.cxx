@@ -28,19 +28,10 @@ public:
     Output<Buffer<float>> d_w_reg{"d_w_reg", 4};
 
     void generate() {
-        auto func_map = deconv_cg_init(blurred, x0, kernel,
+        Func xrp = deconv_cg_init(blurred, x0, kernel,
             data_kernel_weights, data_kernels,
             reg_kernel_weights, reg_kernels, reg_targets,
             w_data, w_reg);
-        Func xrp = func_map["xrp"];
-        Func x0_func = func_map["x0_func"];
-        Func data_kernel_weights_func = func_map["data_kernel_weights_func"];
-        Func data_kernels_func = func_map["data_kernels_func"];
-        Func reg_kernel_weights_func = func_map["reg_kernel_weights_func"];
-        Func reg_kernels_func = func_map["reg_kernels_func"];
-        Func reg_targets_func = func_map["reg_targets_func"];
-        Func w_data_func = func_map["w_data_func"];
-        Func w_reg_func = func_map["w_reg_func"];
         Derivative d = propagate_adjoints(
             xrp,
             d_xrp,
@@ -49,15 +40,14 @@ public:
              {d_xrp.dim(2).min(), d_xrp.dim(2).max()},
              {d_xrp.dim(3).min(), d_xrp.dim(3).max()}}
         );
-        std::map<FuncKey, Func> adjoints = d.adjoints;
-        assign_gradient(adjoints, x0_func, d_x0);
-        assign_gradient(adjoints, data_kernel_weights_func, d_data_kernel_weights);
-        assign_gradient(adjoints, data_kernels_func, d_data_kernels);
-        assign_gradient(adjoints, reg_kernel_weights_func, d_reg_kernel_weights);
-        assign_gradient(adjoints, reg_kernels_func, d_reg_kernels);
-        assign_gradient(adjoints, reg_targets_func, d_reg_targets);
-        assign_gradient(adjoints, w_data_func, d_w_data);
-        assign_gradient(adjoints, w_reg_func, d_w_reg);
+        assign_gradient(d, x0, d_x0);
+        assign_gradient(d, data_kernel_weights, d_data_kernel_weights);
+        assign_gradient(d, data_kernels, d_data_kernels);
+        assign_gradient(d, reg_kernel_weights, d_reg_kernel_weights);
+        assign_gradient(d, reg_kernels, d_reg_kernels);
+        assign_gradient(d, reg_targets, d_reg_targets);
+        assign_gradient(d, w_data, d_w_data);
+        assign_gradient(d, w_reg, d_w_reg);
 
         if (auto_schedule) {} else {
             std::vector<Func> funcs{d_x0,
@@ -119,14 +109,14 @@ public:
                                  {"w_data.extent.1", 256},
                                  {"w_data.extent.2", 3},
                                  {"w_data.extent.3", 5},
-                                 {"w_reg_kernels.min.0", 0},
-                                 {"w_reg_kernels.min.1", 0},
-                                 {"w_reg_kernels.min.2", 0},
-                                 {"w_reg_kernels.min.3", 0},
-                                 {"w_reg_kernels.extent.0", 256},
-                                 {"w_reg_kernels.extent.1", 256},
-                                 {"w_reg_kernels.extent.2", 3},
-                                 {"w_reg_kernels.extent.3", 5},
+                                 {"w_reg.min.0", 0},
+                                 {"w_reg.min.1", 0},
+                                 {"w_reg.min.2", 0},
+                                 {"w_reg.min.3", 0},
+                                 {"w_reg.extent.0", 256},
+                                 {"w_reg.extent.1", 256},
+                                 {"w_reg.extent.2", 3},
+                                 {"w_reg.extent.3", 5},
                                  {"d_xrp.min.0", 0},
                                  {"d_xrp.min.1", 0},
                                  {"d_xrp.min.2", 0},
@@ -159,139 +149,8 @@ public:
                                   {0, 255},
                                   {0, 2},
                                   {0, 4}}},
-                                  options);
-
-#if 0
-            auto func_map = get_deps({d_x0,
-                                      d_reg_kernel_weights,
-                                      d_reg_kernels,
-                                      d_precond_kernel,
-                                      d_w_kernel,
-                                      d_w_reg_kernels});
-            print_func(Func(func_map["reg_kernels_func_0_d_def__"]), false, false, true, 1);
-            compute_all_root(d_x0);
-            compute_all_root(d_reg_kernel_weights);
-            compute_all_root(d_reg_kernels);
-            compute_all_root(d_precond_kernel);
-            compute_all_root(d_w_kernel);
-            compute_all_root(d_w_reg_kernels);
-
-            Func Kx0 = get_func(func_map, "Kx0");
-            Kx0.update()
-               .parallel(y)
-               .vectorize(x, 16);
-            Func KTWKx0 = get_func(func_map, "K^TWKx0");
-            KTWKx0.update()
-                  .parallel(y)
-                  .vectorize(x, 16);
-            Func rKx0 = get_func(func_map, "rKx0");
-            rKx0.update()
-                .parallel(y)
-                .vectorize(x, 16);
-            Func rKTWrKx0 = get_func(func_map, "rK^TWrKx0");
-            rKTWrKx0.update()
-                    .parallel(y)
-                    .vectorize(x, 16);
-            Func Pr0 = get_func(func_map, "Pr0");
-            Pr0.update()
-               .parallel(y)
-               .vectorize(x, 16);
-
-            Func d_WKx0 = get_func(func_map, "WKx0_0_d_def__");
-            d_WKx0.update()
-                  .parallel(y)
-                  .vectorize(x, 16);
-            Func d_WrKx0 = get_func(func_map, "WrKx0_0_d_def__");
-            d_WrKx0.update()
-                   .parallel(y)
-                   .vectorize(x, 16);
-            Func d_repeat_edge_1 = get_func(func_map, "repeat_edge$1_0_d_def__");
-            d_repeat_edge_1.update(0)
-                           .parallel(y)
-                           .vectorize(x, 16);
-            d_repeat_edge_1.update(1)
-                           .parallel(y)
-                           .vectorize(x, 16);
-
-            Func d_rKw = get_func(func_map, "reg_kernels_func_0_d_def__");
-            auto d_rKw_r0 = d_rKw.rvars(0);
-            auto d_rKw_r1 = d_rKw.rvars(1);
-
-            Var xy("xy"), xyn("xyn");
-            RVar rxo("rxo"), rxi("rxi");
-            Var rxi_f("rxi_f");
-            d_rKw.compute_root()
-                 .update(0)
-                 .split(d_rKw_r0[0], rxo, rxi, 16);
-            Func d_rKw0_rxi = d_rKw.update()
-                                   .rfactor({{rxi, rxi_f}});
-            d_rKw.update(1)
-                 .split(d_rKw_r1[0], rxo, rxi, 16);
-            Func d_rKw1_rxi = d_rKw.update(1)
-                                   .rfactor({{rxi, rxi_f}});
-
-            d_rKw.update(0)
-                 .fuse(x, y, xy)
-                 .fuse(xy, n, xyn)
-                 .parallel(xyn);
-            d_rKw.update(1)
-                 .fuse(x, y, xy)
-                 .fuse(xy, n, xyn)
-                 .parallel(xyn);
-
-            d_rKw0_rxi.compute_at(d_rKw, xyn)
-                      .update()
-                      .vectorize(rxi_f, 16);
-
-            d_rKw1_rxi.compute_at(d_rKw, xyn)
-                      .update()
-                      .vectorize(rxi_f, 16);
-
-            Func d_wkb = get_func(func_map, "wkb_0_d_def__");
-            d_wkb.update()
-                 .parallel(y)
-                 .vectorize(x, 16);
-
-            Func d_Pr0 = get_func(func_map, "Pr0_1_d_def__");
-            d_Pr0.update()
-                 .parallel(y)
-                 .vectorize(x, 16);
-
-            Func d_r = get_func(func_map, "repeat_edge$4_0_d_def__");
-            d_r.update()
-               .parallel(y)
-               .vectorize(x, 16);
-
-            Func d_pk = get_func(func_map, "precond_kernel_func_0_d_def__");
-            auto d_pk_r0 = d_pk.rvars(0);
-            auto d_pk_r1 = d_pk.rvars(1);
-            d_pk.compute_root()
-                .update(0)
-                .split(d_pk_r0[0], rxo, rxi, 16);
-            Func d_pk0_rxi = d_pk.update(0)
-                                 .rfactor({{rxi, rxi_f}});
-            d_pk.compute_root()
-                .update(1)
-                .split(d_pk_r1[0], rxo, rxi, 16);
-            Func d_pk1_rxi = d_pk.update(1)
-                                 .rfactor({{rxi, rxi_f}});
-
-            d_pk.update(0)
-                .fuse(x, y, xy)
-                .parallel(xy);
-
-            d_pk.update(1)
-                .fuse(x, y, xy)
-                .parallel(xy);
-
-            d_pk0_rxi.compute_at(d_pk, xy)
-                     .update()
-                     .vectorize(rxi_f, 16);
-
-            d_pk1_rxi.compute_at(d_pk, xy)
-                     .update()
-                     .vectorize(rxi_f, 16);
-#endif
+                                  options,
+                                 {"xrp_1_d_def__$1"});
         }
     }
 };

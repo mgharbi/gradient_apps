@@ -13,8 +13,8 @@ public:
     Output<Buffer<float>> weights{"weights", 4};
 
     void generate() {
-        auto func_map = deconv_prior(f, reg_kernels, thresholds);
-        weights(x, y, c, n) = func_map["weights"](x, y, c, n);
+        Func output = deconv_prior(f, reg_kernels, thresholds);
+        weights(x, y, c, n) = output(x, y, c, n);
 
         if (auto_schedule) {
         } else {

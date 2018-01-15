@@ -11,14 +11,13 @@ public:
     Input<Buffer<float>>  current{"current", 3};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
     Input<Buffer<float>>  reg_targets{"reg_target_kernels", 4};
-    Input<Buffer<float>>  gmm_weights{"gmm_weights", 2};
-    Input<Buffer<float>>  gmm_invvars{"gmm_invvars", 2};
+    Input<Buffer<float>>  reg_powers{"reg_powers", 1};
     Output<Buffer<float>> weights{"weights", 4};
 
     void generate() {
-        auto func_map = deconv_cg_weight(blurred, current,
-            reg_kernels, reg_targets, gmm_weights, gmm_invvars);
-        weights(x, y, c, n) = func_map["weights"](x, y, c, n);
+        Func output = deconv_cg_weight(blurred, current,
+            reg_kernels, reg_targets, reg_powers);
+        weights(x, y, c, n) = output(x, y, c, n);
 
         if (auto_schedule) {
         } else {
