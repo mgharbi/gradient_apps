@@ -8,11 +8,13 @@ class BurstDemosaickingBackwardGenerator
   : public Generator<BurstDemosaickingBackwardGenerator> {
 public:
     Input<Buffer<float>> inputs{"inputs", 3};
+    // Input<Buffer<float>> confidence{"confidence", 3};
     Input<Buffer<float>> homographies{"homographies", 2};
     Input<Buffer<float>> reconstructed{"reconstructed", 3};
     Input<Buffer<float>>  gradient_weight{"gradient_weight", 1};
     Input<Buffer<float>> d_loss{"d_loss", 1};
 
+    // Output<Buffer<float>> d_confidence{"d_confidence", 3};
     Output<Buffer<float>> d_homographies{"d_homographies", 2};
     Output<Buffer<float>> d_reconstructed{"d_reconstructed", 3};
 
@@ -23,11 +25,13 @@ public:
         Func f_loss = func_map["loss"];
         Func f_homographies = func_map["homographies"];
         Func f_reconstructed = func_map["reconstructed"];
+        // Func f_confidence = func_map["confidence"];
 
         Derivative d = propagate_adjoints(
             f_loss, d_loss,
             {{d_loss.dim(0).min(), d_loss.dim(0).max()}});
         std::map<FuncKey, Func> adjoints = d.adjoints;
+        // assign_gradient(adjoints, f_confidence, d_confidence);
         assign_gradient(adjoints, f_homographies, d_homographies);
         assign_gradient(adjoints, f_reconstructed, d_reconstructed);
 
@@ -46,6 +50,12 @@ public:
             {"inputs.extent.0", 256},
             {"inputs.extent.1", 256},
             {"inputs.extent.2", 5},
+            // {"confidence.min.0", 0},
+            // {"confidence.min.1", 0},
+            // {"confidence.min.2", 0},
+            // {"confidence.extent.0", 256},
+            // {"confidence.extent.1", 256},
+            // {"confidence.extent.2", 5},
             {"homographies.min.0", 0},
             {"homographies.min.1", 0},
             {"homographies.extent.0", 8},
@@ -62,6 +72,7 @@ public:
             {"d_loss.extent.0", 1},
             },
             {
+              // {{0, 255}, {0, 255}, {0, 5}},
               {{0, 7}, {0, 4}},
               {{0, 255}, {0, 255}, {0, 2}},
             },

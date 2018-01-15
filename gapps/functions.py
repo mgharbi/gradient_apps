@@ -808,8 +808,8 @@ class BurstDemosaicking(Function):
     assert homographies.shape[1] == 8
 
     assert reconstructed.shape[0] == 3
-    assert reconstructed.shape[1] == h
-    assert reconstructed.shape[2] == w
+    # assert reconstructed.shape[1] == h
+    # assert reconstructed.shape[2] == w
 
     loss.resize_(1)
     reproj_error.resize_(bs, h, w)
@@ -823,6 +823,8 @@ class BurstDemosaicking(Function):
   def backward(ctx, d_loss, d_reproj_error):
     inputs, homographies, reconstructed, gradient_weight = ctx.saved_variables
 
+    # d_confidence = confidence.data.new()
+    # d_confidence.resize_as_(confidence.data)
     d_homographies = homographies.data.new()
     d_homographies.resize_as_(homographies.data)
     d_reconstructed = reconstructed.data.new()
@@ -833,6 +835,7 @@ class BurstDemosaicking(Function):
         gradient_weight.data, d_loss.data,
         d_homographies, d_reconstructed)
 
+    # d_confidence = Variable(d_confidence)
     d_homographies = Variable(d_homographies)
     d_reconstructed = Variable(d_reconstructed)
 

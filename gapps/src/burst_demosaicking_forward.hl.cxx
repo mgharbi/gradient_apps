@@ -8,6 +8,7 @@ class BurstDemosaickingForwardGenerator :
   public Generator<BurstDemosaickingForwardGenerator> {
 public:
   Input<Buffer<float>>  inputs{"inputs", 3};
+  // Input<Buffer<float>>  confidence{"confidence", 3};
   Input<Buffer<float>>  homographies{"homographies", 2};
   Input<Buffer<float>>  reconstructed{"reconstructed", 3};
   Input<Buffer<float>>  gradient_weight{"gradient_weight", 1};
@@ -39,6 +40,12 @@ public:
         {"inputs.extent.0", 256},
         {"inputs.extent.1", 256},
         {"inputs.extent.2", 5},
+        // {"confidence.min.0", 0},
+        // {"confidence.min.1", 0},
+        // {"confidence.min.2", 0},
+        // {"confidence.extent.0", 256},
+        // {"confidence.extent.1", 256},
+        // {"confidence.extent.2", 5},
         {"homographies.min.0", 0},
         {"homographies.min.1", 0},
         {"homographies.extent.0", 8},
