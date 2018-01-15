@@ -687,33 +687,33 @@ class DeconvGrad(Function):
     return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
            d_reg_kernel_weights, d_reg_kernels, d_reg_targets
 
-class DeconvGradHess(Function):
+class DeconvAlpha(Function):
   """"""
 
   @staticmethod
   def forward(ctx, blurred, xk, kernel,
           data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels,
-          reg_targets, hess_dir):
+          reg_targets, direction):
     if any(ctx.needs_input_grad):
       ctx.save_for_backward(blurred, xk, kernel,
-              data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, hess_dir)
+              data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, direction)
 
     output = blurred.new()
     ci, h, w = blurred.shape
     assert ci == 3
 
-    output.resize_(2, ci, h, w)
-    ops.deconv_grad_hess_forward(
+    output.resize_(1)
+    ops.deconv_alpha_forward(
         blurred, xk, kernel,
         data_kernel_weights, data_kernels,
-        reg_kernel_weights, reg_kernels, reg_targets, hess_dir, output)
+        reg_kernel_weights, reg_kernels, reg_targets, direction, output)
 
     return output
 
   @staticmethod
   def backward(ctx, d_output):
     blurred, xk, kernel, data_kernel_weights, data_kernels, \
-        reg_kernel_weights, reg_kernels, reg_targets, hess_dir = ctx.saved_variables
+        reg_kernel_weights, reg_kernels, reg_targets, direction = ctx.saved_variables
 
     d_xk = xk.data.new()
     d_xk.resize_as_(xk.data)
@@ -727,13 +727,13 @@ class DeconvGradHess(Function):
     d_reg_kernels.resize_as_(reg_kernels.data)
     d_reg_targets = reg_targets.data.new()
     d_reg_targets.resize_as_(reg_targets.data)
-    d_hess_dir = hess_dir.data.new()
-    d_hess_dir.resize_as_(hess_dir.data)
+    d_direction = direction.data.new()
+    d_direction.resize_as_(direction.data)
 
-    ops.deconv_grad_hess_backward(
-        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data, hess_dir.data,
+    ops.deconv_alpha_backward(
+        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data, direction.data,
         d_output.data,
-        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir)
+        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_direction)
 
     d_xk = Variable(d_xk)
     d_data_kernel_weights = Variable(d_data_kernel_weights)
@@ -741,10 +741,10 @@ class DeconvGradHess(Function):
     d_reg_kernel_weights = Variable(d_reg_kernel_weights)
     d_reg_kernels = Variable(d_reg_kernels)
     d_reg_targets = Variable(d_reg_targets)
-    d_hess_dir = Variable(d_hess_dir)
+    d_direction = Variable(d_direction)
 
     return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
-           d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir
+           d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_direction
 
 class SpatialTransformer(Function):
   """"""

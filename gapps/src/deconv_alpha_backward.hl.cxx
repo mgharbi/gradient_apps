@@ -4,8 +4,8 @@
 
 namespace gradient_apps {
 
-class DeconvGradBackwardGenerator
-  : public Generator<DeconvGradBackwardGenerator> {
+class DeconvAlphaBackwardGenerator
+  : public Generator<DeconvAlphaBackwardGenerator> {
 public:
     Input<Buffer<float>>  blurred{"blurred", 3};
     Input<Buffer<float>>  xk{"xk", 3};
@@ -15,77 +15,45 @@ public:
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
     Input<Buffer<float>>  reg_targets{"reg_targets", 4};
-#ifdef NEED_HESS
-    Input<Buffer<float>>  hess_dir{"hess_dir", 3};
-    Input<Buffer<float>>  d_output{"d_output", 4};
-#else
-    Input<Buffer<float>>  d_output{"d_output", 3};
-#endif
+    Input<Buffer<float>>  direction{"direction", 3};
+    Input<Buffer<float>>  d_output{"d_output", 1};
     Output<Buffer<float>> d_xk{"d_xk", 3};
     Output<Buffer<float>> d_data_kernel_weights{"d_data_kernel_weights", 1};
     Output<Buffer<float>> d_data_kernels{"d_data_kernels", 3};
     Output<Buffer<float>> d_reg_kernel_weights{"d_reg_kernel_weights", 1};
     Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
     Output<Buffer<float>> d_reg_targets{"d_reg_targets", 4};
-#ifdef NEED_HESS
-    Output<Buffer<float>> d_hess_dir{"d_hess_dir", 3};
-#endif
+    Output<Buffer<float>> d_direction{"d_direction", 3};
 
     void generate() {
-        Func grad = deconv_grad(
+        Func cost = deconv_cost(
             xk, blurred, kernel,
             data_kernel_weights, data_kernels,
             reg_kernel_weights, reg_kernels, reg_targets);
-
+        Func g_dot_d = propagate_tangents(cost, {{xk.name(), Func(direction)}});
+        Func d_H_d = propagate_tangents(g_dot_d, {{xk.name(), Func(direction)}});
         Func output("output");
-#ifdef NEED_HESS
-        // Use forward autodiff to get Hessian-vector product
-        Func hess = propagate_tangents(grad, {{xk.name(), Func(hess_dir)}});
-        output(x, y, c, n) = 0.f;
-        output(x, y, c, 0) = grad(x, y, c);
-        output(x, y, c, 1) = hess(x, y, c);
+        output(x) = -g_dot_d() / d_H_d();
         Derivative d = propagate_adjoints(
             output,
             d_output,
-            {{d_output.dim(0).min(), d_output.dim(0).max()},
-             {d_output.dim(1).min(), d_output.dim(1).max()},
-             {d_output.dim(2).min(), d_output.dim(2).max()},
-             {d_output.dim(3).min(), d_output.dim(3).max()}}
+            {{d_output.dim(0).min(), d_output.dim(0).max()}}
         );
-#else
-        output(x, y, c) = grad(x, y, c);
-        Derivative d = propagate_adjoints(
-            output,
-            d_output,
-            {{d_output.dim(0).min(), d_output.dim(0).max()},
-             {d_output.dim(1).min(), d_output.dim(1).max()},
-             {d_output.dim(2).min(), d_output.dim(2).max()}}
-        );
-#endif
         assign_gradient(d, xk, d_xk);
         assign_gradient(d, data_kernel_weights, d_data_kernel_weights);
         assign_gradient(d, data_kernels, d_data_kernels);
         assign_gradient(d, reg_kernel_weights, d_reg_kernel_weights);
         assign_gradient(d, reg_kernels, d_reg_kernels);
         assign_gradient(d, reg_targets, d_reg_targets);
-#ifdef NEED_HESS
-        assign_gradient(d, hess_dir, d_hess_dir);
-#endif
+        assign_gradient(d, direction, d_direction);
 
         if (auto_schedule) {
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
-#ifdef NEED_HESS
             std::vector<Func> funcs{d_xk,
                 d_data_kernel_weights, d_data_kernels,
-                d_reg_kernel_weights, d_reg_kernels, d_reg_targets,
-                d_hess_dir};
-#else
-            std::vector<Func> funcs{d_xk,
-                d_data_kernel_weights, d_data_kernels,
-                d_reg_kernel_weights, d_reg_kernels, d_reg_targets};
-#endif
+                d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_direction};
             simple_autoschedule(funcs,
                                 {
                                  {"blurred.min.0", 0},
@@ -128,16 +96,14 @@ public:
                                  {"reg_targets.extent.1", 256},
                                  {"reg_targets.extent.2", 3},
                                  {"reg_targets.extent.3", 5},
+                                 {"direction.min.0", 0},
+                                 {"direction.min.1", 0},
+                                 {"direction.min.2", 0},
+                                 {"direction.extent.0", 256},
+                                 {"direction.extent.1", 256},
+                                 {"direction.extent.2", 3},
                                  {"d_output.min.0", 0},
-                                 {"d_output.min.1", 0},
-                                 {"d_output.min.2", 0},
-                                 {"d_output.extent.0", 256},
-                                 {"d_output.extent.1", 256},
-                                 {"d_output.extent.2", 3},
-#ifdef NEED_HESS
-                                 {"d_output.min.3", 0},
-                                 {"d_output.extent.3", 2},
-#endif
+                                 {"d_output.extent.0", 1},
                                 },
                                 {
                                  {{0, 255}, // xk
@@ -155,17 +121,17 @@ public:
                                   {0, 255},
                                   {0, 2},
                                   {0, 4}},
-#ifdef NEED_HESS
-                                 {{0, 255}, // hess_dir
+                                 {{0, 255},
                                   {0, 255},
                                   {0, 2}},
-#endif
                                 },
-                                options,
-                                {"output_1_d_def__$1"});
+                                options);
         }
     }
 };
 
 }  // end namespace gradient_apps
 
+
+HALIDE_REGISTER_GENERATOR(
+    gradient_apps::DeconvAlphaBackwardGenerator, deconv_alpha_backward)

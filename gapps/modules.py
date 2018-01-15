@@ -292,13 +292,10 @@ class DeconvNonlinearCG(nn.Module):
         r0 = r_norm
         p = r
         for cg_it in range(num_cg_iter):
-          grad_hess = funcs.DeconvGradHess.apply(blurred, x, kernel,
+          alpha = funcs.DeconvAlpha.apply(blurred, x, kernel,
             self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
             self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
             reg_targets, p)
-          grad = grad_hess[0, :, :, :]
-          hess_p = grad_hess[1, :, :, :]
-          alpha = -th.dot(grad, p) / (th.dot(hess_p, p))
           x = x + alpha * p
           grad = funcs.DeconvGrad.apply(blurred, x, kernel,
             self.data_kernel_weights[index, :], self.data_kernels[index, :, :],

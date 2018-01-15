@@ -4,8 +4,8 @@
 
 namespace gradient_apps {
 
-class DeconvGradForwardGenerator
-  : public Generator<DeconvGradForwardGenerator> {
+class DeconvAlphaForwardGenerator
+  : public Generator<DeconvAlphaForwardGenerator> {
 public:
     Input<Buffer<float>>  blurred{"blurred", 3};
     Input<Buffer<float>>  xk{"xk", 3};
@@ -15,28 +15,17 @@ public:
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
     Input<Buffer<float>>  reg_targets{"reg_targets", 4};
-#ifdef NEED_HESS
-    Input<Buffer<float>>  hess_dir{"hess_dir", 3};
-    Output<Buffer<float>> output{"output", 4};
-#else
-    Output<Buffer<float>> output{"output", 3};
-#endif
+    Input<Buffer<float>>  direction{"direction", 3};
+    Output<Buffer<float>> output{"output", 1};
 
     void generate() {
-        Func grad = deconv_grad(
+        Func cost = deconv_cost(
             xk, blurred, kernel,
             data_kernel_weights, data_kernels,
             reg_kernel_weights, reg_kernels, reg_targets);
-
-#ifdef NEED_HESS
-        // Use forward autodiff to get Hessian-vector product
-        Func hess = propagate_tangents(grad, {{xk.name(), Func(hess_dir)}});
-        output(x, y, c, n) = 0.f;
-        output(x, y, c, 0) = grad(x, y, c);
-        output(x, y, c, 1) = hess(x, y, c);
-#else
-        output(x, y, c) = grad(x, y, c);
-#endif
+        Func g_dot_d = propagate_tangents(cost, {{xk.name(), Func(direction)}});
+        Func d_H_d = propagate_tangents(g_dot_d, {{xk.name(), Func(direction)}});
+        output(x) = -g_dot_d() / d_H_d();
 
         if (auto_schedule) {
         } else {
@@ -85,18 +74,15 @@ public:
                                  {"reg_targets.extent.1", 256},
                                  {"reg_targets.extent.2", 3},
                                  {"reg_targets.extent.3", 5},
+                                 {"direction.min.0", 0},
+                                 {"direction.min.1", 0},
+                                 {"direction.min.2", 0},
+                                 {"direction.extent.0", 256},
+                                 {"direction.extent.1", 256},
+                                 {"direction.extent.2", 3}
                                 },
                                 {
-#ifdef NEED_HESS
-                                 {{0, 255},
-                                  {0, 255},
-                                  {0, 2},
-                                  {0, 1}},
-#else
-                                 {{0, 255},
-                                  {0, 255},
-                                  {0, 2}},
-#endif
+                                 {{0, 1}},
                                 },
                                 options);
         }
@@ -105,3 +91,6 @@ public:
 
 }  // end namespace gradient_apps
 
+
+HALIDE_REGISTER_GENERATOR(
+    gradient_apps::DeconvAlphaForwardGenerator, deconv_alpha_forward)

@@ -7,7 +7,7 @@ using namespace Halide;
 Var x("x"), y("y"), c("c"), n("n");
 
 template <typename Input>
-Func deconv_grad(const Input &xk,
+Func deconv_cost(const Input &xk,
                  const Input &blurred,
                  const Input &kernel,
                  const Input &data_kernel_weights,
@@ -64,13 +64,10 @@ Func deconv_grad(const Input &xk,
     reg_term(n) += pow(rkx(r_image.x, r_image.y, r_image.z, n) -
                        rtargets(r_image.x, r_image.y, r_image.z, n), 2.f) *
                    abs(reg_kernel_weights(n));
-    Func loss("loss");
-    loss() = 0.f;
-    loss() += data_term(r_data_kernel_z);
-    loss() += reg_term(r_reg_kernel_z);
+    Func cost("cost");
+    cost() = 0.f;
+    cost() += data_term(r_data_kernel_z);
+    cost() += reg_term(r_reg_kernel_z);
 
-    // Use autodiff to get gradient
-    Derivative d = propagate_adjoints(loss);
-    return d(xk);
+    return cost;
 }
-
