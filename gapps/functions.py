@@ -684,8 +684,6 @@ class DeconvGrad(Function):
     d_hess_dir = hess_dir.data.new()
     d_hess_dir.resize_as_(hess_dir.data)
 
-    d_xk.zero_()
-
     if init:
       ops.deconv_grad_init_backward(
         blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data, hess_dir.data,
@@ -697,7 +695,6 @@ class DeconvGrad(Function):
         d_output.data,
         d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir)
 
-    print(d_xk)
 
     d_xk = Variable(d_xk)
     d_data_kernel_weights = Variable(d_data_kernel_weights)
@@ -706,7 +703,6 @@ class DeconvGrad(Function):
     d_reg_kernels = Variable(d_reg_kernels)
     d_reg_targets = Variable(d_reg_targets)
     d_hess_dir = Variable(d_hess_dir)
-    assert(not np.isnan(d_xk.data.cpu()).any())
 
     return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
            d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir, None

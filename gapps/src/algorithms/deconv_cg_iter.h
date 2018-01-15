@@ -8,8 +8,12 @@ using namespace Halide;
 
 Var x("x"), y("y"), c("c"), n("n");
 
+Expr square(Expr e) {
+    return e * e;
+}
+
 template <typename Input>
-std::map<std::string, Func> deconv_cg_iter(
+Func deconv_cg_iter(
         const Input &xrp,
         const Input &kernel,
         const Input &data_kernel_weights,
@@ -18,32 +22,23 @@ std::map<std::string, Func> deconv_cg_iter(
         const Input &reg_kernels,
         const Input &w_data,
         const Input &w_reg) {
-    // A single iteration of conjugate gradient, takes X, R, P, Z and updates them
-    Func xrp_func("xrp_func");
-    xrp_func(x, y, c, n) = xrp(x, y, c, n);
-    Func data_kernel_weights_func("data_kernel_weights_func");
-    data_kernel_weights_func(n) = data_kernel_weights(n);
-    Func data_kernels_func("data_kernels_func");
-    data_kernels_func(x, y, n) = data_kernels(x, y, n);
-    Func reg_kernel_weights_func("reg_kernel_weights_func");
-    reg_kernel_weights_func(n) = reg_kernel_weights(n);
-    Func reg_kernels_func("reg_kernels_func");
-    reg_kernels_func(x, y, n) = reg_kernels(x, y, n);
-    Func w_data_func("w_data_func");
-    w_data_func(x, y, c, n) = w_data(x, y, c, n);
-    Func w_reg_func("w_reg_func");
-    w_reg_func(x, y, c, n) = w_reg(x, y, c, n);
+    // A single iteration of conjugate gradient, takes X, R, P and updates them
+    Expr kw = kernel.width();
+    Expr kh = kernel.height();
+    Expr dkw = data_kernels.width();
+    Expr dkh = data_kernels.height();
+    Expr rkw = reg_kernels.width();
+    Expr rkh = reg_kernels.height();
+    RDom r_k(kernel);
+    RDom r_dk(0, dkw, 0, dkh);
+    RDom r_dk_c(0, data_kernels.channels());
+    RDom r_rk(0, rkw, 0, rkh);
+    RDom r_rk_c(0, reg_kernels.channels());
+    RDom r_img(0, xrp.width(), 0, xrp.height(), 0, xrp.channels());
+    Func clamped_xrp = BoundaryConditions::repeat_edge(xrp);
+    Func clamped_w_data = BoundaryConditions::repeat_edge(w_data);
+    Func clamped_w_reg = BoundaryConditions::repeat_edge(w_reg);
 
-    RDom r_image(0, xrp.width(), 0, xrp.height(), 0, xrp.channels());
-    RDom r_kernel(kernel);
-    RDom r_data_kernel_xy(0, data_kernels.width(), 0, data_kernels.height());
-    RDom r_data_kernel_z(0, data_kernels.channels());
-    Func xrp_re, clamped_xrp;
-    std::tie(xrp_re, clamped_xrp) = select_repeat_edge(xrp_func, xrp.width(), xrp.height());
-    Func w_data_re, clamped_w_data;
-    std::tie(w_data_re, clamped_w_data) = select_repeat_edge(w_data_func, xrp.width(), xrp.height());
-    Func w_reg_re, clamped_w_reg;
-    std::tie(w_reg_re, clamped_w_reg) = select_repeat_edge(w_reg_func, xrp.width(), xrp.height());
     // Extract input
     Func xk("xk");
     xk(x, y, c) = clamped_xrp(x, y, c, 0);
@@ -56,70 +51,45 @@ std::map<std::string, Func> deconv_cg_iter(
 
     Func rTr("rTr");
     // alpha = r^T * r / p^T A^T W A p
-    rTr() = 0.f;
-    rTr() += r(r_image.x, r_image.y, r_image.z) *
-             r(r_image.x, r_image.y, r_image.z);
+    rTr() = sum(square(r(r_img.x, r_img.y, r_img.z)));
     // Data term on p
     Func Kp("Kp");
-    Kp(x, y, c) = 0.f;
-    Kp(x, y, c) += p(x + r_kernel.x - kernel.width()  / 2,
-                     y + r_kernel.y - kernel.height() / 2,
-                     c) *
-                   kernel(r_kernel.x, r_kernel.y);
+    Kp(x, y, c) = sum(p(x + r_k.x - kw / 2, y + r_k.y - kh / 2, c) *
+                      kernel(r_k.x, r_k.y));
     Func dKp("dKp");
-    dKp(x, y, c, n) = 0.f;
-    dKp(x, y, c, n) += Kp(x + r_data_kernel_xy.x - data_kernels.width()  / 2,
-                          y + r_data_kernel_xy.y - data_kernels.height() / 2,
-                          c) *
-                       data_kernels_func(r_data_kernel_xy.x, r_data_kernel_xy.y, n);
+    dKp(x, y, c, n) = sum(Kp(x + r_dk.x - dkw / 2, y + r_dk.y - dkh / 2, c) *
+                          data_kernels(r_dk.x, r_dk.y, n));
     Func WdKp("WdKp");
     WdKp(x, y, c, n) = dKp(x, y, c, n) * clamped_w_data(x, y, c, n);
     Func dKTWdKp("dK^TWdKp");
-    dKTWdKp(x, y, c, n) = 0.f;
-    dKTWdKp(x, y, c, n) += WdKp(x - r_data_kernel_xy.x + data_kernels.width()  / 2,
-                                y - r_data_kernel_xy.y + data_kernels.height() / 2,
-                                c, n) *
-                           data_kernels_func(r_data_kernel_xy.x, r_data_kernel_xy.y, n);
+    dKTWdKp(x, y, c, n) = sum(WdKp(x - r_dk.x + dkw / 2, y - r_dk.y + dkh / 2, c, n) *
+                              data_kernels(r_dk.x, r_dk.y, n));
     Func wdKTWdKp("wdKTWdKp");
-    wdKTWdKp(x, y, c) = 0.f;
-    wdKTWdKp(x, y, c) += dKTWdKp(x, y, c, r_data_kernel_z) *
-                         data_kernel_weights_func(r_data_kernel_z);
+    wdKTWdKp(x, y, c) = sum(dKTWdKp(x, y, c, r_dk_c) *
+                            data_kernel_weights(r_dk_c));
     Func KTWKp("K^TWKp");
-    KTWKp(x, y, c) = 0.f;
-    KTWKp(x, y, c) += wdKTWdKp(x - r_kernel.x + kernel.width()  / 2,
-                               y - r_kernel.y + kernel.height() / 2,
-                               c) *
-                      kernel(r_kernel.x, r_kernel.y);
+    KTWKp(x, y, c) = sum(wdKTWdKp(x - r_k.x + kw / 2, y - r_k.y + kh / 2, c) *
+                         kernel(r_k.x, r_k.y));
     // Prior term on p
-    RDom r_reg_kernel_xy(0, reg_kernels.width(), 0, reg_kernels.height());
-    RDom r_reg_kernel_z(0, reg_kernels.channels());
     Func rKp("rKp");
-    rKp(x, y, c, n) = 0.f;
-    rKp(x, y, c, n) += p(x + r_reg_kernel_xy.x - reg_kernels.width()  / 2,
-                         y + r_reg_kernel_xy.y - reg_kernels.height() / 2,
-                         c) *
-                       reg_kernels_func(r_reg_kernel_xy.x, r_reg_kernel_xy.y, n);
+    rKp(x, y, c, n) = sum(p(x + r_rk.x - rkw / 2, y + r_rk.y - rkh / 2, c) *
+                          reg_kernels(r_rk.x, r_rk.y, n));
     Func WrKp("WrKp");
     WrKp(x, y, c, n) = rKp(x, y, c, n) * clamped_w_reg(x, y, c, n);
     Func rKTWrKp("rK^TWrKp");
     rKTWrKp(x, y, c, n) = 0.f;
-    rKTWrKp(x, y, c, n) += WrKp(x - r_reg_kernel_xy.x + reg_kernels.width()  / 2,
-                                y - r_reg_kernel_xy.y + reg_kernels.height() / 2,
-                                c,
-                                n) *
-                           reg_kernels_func(r_reg_kernel_xy.x,
-                                            r_reg_kernel_xy.y,
-                                            n);
+    rKTWrKp(x, y, c, n) += WrKp(x - r_rk.x + rkw / 2, y - r_rk.y + rkh / 2, c, n) *
+                           reg_kernels(r_rk.x, r_rk.y, n);
     Func wrKTWrKp("wrKTWrKp");
     wrKTWrKp(x, y, c) = 0.f;
-    wrKTWrKp(x, y, c) += rKTWrKp(x, y, c, r_reg_kernel_z) *
-                         abs(reg_kernel_weights_func(r_reg_kernel_z));
+    wrKTWrKp(x, y, c) += rKTWrKp(x, y, c, r_rk_c) *
+                         abs(reg_kernel_weights(r_rk_c));
     Func ATWAp("A^TWAp");
     ATWAp(x, y, c) = KTWKp(x, y, c) + wrKTWrKp(x, y, c);
     Func pTATWAp("p^TA^TWAp");
     pTATWAp() = 0.f;
-    pTATWAp() += p(r_image.x, r_image.y, r_image.z) *
-                 ATWAp(r_image.x, r_image.y, r_image.z);
+    pTATWAp() += p(r_img.x, r_img.y, r_img.z) *
+                 ATWAp(r_img.x, r_img.y, r_img.z);
 
     Func alpha("alpha");
     alpha() = rTr() / pTATWAp();
@@ -132,9 +102,7 @@ std::map<std::string, Func> deconv_cg_iter(
 
     // beta = nextZ^T(nextR - r) / r^Tr
     Func nRTnR("nRTnR");
-    nRTnR() = 0.f;
-    nRTnR() += next_r(r_image.x, r_image.y, r_image.z) *
-               next_r(r_image.x, r_image.y, r_image.z);
+    nRTnR() = sum(square(next_r(r_img.x, r_img.y, r_img.z)));
     Func beta("beta");
     beta() = nRTnR() / rTr();
     Func next_p("next_p");
@@ -146,15 +114,6 @@ std::map<std::string, Func> deconv_cg_iter(
     next_xrp(x, y, c, 1) = next_r(x, y, c);
     next_xrp(x, y, c, 2) = next_p(x, y, c);
 
-    std::map<std::string, Func> func_map;
-    func_map["reg_kernel_weights_func"] = reg_kernel_weights_func;
-    func_map["reg_kernels_func"] = reg_kernels_func;
-    func_map["data_kernel_weights_func"] = data_kernel_weights_func;
-    func_map["data_kernels_func"] = data_kernels_func;
-    func_map["w_data_func"] = w_data_re;
-    func_map["w_reg_func"] = w_reg_re;
-    func_map["xrp_func"] = xrp_re;
-    func_map["next_xrp"] = next_xrp;
-    return func_map;
+    return next_xrp;
 }
 

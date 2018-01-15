@@ -587,8 +587,8 @@ def _test_deconv_cg(gpu=False):
 def _test_deconv_cg_auto(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
-  w = 32
-  h = 32
+  w = 256
+  h = 256
   image = image[100:100 + w, 100:100 + h, :]
   np.random.seed(1234)
   kernel = utils.sample_psf(11)
@@ -605,7 +605,7 @@ def _test_deconv_cg_auto(gpu=False):
     kernel = kernel.cuda()
     op.cuda()
 
-  output = op(blurred, kernel, num_cg_iter = 1).view(3, w, h)
+  output = op(blurred, kernel, num_cg_iter = 20).view(3, w, h)
   loss = output.sum()
   loss.backward()
 
@@ -798,9 +798,9 @@ def test_bilinear_resampling(cuda=False):
         loss.backward()
       end = time.time()
 
-    print "{}: running time {}ms".format(name, (end-start)*1000/nits)
+    print("{}: running time {}ms".format(name, (end-start)*1000/nits))
 
-    print output.min(), output.max()
+    print(output.min(), output.max())
 
     output = output.data[0].cpu().numpy()
     output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
