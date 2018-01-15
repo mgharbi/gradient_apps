@@ -60,6 +60,10 @@ OPS = \
 			#spatial_transformer_forward spatial_transformer_backward \
 			#bilinear_resampling_forward bilinear_resampling_backward \
 			#spatial_transformer_forward spatial_transformer_backward \
+			#burst_demosaicking_forward burst_demosaicking_backward \
+			#naive_demosaick_forward \
+			# bilinear_resampling_forward bilinear_resampling_backward \
+			# spatial_transformer_forward spatial_transformer_backward \
 	  		# deconv_grad_init_forward deconv_grad_init_backward \
 	  		# deconv_grad_iter_forward deconv_grad_iter_backward \
 			# bilateral_grid_forward bilateral_grid_backward \
