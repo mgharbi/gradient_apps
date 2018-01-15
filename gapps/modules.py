@@ -214,6 +214,7 @@ class DeconvNonlinearCG(nn.Module):
     self.data_kernel_weights = nn.Parameter(th.zeros(num_stages + 1, num_data_kernels))
     self.reg_kernels = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_kernel_weights = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels))
+    self.reg_powers = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels))
     self.filter_s = nn.Parameter(th.zeros(num_stages, filter_s_size))
     self.filter_r = nn.Parameter(th.zeros(num_stages, filter_r_size))
     self.reg_thresholds = nn.Parameter(th.zeros(num_stages, num_reg_kernels))
@@ -263,6 +264,8 @@ class DeconvNonlinearCG(nn.Module):
     self.reg_thresholds.data[:, 3] = 0.0325
     self.reg_thresholds.data[:, 4] = 0.0325
 
+    self.reg_powers.data[:, :] = 2.0
+
   def train(self, mode=True):
     super(DeconvNonlinearCG, self).train(mode)
     for p in self.parameters():
@@ -286,7 +289,7 @@ class DeconvNonlinearCG(nn.Module):
         grad = funcs.DeconvGrad.apply(blurred, x, kernel,
           self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
           self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
-          reg_targets)
+          self.reg_powers[index, :], reg_targets)
         r = -grad
         r_norm = th.dot(r, r)
         r0 = r_norm
@@ -295,12 +298,12 @@ class DeconvNonlinearCG(nn.Module):
           alpha = funcs.DeconvAlpha.apply(blurred, x, kernel,
             self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
             self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
-            reg_targets, p)
+            self.reg_powers[index, :], reg_targets, p)
           x = x + alpha * p
           grad = funcs.DeconvGrad.apply(blurred, x, kernel,
             self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
             self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
-            reg_targets)
+            self.reg_powers[index, :], reg_targets)
           r = -grad
           new_r_norm = th.dot(r, r)
           # Fletcher-Reeves update rule

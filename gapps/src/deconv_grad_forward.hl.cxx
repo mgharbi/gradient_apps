@@ -14,6 +14,7 @@ public:
     Input<Buffer<float>>  data_kernels{"data_kernels", 3};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
+    Input<Buffer<float>>  reg_powers{"reg_powers", 1};
     Input<Buffer<float>>  reg_targets{"reg_targets", 4};
     Output<Buffer<float>> output{"output", 3};
 
@@ -21,7 +22,7 @@ public:
         Func cost = deconv_cost(
             xk, blurred, kernel,
             data_kernel_weights, data_kernels,
-            reg_kernel_weights, reg_kernels, reg_targets);
+            reg_kernel_weights, reg_kernels, reg_powers, reg_targets);
         Derivative d = propagate_adjoints(cost);
         Func grad = d(xk);
         output(x, y, c) = grad(x, y, c);
@@ -65,6 +66,8 @@ public:
                                  {"reg_kernels.extent.0", 5},
                                  {"reg_kernels.extent.1", 5},
                                  {"reg_kernels.extent.2", 5},
+                                 {"reg_powers.min.0", 0},
+                                 {"reg_powers.extent.0", 5},
                                  {"reg_targets.min.0", 0},
                                  {"reg_targets.min.1", 0},
                                  {"reg_targets.min.2", 0},

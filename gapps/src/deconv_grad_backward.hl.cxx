@@ -14,6 +14,7 @@ public:
     Input<Buffer<float>>  data_kernels{"data_kernels", 3};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
+    Input<Buffer<float>>  reg_powers{"reg_powers", 1};
     Input<Buffer<float>>  reg_targets{"reg_targets", 4};
     Input<Buffer<float>>  d_output{"d_output", 3};
     Output<Buffer<float>> d_xk{"d_xk", 3};
@@ -21,13 +22,14 @@ public:
     Output<Buffer<float>> d_data_kernels{"d_data_kernels", 3};
     Output<Buffer<float>> d_reg_kernel_weights{"d_reg_kernel_weights", 1};
     Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
+    Output<Buffer<float>> d_reg_powers{"d_reg_powers", 1};
     Output<Buffer<float>> d_reg_targets{"d_reg_targets", 4};
 
     void generate() {
         Func cost = deconv_cost(
             xk, blurred, kernel,
             data_kernel_weights, data_kernels,
-            reg_kernel_weights, reg_kernels, reg_targets);
+            reg_kernel_weights, reg_kernels, reg_powers, reg_targets);
         Derivative d = propagate_adjoints(cost);
         Func grad = d(xk);
 
@@ -45,6 +47,7 @@ public:
         assign_gradient(d2, data_kernels, d_data_kernels);
         assign_gradient(d2, reg_kernel_weights, d_reg_kernel_weights);
         assign_gradient(d2, reg_kernels, d_reg_kernels);
+        assign_gradient(d2, reg_powers, d_reg_powers);
         assign_gradient(d2, reg_targets, d_reg_targets);
 
         if (auto_schedule) {
@@ -53,7 +56,7 @@ public:
             options.gpu = get_target().has_gpu_feature();
             std::vector<Func> funcs{d_xk,
                 d_data_kernel_weights, d_data_kernels,
-                d_reg_kernel_weights, d_reg_kernels, d_reg_targets};
+                d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets};
             simple_autoschedule(funcs,
                                 {
                                  {"blurred.min.0", 0},
@@ -88,6 +91,8 @@ public:
                                  {"reg_kernels.extent.0", 5},
                                  {"reg_kernels.extent.1", 5},
                                  {"reg_kernels.extent.2", 5},
+                                 {"reg_powers.min.0", 0},
+                                 {"reg_powers.extent.0", 5},
                                  {"reg_targets.min.0", 0},
                                  {"reg_targets.min.1", 0},
                                  {"reg_targets.min.2", 0},
@@ -115,6 +120,7 @@ public:
                                  {{0, 4},  // reg_kernels
                                   {0, 4},
                                   {0, 4}},
+                                 {{0, 4}}, // reg_powers
                                  {{0, 255}, // r_targets
                                   {0, 255},
                                   {0, 2},

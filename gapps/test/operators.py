@@ -605,7 +605,7 @@ def _test_deconv_nonlinear_cg(gpu=False):
     kernel = kernel.cuda()
     op.cuda()
 
-  output = op(blurred, kernel, num_cg_iter = 100).view(3, w, h)
+  output = op(blurred, kernel, num_cg_iter = 20).view(3, w, h)
   loss = output.sum()
   loss.backward()
 

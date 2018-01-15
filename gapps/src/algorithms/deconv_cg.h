@@ -14,6 +14,7 @@ Func deconv_cost(const Input &xk,
                  const Input &data_kernels,
                  const Input &reg_kernel_weights,
                  const Input &reg_kernels,
+                 const Input &reg_powers,
                  const Input &rtargets) {
     RDom r_kernel(kernel);
     RDom r_data_kernel_xy(0, data_kernels.width(), 0, data_kernels.height());
@@ -61,8 +62,9 @@ Func deconv_cost(const Input &xk,
                        reg_kernels(r_reg_kernel_xy.x, r_reg_kernel_xy.y, n);
     Func reg_term("reg_term");
     reg_term(n) = 0.f;
-    reg_term(n) += pow(rkx(r_image.x, r_image.y, r_image.z, n) -
-                       rtargets(r_image.x, r_image.y, r_image.z, n), 2.f) *
+    // HACK: add a small constant to avoid numerical issue on the derivatives
+    reg_term(n) += pow(abs(rkx(r_image.x, r_image.y, r_image.z, n) -
+                           rtargets(r_image.x, r_image.y, r_image.z, n)) + 1e-6f, reg_powers(n)) *
                    abs(reg_kernel_weights(n));
     Func cost("cost");
     cost() = 0.f;
