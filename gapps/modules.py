@@ -535,3 +535,128 @@ class BurstDemosaicking(nn.Module):
     out, reproj_error = funcs.BurstDemosaicking.apply(
         inputs, homographies, reconstructed, gradient_weight)
     return out, reproj_error
+
+class VGG(nn.Module):
+  def __init__(self, pytorch=False):
+    super(VGG, self).__init__()
+    self.pytorch = pytorch
+
+    if self.pytorch:
+      self.conv = nn.Sequential(
+          nn.Conv2d(3, 64, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(64, 64, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          nn.Conv2d(64, 128, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(128, 128, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          nn.Conv2d(128, 256, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(256, 256, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(256, 256, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          nn.Conv2d(256, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          )
+      self.fc = nn.Sequential(
+          nn.Linear(512 * 7 * 7, 4096),
+          nn.ReLU(inplace=True),
+          nn.Linear(4096, 4096),
+          nn.ReLU(inplace=True),
+          nn.Linear(4096, 1000),
+          nn.ReLU(inplace=True),
+          )
+    else:
+      self.conv_weights = [
+          # co, ci, ky, kx
+          th.rand(64, 3, 3, 3),   # conv1_1
+          th.rand(64, 64, 3, 3),  # conv1_2
+
+          th.rand(128, 64, 3, 3),   # conv2_1
+          th.rand(128, 128, 3, 3),  # conv2_2
+
+          th.rand(256, 128, 3, 3),   # conv3_1
+          th.rand(256, 256, 3, 3),   # conv3_2
+          th.rand(256, 256, 3, 3),   # conv3_3
+
+          th.rand(512, 256, 3, 3),   # conv4_1
+          th.rand(512, 512, 3, 3),   # conv4_2
+          th.rand(512, 512, 3, 3),   # conv4_3
+
+          th.rand(512, 512, 3, 3),   # conv5_1
+          th.rand(512, 512, 3, 3),   # conv5_2
+          th.rand(512, 512, 3, 3),   # conv5_3
+          ]
+
+      self.fc_weights = [
+          # co, ci
+          th.rand(4096, 512*7*7),  # fc6
+          th.rand(4096, 4096), # fc7
+          th.rand(1000, 4096), # fc8
+          ]
+
+      self.biases = [
+          th.zeros(64),
+          th.zeros(64),
+
+          th.zeros(128),
+          th.zeros(128),
+
+          th.zeros(256),
+          th.zeros(256),
+          th.zeros(256),
+
+          th.zeros(512),
+          th.zeros(512),
+          th.zeros(512),
+
+          th.zeros(512),
+          th.zeros(512),
+          th.zeros(512),
+
+          th.zeros(4096),
+          th.zeros(4096),
+          th.zeros(1000),
+          ]
+
+  def cuda(self, device=None):
+    super(VGG, self).cuda(device=device)
+    if not self.pytorch:
+      for i, p in enumerate(self.conv_weights):
+        self.conv_weights[i] = p.cuda()
+
+      for i, p in enumerate(self.fc_weights):
+        self.fc_weights[i] = p.cuda()
+
+      for i, p in enumerate(self.biases):
+        self.biases[i] = p.cuda()
+
+    return self
+
+  def forward(self, input):
+    if self.pytorch:
+      conv = self.conv(input)
+      bs, c, h, w = conv.shape
+      conv = conv.view(bs, c*h*w)
+      out = self.fc(conv)
+    else:
+      out = funcs.VGG.apply(
+          input, self.conv_weights, self.fc_weights, self.biases)
+    return out

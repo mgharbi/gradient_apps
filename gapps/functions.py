@@ -873,3 +873,44 @@ class BurstDemosaicking(Function):
     d_reconstructed = Variable(d_reconstructed)
 
     return None, d_homographies, d_reconstructed, None
+
+
+class VGG(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, conv_weights, fc_weights, biases):
+    ctx.save_for_backward(input, conv_weights, fc_weights, biases)
+
+    bs, ci, h, w = input.shape
+
+    n_out = fc_weights[-1].shape[0]
+
+    output = input.new()
+    output.resize_(bs, n_out)
+    args = [input] + conv_weights + fc_weights + biases + [output]
+    ops.vgg_forward(*args)
+
+    return output
+  #
+  # @staticmethod
+  # def backward(ctx, d_loss, d_reproj_error):
+  #   inputs, homographies, reconstructed, gradient_weight = ctx.saved_variables
+  #
+  #   # d_confidence = confidence.data.new()
+  #   # d_confidence.resize_as_(confidence.data)
+  #   d_homographies = homographies.data.new()
+  #   d_homographies.resize_as_(homographies.data)
+  #   d_reconstructed = reconstructed.data.new()
+  #   d_reconstructed.resize_as_(reconstructed.data)
+  #
+  #   ops.burst_demosaicking_backward(
+  #       inputs.data, homographies.data, reconstructed.data,
+  #       gradient_weight.data, d_loss.data,
+  #       d_homographies, d_reconstructed)
+  #
+  #   # d_confidence = Variable(d_confidence)
+  #   d_homographies = Variable(d_homographies)
+  #   d_reconstructed = Variable(d_reconstructed)
+  #
+  #   return None, d_homographies, d_reconstructed, None

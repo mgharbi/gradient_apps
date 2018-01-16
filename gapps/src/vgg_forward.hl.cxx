@@ -1,4 +1,5 @@
 #include "algorithms/vgg.h"
+#include <vector>
 
 #include "gradient_helpers.h"
 
@@ -7,57 +8,157 @@ namespace gradient_apps {
 class VGGForwardGenerator : 
   public Generator<VGGForwardGenerator> {
 public:
-  Input<Buffer<float>>  inputs{"input", 4};
-  Input<Buffer<float>>  inputs{"input", 4};
-  Output<Buffer<float>> loss{"output", 4};
+  Input<Buffer<float>>  input{"input", 4};
+  Input<Func[13]>  weights{"weights", Float(32), 4};
+  Input<Func[3]>  fc_weights{"fc_weights", Float(32), 2};
+  Input<Func[16]>  biases{"biases", Float(32), 1};
+  Output<Buffer<float>> output{"output", 2};
 
   void generate() {
     std::map<std::string, Func> func_map = vgg(
-        inputs, homographies, reconstructed, gradient_weight);
-    Func f_loss = func_map["loss"];
-    Func f_reproj = func_map["reproj"];
-    loss(x) = f_loss(x);
-    reproj_error(x, y, n) = f_reproj(x, y, n);
+        input, weights, fc_weights, biases);
+    Func f_output = func_map["output"];
+    output(c, n) = f_output(c, n);
 
     SimpleAutoscheduleOptions options;
     options.gpu = get_target().has_gpu_feature();
-    Func loss_func = loss;
-    Func reproj_func = reproj_error;
 
     std::set<std::string> dont_inline = {};
 
-    std::vector<Func> funcs{loss_func, reproj_func};
+    std::vector<Func> funcs{output};
+
+    int bs = 1;
 
     simple_autoschedule(funcs,
         {
-        {"inputs.min.0", 0},
-        {"inputs.min.1", 0},
-        {"inputs.min.2", 0},
-        {"inputs.extent.0", 256},
-        {"inputs.extent.1", 256},
-        {"inputs.extent.2", 5},
-        // {"confidence.min.0", 0},
-        // {"confidence.min.1", 0},
-        // {"confidence.min.2", 0},
-        // {"confidence.extent.0", 256},
-        // {"confidence.extent.1", 256},
-        // {"confidence.extent.2", 5},
-        {"homographies.min.0", 0},
-        {"homographies.min.1", 0},
-        {"homographies.extent.0", 8},
-        {"homographies.extent.1", 5},
-        {"reconstructed.min.0", 0},
-        {"reconstructed.min.1", 0},
-        {"reconstructed.min.2", 0},
-        {"reconstructed.extent.0", 256},
-        {"reconstructed.extent.1", 256},
-        {"reconstructed.extent.2", 3},
-        {"gradient_weight.min.0", 0},
-        {"gradient_weight.extent.0", 0},
+        {"input.min.0", 0},
+        {"input.min.1", 0},
+        {"input.min.2", 0},
+        {"input.min.2", 0},
+        {"input.extent.0", 224},
+        {"input.extent.1", 224},
+        {"input.extent.2", 3},
+        {"input.extent.3", bs},
+        {"weights_0.min.0", 0},
+        {"weights_0.min.1", 0},
+        {"weights_0.min.2", 0},
+        {"weights_0.min.3", 0},
+        {"weights_0.extent.0", 3},
+        {"weights_0.extent.1", 3},
+        {"weights_0.extent.2", 3},
+        {"weights_0.extent.3", 64},
+        {"weights_1.min.0", 0},
+        {"weights_1.min.1", 0},
+        {"weights_1.min.2", 0},
+        {"weights_1.min.3", 0},
+        {"weights_1.extent.0", 3},
+        {"weights_1.extent.1", 3},
+        {"weights_1.extent.2", 64},
+        {"weights_1.extent.3", 64},
+        {"weights_2.min.0", 0},
+        {"weights_2.min.1", 0},
+        {"weights_2.min.2", 0},
+        {"weights_2.min.3", 0},
+        {"weights_2.extent.0", 3},
+        {"weights_2.extent.1", 3},
+        {"weights_2.extent.2", 64},
+        {"weights_2.extent.3", 128},
+        {"weights_3.min.0", 0},
+        {"weights_3.min.1", 0},
+        {"weights_3.min.2", 0},
+        {"weights_3.min.3", 0},
+        {"weights_3.extent.0", 3},
+        {"weights_3.extent.1", 3},
+        {"weights_3.extent.2", 128},
+        {"weights_3.extent.3", 128},
+        {"weights_4.min.0", 0},
+        {"weights_4.min.1", 0},
+        {"weights_4.min.2", 0},
+        {"weights_4.min.3", 0},
+        {"weights_4.extent.0", 3},
+        {"weights_4.extent.1", 3},
+        {"weights_4.extent.2", 128},
+        {"weights_4.extent.3", 256},
+        {"weights_5.min.0", 0},
+        {"weights_5.min.1", 0},
+        {"weights_5.min.2", 0},
+        {"weights_5.min.3", 0},
+        {"weights_5.extent.0", 3},
+        {"weights_5.extent.1", 3},
+        {"weights_5.extent.2", 256},
+        {"weights_5.extent.3", 256},
+        {"weights_6.min.0", 0},
+        {"weights_6.min.1", 0},
+        {"weights_6.min.2", 0},
+        {"weights_6.min.3", 0},
+        {"weights_6.extent.0", 3},
+        {"weights_6.extent.1", 3},
+        {"weights_6.extent.2", 256},
+        {"weights_6.extent.3", 256},
+        {"weights_7.min.0", 0},
+        {"weights_7.min.1", 0},
+        {"weights_7.min.2", 0},
+        {"weights_7.min.3", 0},
+        {"weights_7.extent.0", 3},
+        {"weights_7.extent.1", 3},
+        {"weights_7.extent.2", 256},
+        {"weights_7.extent.3", 512},
+        {"weights_8.min.0", 0},
+        {"weights_8.min.1", 0},
+        {"weights_8.min.2", 0},
+        {"weights_8.min.3", 0},
+        {"weights_8.extent.0", 3},
+        {"weights_8.extent.1", 3},
+        {"weights_8.extent.2", 512},
+        {"weights_8.extent.3", 512},
+        {"weights_9.min.0", 0},
+        {"weights_9.min.1", 0},
+        {"weights_9.min.2", 0},
+        {"weights_9.min.3", 0},
+        {"weights_9.extent.0", 3},
+        {"weights_9.extent.1", 3},
+        {"weights_9.extent.2", 512},
+        {"weights_9.extent.3", 512},
+
+        {"weights_10.min.0", 0},
+        {"weights_10.min.1", 0},
+        {"weights_10.min.2", 0},
+        {"weights_10.min.3", 0},
+        {"weights_10.extent.0", 3},
+        {"weights_10.extent.1", 3},
+        {"weights_10.extent.2", 512},
+        {"weights_10.extent.3", 512},
+        {"weights_11.min.0", 0},
+        {"weights_11.min.1", 0},
+        {"weights_11.min.2", 0},
+        {"weights_11.min.3", 0},
+        {"weights_11.extent.0", 3},
+        {"weights_11.extent.1", 3},
+        {"weights_11.extent.2", 512},
+        {"weights_11.extent.3", 512},
+        {"weights_12.min.0", 0},
+        {"weights_12.min.1", 0},
+        {"weights_12.min.2", 0},
+        {"weights_12.min.3", 0},
+        {"weights_12.extent.0", 3},
+        {"weights_12.extent.1", 3},
+        {"weights_12.extent.2", 512},
+        {"weights_12.extent.3", 512},
+        {"fc_weights_0.min.0", 0},
+        {"fc_weights_0.min.1", 0},
+        {"fc_weights_0.extent.0", 512},
+        {"fc_weights_0.extent.1", 4096},
+        {"fc_weights_1.min.0", 0},
+        {"fc_weights_1.min.1", 0},
+        {"fc_weights_1.extent.0", 512},
+        {"fc_weights_1.extent.1", 4096},
+        {"fc_weights_2.min.0", 0},
+        {"fc_weights_2.min.1", 0},
+        {"fc_weights_2.extent.0", 512},
+        {"fc_weights_2.extent.1", 4096},
         },
         {
-          {{0, 1}},
-          {{0, 255}, {0, 255}, {0, 5}},
+          {{0, 999}, {0, bs-1}},
         },
         options,
         dont_inline);
