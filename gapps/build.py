@@ -19,6 +19,7 @@ sources = [os.path.join(build_dir, f) for f in os.listdir(build_dir) if re_cc.ma
 
 exts = []
 
+
 ffi = create_extension(
   name='_ext.operators',
   package=False,
@@ -27,7 +28,7 @@ ffi = create_extension(
   define_macros=[('WITH_CUDA', None)],
   language="c++",
   extra_objects=extra_objects,
-  extra_compile_args=["-std=c++11"],
+  extra_compile_args=["-std=c++11", "-std=c99"],
   relative_to=__file__,
   include_dirs=[os.path.join(abs_path, "build"), os.path.join(halide_dir, "include")],
   with_cuda=True
