@@ -908,22 +908,23 @@ def test_burst_demosaicking(cuda=False):
   skimage.io.imsave(
       os.path.join(out_dir, "burst_demosaicking_diff_from_init.png"), diff)
 
+def test_vgg_gpu():
+  test_vgg(cuda=True)
 
-def test_vgg(cuda=False):
-  a = np.random.uniform(size=(1000, 1000))
-  b = np.random.uniform(size=(1000, 1000))
-  c = a.dot(b)
+def test_vgg_cpu():
+  test_vgg(cuda=False)
+
+def test_vgg(cuda=True):
   bs = 4
   im = th.rand(bs, 3, 224, 224)
-
   im = Variable(im, requires_grad=False)
 
   if cuda:
     im = im.cuda()
 
-  nits_burns = 1
+  nits_burns = 5
   nits = 3
-  for pytorch in [True]:
+  for pytorch in [True, False]:
     if pytorch:
       name = "vgg_pytorch"
     else:
@@ -938,13 +939,16 @@ def test_vgg(cuda=False):
       # loss = output.sum()
       # loss.backward()
 
+    print "running"
     start = time.time()
     with profiler.profile() as prof:
       for it in xrange(nits):
         output = op(im)
-        # loss = output.sum()
+        loss = output.mean()
+        print output.cpu().data.numpy()[0, :4]
+        print "loss = {:.2f}".format(loss.data.cpu()[0])
         # loss.backward()
-    print prof
+    # print prof
     end = time.time()
 
     print("{}: running time {}ms".format(name, (end-start)*1000/nits))

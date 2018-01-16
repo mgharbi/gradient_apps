@@ -544,6 +544,8 @@ class VGG(nn.Module):
     super(VGG, self).__init__()
     self.pytorch = pytorch
 
+    self.wscale = 1e-3
+
     if self.pytorch:
       self.conv = nn.Sequential(
           nn.Conv2d(3, 64, kernel_size=3, padding=1),
@@ -586,33 +588,39 @@ class VGG(nn.Module):
           nn.Linear(4096, 1000),
           nn.ReLU(inplace=True),
           )
+
+      for n, p in self.named_parameters():
+        if "weight" in n:
+          p.data.fill_(self.wscale)
+        elif "bias" in n:
+          p.data.zero_()
     else:
       self.conv_weights = [
           # co, ci, ky, kx
-          th.rand(64, 3, 3, 3),   # conv1_1
-          th.rand(64, 64, 3, 3),  # conv1_2
+          self.wscale*th.ones(64, 3, 3, 3),   # conv1_1
+          self.wscale*th.ones(64, 64, 3, 3),  # conv1_2
 
-          th.rand(128, 64, 3, 3),   # conv2_1
-          th.rand(128, 128, 3, 3),  # conv2_2
+          self.wscale*th.ones(128, 64, 3, 3),   # conv2_1
+          self.wscale*th.ones(128, 128, 3, 3),  # conv2_2
 
-          th.rand(256, 128, 3, 3),   # conv3_1
-          th.rand(256, 256, 3, 3),   # conv3_2
-          th.rand(256, 256, 3, 3),   # conv3_3
+          self.wscale*th.ones(256, 128, 3, 3),   # conv3_1
+          self.wscale*th.ones(256, 256, 3, 3),   # conv3_2
+          self.wscale*th.ones(256, 256, 3, 3),   # conv3_3
 
-          th.rand(512, 256, 3, 3),   # conv4_1
-          th.rand(512, 512, 3, 3),   # conv4_2
-          th.rand(512, 512, 3, 3),   # conv4_3
+          self.wscale*th.ones(512, 256, 3, 3),   # conv4_1
+          self.wscale*th.ones(512, 512, 3, 3),   # conv4_2
+          self.wscale*th.ones(512, 512, 3, 3),   # conv4_3
 
-          th.rand(512, 512, 3, 3),   # conv5_1
-          th.rand(512, 512, 3, 3),   # conv5_2
-          th.rand(512, 512, 3, 3),   # conv5_3
+          self.wscale*th.ones(512, 512, 3, 3),   # conv5_1
+          self.wscale*th.ones(512, 512, 3, 3),   # conv5_2
+          self.wscale*th.ones(512, 512, 3, 3),   # conv5_3
           ]
 
       self.fc_weights = [
           # co, ci
-          th.rand(4096, 512*7*7),  # fc6
-          th.rand(4096, 4096), # fc7
-          th.rand(1000, 4096), # fc8
+          self.wscale*th.ones(4096, 512*7*7),  # fc6
+          self.wscale*th.ones(4096, 4096), # fc7
+          self.wscale*th.ones(1000, 4096), # fc8
           ]
 
       self.biases = [
