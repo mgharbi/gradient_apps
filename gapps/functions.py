@@ -636,11 +636,11 @@ class DeconvGrad(Function):
 
   @staticmethod
   def forward(ctx, blurred, xk, kernel,
-          data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels,
+          data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_powers,
           reg_targets):
     if any(ctx.needs_input_grad):
       ctx.save_for_backward(blurred, xk, kernel,
-              data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets)
+        data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_powers, reg_targets)
 
     output = blurred.new()
     ci, h, w = blurred.shape
@@ -650,14 +650,14 @@ class DeconvGrad(Function):
     ops.deconv_grad_forward(
         blurred, xk, kernel,
         data_kernel_weights, data_kernels,
-        reg_kernel_weights, reg_kernels, reg_targets, output)
+        reg_kernel_weights, reg_kernels, reg_powers, reg_targets, output)
 
     return output
 
   @staticmethod
   def backward(ctx, d_output):
     blurred, xk, kernel, data_kernel_weights, data_kernels, \
-        reg_kernel_weights, reg_kernels, reg_targets = ctx.saved_variables
+        reg_kernel_weights, reg_kernels, reg_powers, reg_targets = ctx.saved_variables
 
     d_xk = xk.data.new()
     d_xk.resize_as_(xk.data)
@@ -669,34 +669,38 @@ class DeconvGrad(Function):
     d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
+    d_reg_powers = reg_powers.data.new()
+    d_reg_powers.resize_as_(reg_powers.data)
     d_reg_targets = reg_targets.data.new()
     d_reg_targets.resize_as_(reg_targets.data)
 
     ops.deconv_grad_backward(
-        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data,
+        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_powers.data, reg_targets.data,
         d_output.data,
-        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets)
+        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets)
 
     d_xk = Variable(d_xk)
     d_data_kernel_weights = Variable(d_data_kernel_weights)
     d_data_kernels = Variable(d_data_kernels)
     d_reg_kernel_weights = Variable(d_reg_kernel_weights)
     d_reg_kernels = Variable(d_reg_kernels)
+    d_reg_powers = Variable(d_reg_powers)
     d_reg_targets = Variable(d_reg_targets)
 
     return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
-           d_reg_kernel_weights, d_reg_kernels, d_reg_targets
+           d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets
 
 class DeconvAlpha(Function):
   """"""
 
   @staticmethod
   def forward(ctx, blurred, xk, kernel,
-          data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels,
+          data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_powers,
           reg_targets, direction):
     if any(ctx.needs_input_grad):
       ctx.save_for_backward(blurred, xk, kernel,
-              data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, direction)
+              data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_powers,
+              reg_targets, direction)
 
     output = blurred.new()
     ci, h, w = blurred.shape
@@ -706,14 +710,14 @@ class DeconvAlpha(Function):
     ops.deconv_alpha_forward(
         blurred, xk, kernel,
         data_kernel_weights, data_kernels,
-        reg_kernel_weights, reg_kernels, reg_targets, direction, output)
+        reg_kernel_weights, reg_kernels, reg_powers, reg_targets, direction, output)
 
     return output
 
   @staticmethod
   def backward(ctx, d_output):
     blurred, xk, kernel, data_kernel_weights, data_kernels, \
-        reg_kernel_weights, reg_kernels, reg_targets, direction = ctx.saved_variables
+        reg_kernel_weights, reg_kernels, reg_powers, reg_targets, direction = ctx.saved_variables
 
     d_xk = xk.data.new()
     d_xk.resize_as_(xk.data)
@@ -725,26 +729,29 @@ class DeconvAlpha(Function):
     d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
+    d_reg_powers = reg_powers.data.new()
+    d_reg_powers.resize_as_(reg_powers.data)
     d_reg_targets = reg_targets.data.new()
     d_reg_targets.resize_as_(reg_targets.data)
     d_direction = direction.data.new()
     d_direction.resize_as_(direction.data)
 
     ops.deconv_alpha_backward(
-        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data, direction.data,
+        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_powers.data, reg_targets.data, direction.data,
         d_output.data,
-        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_direction)
+        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets, d_direction)
 
     d_xk = Variable(d_xk)
     d_data_kernel_weights = Variable(d_data_kernel_weights)
     d_data_kernels = Variable(d_data_kernels)
     d_reg_kernel_weights = Variable(d_reg_kernel_weights)
     d_reg_kernels = Variable(d_reg_kernels)
+    d_reg_powers = Variable(d_reg_powers)
     d_reg_targets = Variable(d_reg_targets)
     d_direction = Variable(d_direction)
 
     return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
-           d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_direction
+           d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets, d_direction
 
 class SpatialTransformer(Function):
   """"""
