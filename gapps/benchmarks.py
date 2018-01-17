@@ -48,8 +48,12 @@ class Benchmark(object):
     start = time.time()
     with profiler.profile() as prof:
       for i in range(self.iters):
+        start1 = time.time()
         self.run()
-        th.cuda.synchronize()
+        # th.cuda.synchronize()
+        end1 = time.time()
+        runtime1 = (end1-start1)*1000.0
+        print "iter {}: {:.2f}ms".format(i, runtime1)
       end = time.time()
 
     runtime = (end-start)*1000.0/self.iters
@@ -112,11 +116,11 @@ class VGG(Benchmark):
 
   def run(self):
     output = self.op(self.image)
-    loss = output.sum()
+    loss = output.mean()
     print loss.data.cpu()[0]
 
   def reset(self):
-    bs = 4
+    bs = 1
     self.image = Variable(th.rand(bs, 3, 224, 224), requires_grad=False)
     self.op = modules.VGG(pytorch=self.pytorch)
 

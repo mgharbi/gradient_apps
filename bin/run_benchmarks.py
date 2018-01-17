@@ -3,12 +3,12 @@ import gapps.benchmarks as b
 
 def main():
   res = [
-    # b.SpatialTransformer(False),
-    # b.SpatialTransformer(False, True),
-    b.SpatialTransformer(True),
-    b.SpatialTransformer(True, True),
-    # b.VGG(True),
-    # b.VGG(True, True),
+    b.SpatialTransformer(False),
+    b.SpatialTransformer(False, True),
+    # b.SpatialTransformer(True),
+    # b.SpatialTransformer(True, True),
+    # b.VGG(False, True),
+    # b.VGG(False),
   ]
 
   for r in res:

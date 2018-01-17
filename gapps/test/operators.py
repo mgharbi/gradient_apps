@@ -915,7 +915,7 @@ def test_vgg_cpu():
   test_vgg(cuda=False)
 
 def test_vgg(cuda=True):
-  bs = 1
+  bs = 16
   im = th.rand(bs, 3, 224, 224)
   im = Variable(im, requires_grad=False)
 
@@ -923,7 +923,7 @@ def test_vgg(cuda=True):
     im = im.cuda()
 
   nits_burns = 5
-  nits = 30
+  nits = 10
   for pytorch in [True,False]:
     if pytorch:
       name = "vgg_pytorch"
@@ -941,16 +941,13 @@ def test_vgg(cuda=True):
       # loss = output.sum()
       # loss.backward()
 
-    import torch.backends.cudnn as cudnn
-    cudnn.benchmark = True
-
     print "running"
     start = time.time()
-    with profiler.profile() as prof:
-      for it in xrange(nits):
-        output = op(im)
-        th.cuda.synchronize()
-        loss = output.mean()
+    # with profiler.profile() as prof:
+    for it in xrange(nits):
+      output = op(im)
+      loss = output.mean()
+      th.cuda.synchronize()
         # loss.backward()
         # print output.cpu().data.numpy()[0, :4]
         # print "loss = {:.2f}".format(loss.data.cpu()[0])
