@@ -923,3 +923,37 @@ class VGGfwd_bwd(Function):
     ops.vgg_forward_backward(*args)
 
     return (output, ) + tuple(grads)
+
+
+class Conv2d(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, weights):
+    bs, ci, h, w = input.shape
+    n_out = weights.shape[0]
+
+    assert weights.shape[1] == ci
+
+    output = input.new()
+    output.resize_(bs, n_out, h, w)
+    ops.conv2d_forward(input, weights, output)
+
+    return output
+
+
+class BackwardConv2dGeneralScatter(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, d_output, weights):
+    bs, co, h, w = d_output.shape
+    n_in = weights.shape[1]
+
+    assert weights.shape[0] == co
+
+    d_input = d_output.new()
+    d_input.resize_(bs, n_in, h, w)
+    ops.conv2d_backward_scatter(d_output, weights, d_input)
+
+    return d_input

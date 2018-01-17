@@ -164,3 +164,37 @@ class VGG(Benchmark):
     if self.cuda:
       self.image = self.image.cuda()
       self.op = self.op.cuda()
+
+
+class BackwardConv2d(Benchmark):
+  def __init__(self, cuda=False, general_scatter=False, burn_iters=5, iters=10):
+    super(BackwardConv2d, self).__init__(
+        cuda=cuda, burn_iters=burn_iters, iters=iters)
+    self.general_scatter = general_scatter
+
+  def name(self):
+    if self.general_scatter:
+      return "BackwardConv2dGeneralScatter"
+    else:
+      return "BackwardConv2d"
+
+  def run(self):
+    output = self.op(self.image)
+
+  def reset(self):
+    sz = 256
+    bs = 8
+    c = 16
+    im = th.randn(bs, c, sz, sz)
+    guide = th.rand(bs, sz, sz)
+    self.image = Variable(im, requires_grad=True)
+
+    if self.general_scatter:
+      self.op = modules.BackwardConv2dGeneralScatter(c, c, 3)
+    else:
+      self.op = modules.Conv2d(c, c, 3)
+
+    if self.cuda:
+      self.image = self.image.cuda()
+      self.op = self.op.cuda()
+

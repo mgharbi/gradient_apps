@@ -464,8 +464,6 @@ class BilateralLayerTorch(BilateralLayerBase):
     fx = th.floor(gx - 0.5);
     fy = th.floor(gy - 0.5);
     fz = th.clamp(th.floor(gz-0.5), min=0)
-    # batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
-    # c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
 
     # Trilerp weights
     wx = Variable(gx - 0.5 - fx);
@@ -482,8 +480,6 @@ class BilateralLayerTorch(BilateralLayerBase):
 
 
     # Make indices broadcastable
-    # fx = np.expand_dims(fx, 0)
-    # fy = np.expand_dims(fy, 0)
     fz = fz[:, 0].view(bs, 1, h, w)
     cz = cz[:, 0].view(bs, 1, h, w)
 
@@ -778,3 +774,20 @@ class VGGours(nn.Module):
     grads = outs[1:]
     import ipdb; ipdb.set_trace()
     return out
+
+class Conv2d(nn.Module):
+  def __init__(self, n_in, n_out, ksize):
+    super(Conv2d, self).__init__()
+    self.weight = nn.Parameter(th.zeros(n_out, n_in, ksize, ksize))
+
+  def forward(self, x):
+    return funcs.Conv2d.apply(x, self.weight)
+    
+
+class BackwardConv2dGeneralScatter(nn.Module):
+  def __init__(self, n_in, n_out, ksize):
+    super(BackwardConv2dGeneralScatter, self).__init__()
+    self.weight = nn.Parameter(th.zeros(n_out, n_in, ksize, ksize))
+
+  def forward(self, x):
+    return funcs.BackwardConv2dGeneralScatter.apply(x, self.weight)

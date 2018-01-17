@@ -3,10 +3,12 @@ import gapps.benchmarks as b
 
 def main():
   res = [
-    b.BilateralLayer(True),
-    b.BilateralLayer(True, True),
-    b.BilateralLayer(False),
-    b.BilateralLayer(False, True),
+    b.BackwardConv2d(True),
+    b.BackwardConv2d(True, True),
+    # b.BilateralLayer(True),
+    # b.BilateralLayer(True, True),
+    # b.BilateralLayer(False),
+    # b.BilateralLayer(False, True),
     # b.SpatialTransformer(False),
     # b.SpatialTransformer(False, True),
     # b.SpatialTransformer(True),
