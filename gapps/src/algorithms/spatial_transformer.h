@@ -16,8 +16,9 @@ std::map<std::string, Func> spatial_transformer(
         const Input &affine_mtx
         ) {
     Func f_input("f_input");
-    f_input(x, y, c, n) = Halide::BoundaryConditions::constant_exterior(
-        input, 0)(x, y, c, n);
+    f_input(x, y, c, n) = input(x, y, c, n);
+    // f_input(x, y, c, n) = Halide::BoundaryConditions::constant_exterior(
+    //     input, 0)(x, y, c, n);
     Func f_affine_mtx("f_affine_mtx");
     f_affine_mtx(x, y, n) = affine_mtx(x, y, n);
 
@@ -42,14 +43,20 @@ std::map<std::string, Func> spatial_transformer(
     // Convert back to image space
     Expr new_x = clamp(
         width*0.5f*(xformed_x + 1.0f),
-        -1.0f, cast<float>(width));
+        0.0f, cast<float>(width-1));
     Expr new_y = clamp(
         height*0.5f*(xformed_y + 1.0f),
-        -1.0f, cast<float>(height));
+        0.0f, cast<float>(height-1));
+    // Expr new_x = clamp(
+    //     width*0.5f*(xformed_x + 1.0f),
+    //     -1.0f, cast<float>(width));
+    // Expr new_y = clamp(
+    //     height*0.5f*(xformed_y + 1.0f),
+    //     -1.0f, cast<float>(height));
 
     // Bilinear interpolation
-    Expr fx = cast<int>(floor(new_x));
-    Expr fy = cast<int>(floor(new_y));
+    Expr fx = clamp(cast<int>(floor(new_x)), 0, width-2);
+    Expr fy = clamp(cast<int>(floor(new_y)), 0, height-2);
     Expr wx = (new_x - fx);
     Expr wy = (new_y - fy);
 
