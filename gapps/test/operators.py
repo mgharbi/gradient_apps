@@ -689,10 +689,10 @@ def test_stn_gpu():
 def test_stn_cpu():
   test_stn(False)
 
-def test_stn(cuda=False):
+def test_stn(cuda=True):
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
 
-  sz = 256
+  sz = 512
   image = image[:sz, :sz, :]
 
   bs = 16
