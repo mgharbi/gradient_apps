@@ -183,8 +183,8 @@ class BackwardConv2d(Benchmark):
 
   def reset(self):
     sz = 256
-    bs = 8
-    c = 16
+    bs = 1
+    c = 3
     im = th.randn(bs, c, sz, sz)
     guide = th.rand(bs, sz, sz)
     self.image = Variable(im, requires_grad=True)

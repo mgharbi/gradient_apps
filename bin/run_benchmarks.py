@@ -3,6 +3,8 @@ import gapps.benchmarks as b
 
 def main():
   res = [
+    b.BackwardConv2d(False),
+    b.BackwardConv2d(False, True),
     b.BackwardConv2d(True),
     b.BackwardConv2d(True, True),
     # b.BilateralLayer(True),

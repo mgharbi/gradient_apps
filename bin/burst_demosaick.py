@@ -29,6 +29,7 @@ def load_images(dataset, crop_x, crop_y, tile_size, max_images):
     if ext == ".tiff":
       im = tiff.imread(os.path.join(dataset, f))
       im = im.astype(np.float32)/(1.0*2**16)
+      print im[..., 0].max(), im[..., 1].max(), im[..., 2].max()
     elif ext == ".png":
       im = skimage.io.imread(os.path.join(dataset, f))
       im = im[..., 0].astype(np.float32)/255.0

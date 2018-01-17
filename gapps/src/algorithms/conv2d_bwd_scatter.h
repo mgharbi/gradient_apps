@@ -28,11 +28,13 @@ std::map<std::string, Func> conv2d_bwd_scatter(
     Expr kw = filter.dim(0).extent();
     Expr kh = filter.dim(1).extent();
     Expr in_chans = filter.dim(2).extent();
-    RDom r(-kw/2, kw, -kh/2, kh, 0, in_chans, 0, width, 0, height);
+    Expr start_w = -cast<int>(kw/2);
+    Expr start_h = -cast<int>(kh/2);
+    RDom r(start_w, kw, start_h, kh, 0, in_chans, 0, width, 0, height);
     Func f_d_input("f_d_input");
     f_d_input(x, y, ci, n)  = 0.f;
     f_d_input(r[3] + r[0], r[4] + r[1], ci, n)  += 
-        f_filter(r[0] + kw/2+1, r[1] + kh/2+1, ci, r[2])
+        f_filter(r[0] - start_w, r[1] - start_h, ci, r[2])
       * f_d_output(r[3], r[4], r[2], n);
 
     std::map<std::string, Func> func_map;
