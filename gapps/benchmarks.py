@@ -102,6 +102,43 @@ class SpatialTransformer(Benchmark):
       self.op = self.op.cuda()
 
 
+class BilateralLayer(Benchmark):
+  def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=10):
+    super(BilateralLayer, self).__init__(
+        cuda=cuda, burn_iters=burn_iters, iters=iters)
+    self.pytorch = pytorch
+
+  def name(self):
+    if self.pytorch:
+      return "BilateralLayerPytorch"
+    else:
+      return "BilateralLayer"
+
+  def run(self):
+    output = self.op(self.image, self.guide)
+    loss = output.sum()
+    # loss.backward()
+
+  def reset(self):
+    sz = 512
+    bs = 8
+    c = 16
+    im = th.randn(bs, c, sz, sz)
+    guide = th.rand(bs, sz, sz)
+    self.image = Variable(im, requires_grad=True)
+    self.guide = Variable(guide, requires_grad=True)
+
+    if self.pytorch:
+      self.op = modules.BilateralLayerTorch(c, c, 3, False)
+    else:
+      self.op = modules.BilateralLayer(c, c, 3, False)
+
+    if self.cuda:
+      self.image = self.image.cuda()
+      self.guide = self.guide.cuda()
+      self.op = self.op.cuda()
+
+
 class VGG(Benchmark):
   def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=10):
     super(VGG, self).__init__(

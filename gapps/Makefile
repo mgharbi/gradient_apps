@@ -56,6 +56,8 @@ EXT_DIR = _ext
 OPS = \
 			bilinear_resampling_forward bilinear_resampling_backward \
 			spatial_transformer_forward spatial_transformer_backward \
+			conv2d_forward conv2d_backward_scatter \
+			bilateral_layer_forward bilateral_layer_backward \
 			# vgg_forward_backward \
 			# burst_demosaicking_forward burst_demosaicking_backward \
 			# naive_demosaick_forward \
@@ -67,7 +69,6 @@ OPS = \
 			# deconv_cg_weight_forward deconv_cg_weight_backward \
 			# deconv_grad_init_forward deconv_grad_init_backward \
 			# deconv_grad_iter_forward deconv_grad_iter_backward \
-			# bilateral_layer_forward bilateral_layer_backward \
 			# non_local_means_forward non_local_means_backward \
 			# deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
 			# deconv_cg_weight_forward deconv_cg_weight_backward bilateral_grid_forward bilateral_grid_backward \

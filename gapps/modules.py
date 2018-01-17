@@ -397,9 +397,16 @@ class BilateralLayerTorch(BilateralLayerBase):
 
     self.reset_params()
 
+    self.is_cuda = False
+
   def reset_params(self):
     if self.use_bias:
       self.conv.bias.data.zero_()
+
+  def cuda(self, device=None):
+    super(BilateralLayerTorch, self).cuda(device=device)
+    self.is_cuda = True
+    return self
 
   def apply(self, input, guide):
     bs, ci, h, w = input.shape
@@ -429,6 +436,12 @@ class BilateralLayerTorch(BilateralLayerBase):
     c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
     h_idx = th.from_numpy(np.arange(h)).view(1, 1, h, 1) / sigma_s
     w_idx = th.from_numpy(np.arange(w)).view(1, 1, 1, w) / sigma_s
+    if self.is_cuda:
+      batch_idx = batch_idx.cuda()
+      c_idx = c_idx.cuda()
+      h_idx = h_idx.cuda()
+      w_idx = w_idx.cuda()
+
     grid[batch_idx, c_idx, h_idx, w_idx, lower_bin] += (1-weight)*norm*input
     grid[batch_idx, c_idx, h_idx, w_idx, upper_bin] += weight*norm*input
 
@@ -437,31 +450,43 @@ class BilateralLayerTorch(BilateralLayerBase):
 
     # Slice
     xx, yy = np.meshgrid(np.arange(0, w), np.arange(0, h))
-    gx = ((xx+0.5)/w) * gw
-    gy = ((yy+0.5)/h) * gh
+    xx = xx.astype(np.float32)
+    yy = yy.astype(np.float32)
+    gx = th.from_numpy(((xx+0.5)/w) * gw)
+    gy = th.from_numpy(((yy+0.5)/h) * gh)
     gz = guide*sigma_r
 
+    if self.is_cuda:
+      gx = gx.cuda()
+      gy = gy.cuda()
+
     # Enclosing cell
-    fx = np.floor(gx - 0.5).astype(np.int64);
-    fy = np.floor(gy - 0.5).astype(np.int64);
+    fx = th.floor(gx - 0.5);
+    fy = th.floor(gy - 0.5);
     fz = th.clamp(th.floor(gz-0.5), min=0)
-    cx = np.minimum(fx+1, gw-1);
-    cy = np.minimum(fy+1, gh-1);
-    cz = th.clamp(fz+1, max=sigma_r-1)
+    # batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
+    # c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
 
     # Trilerp weights
-    wx = Variable(th.from_numpy((gx - 0.5 - fx).astype(np.float32)));
-    wy = Variable(th.from_numpy((gy - 0.5 - fy).astype(np.float32)));
+    wx = Variable(gx - 0.5 - fx);
+    wy = Variable(gy - 0.5 - fy);
     wz = th.abs(gz-0.5 - fz)
+
+    fx = fx.long()
+    fy = fy.long()
+    fz = fz.long()
+
+    cx = th.clamp(fx+1, max=gw-1);
+    cy = th.clamp(fy+1, max=gh-1);
+    cz = th.clamp(fz+1, max=sigma_r-1)
+
 
     # Make indices broadcastable
     # fx = np.expand_dims(fx, 0)
     # fy = np.expand_dims(fy, 0)
-    fz = fz.long()[:, 0].view(bs, 1, h, w)
-    cz = cz.long()[:, 0].view(bs, 1, h, w)
+    fz = fz[:, 0].view(bs, 1, h, w)
+    cz = cz[:, 0].view(bs, 1, h, w)
 
-    batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
-    c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
 
     out = grid[batch_idx, c_idx, fy, fx, fz]*(1-wx)*(1-wy)*(1-wz) + \
           grid[batch_idx, c_idx, fy, fx, cz]*(1-wx)*(1-wy)*(  wz) + \
