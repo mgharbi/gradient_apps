@@ -46,9 +46,11 @@ class Benchmark(object):
       self.run()
 
     start = time.time()
-    for i in range(self.iters):
-      self.run()
-    end = time.time()
+    with profiler.profile() as prof:
+      for i in range(self.iters):
+        self.run()
+        th.cuda.synchronize()
+      end = time.time()
 
     runtime = (end-start)*1000.0/self.iters
 
@@ -61,7 +63,8 @@ class Benchmark(object):
     
 class SpatialTransformer(Benchmark):
   def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=10):
-    super(SpatialTransformer, self).__init__(cuda=cuda, burn_iters=burn_iters, iters=iters)
+    super(SpatialTransformer, self).__init__(
+        cuda=cuda, burn_iters=burn_iters, iters=iters)
     self.pytorch = pytorch
 
   def name(self):
@@ -92,4 +95,31 @@ class SpatialTransformer(Benchmark):
     if self.cuda:
       self.image = self.image.cuda()
       self.affine_mtx = self.affine_mtx.cuda()
+      self.op = self.op.cuda()
+
+
+class VGG(Benchmark):
+  def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=10):
+    super(VGG, self).__init__(
+        cuda=cuda, burn_iters=burn_iters, iters=iters)
+    self.pytorch = pytorch
+
+  def name(self):
+    if self.pytorch:
+      return "VGGPytorch"
+    else:
+      return "VGG"
+
+  def run(self):
+    output = self.op(self.image)
+    loss = output.sum()
+    print loss.data.cpu()[0]
+
+  def reset(self):
+    bs = 4
+    self.image = Variable(th.rand(bs, 3, 224, 224), requires_grad=False)
+    self.op = modules.VGG(pytorch=self.pytorch)
+
+    if self.cuda:
+      self.image = self.image.cuda()
       self.op = self.op.cuda()
