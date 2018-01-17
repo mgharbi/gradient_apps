@@ -5,8 +5,8 @@ def main():
   res = [
     b.BilateralLayer(True),
     b.BilateralLayer(True, True),
-    # b.BilateralLayer(False),
-    # b.BilateralLayer(False, True),
+    b.BilateralLayer(False),
+    b.BilateralLayer(False, True),
     # b.SpatialTransformer(False),
     # b.SpatialTransformer(False, True),
     # b.SpatialTransformer(True),

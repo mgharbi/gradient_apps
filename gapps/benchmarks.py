@@ -117,7 +117,7 @@ class BilateralLayer(Benchmark):
   def run(self):
     output = self.op(self.image, self.guide)
     loss = output.sum()
-    # loss.backward()
+    loss.backward()
 
   def reset(self):
     sz = 512
