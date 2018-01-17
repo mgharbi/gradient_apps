@@ -5,20 +5,48 @@
 
 namespace gradient_apps {
 
-class VGGForwardGenerator : 
-  public Generator<VGGForwardGenerator> {
+class VGGForwardBackwardGenerator : 
+  public Generator<VGGForwardBackwardGenerator> {
 public:
   Input<Buffer<float>>  input{"input", 4};
   Input<Func[13]>  weights{"weights", Float(32), 4};
   Input<Func[3]>  fc_weights{"fc_weights", Float(32), 2};
   Input<Func[16]>  biases{"biases", Float(32), 1};
+
   Output<Buffer<float>> output{"output", 2};
+  Output<Func[13]>  d_weights{"d_weights", Float(32), 4};
+  Output<Func[3]>  d_fc_weights{"d_fc_weights", Float(32), 2};
+  Output<Func[16]>  d_biases{"d_biases", Float(32), 1};
 
   void generate() {
     std::map<std::string, Func> f = vgg(
         input, weights, fc_weights, biases);
     Func f_output = f["output"];
     output(co, n) = f_output(co, n);
+
+    // TODO: this is a stupid loss, but who cares?
+    Func loss("loss");
+    RDom rloss(0, 1000, 0, input.dim(3).extent());
+    loss() = 0.0f;
+    loss() += f_output(rloss.x, rloss.y);
+
+    // TODO: backprop
+    Derivative d = propagate_adjoints(loss);
+
+    for(int i = 0; i < 13; ++i) {
+      d_weights[i](x, y, ci, co) = 0.0f;
+      // d(weights[i]);
+      // d_weights[i] = d(weights[i]);
+    }
+
+    for(int i = 0; i < 3; ++i) {
+      d_fc_weights[i] = d(fc_weights[i]);
+    }
+
+    for(int i = 0; i < 16; ++i) {
+      d_biases[i](x) = 0.0f;
+    }
+    
 
     bool autoschedule = false;
     if(autoschedule) {
@@ -181,7 +209,6 @@ public:
         Var bc("bc");
         Var tc("tc");
 
-
         for (std::string k : conv_keys) {
           f[k].compute_root()
             .gpu_tile(x, y, co, bx, by, bc, tx, ty, tc, 4, 4, 4)
@@ -189,11 +216,13 @@ public:
           f[k].update()
             .gpu_tile(x, y, co, bx, by, bc, tx, ty, tc, 4, 4, 4)
             ;
+          d(f[k]).compute_root();
         }
 
         for (std::string k : pool_keys) {
           f[k].compute_root()
             .gpu_tile(x, y, co, bx, by, bc, tx, ty, tc, 4, 4, 4);
+          d(f[k]).compute_root();
         }
 
         f["fc6"].compute_root().gpu_tile(co, bx, tx, ts);
@@ -202,6 +231,7 @@ public:
         f["fc7"].update().gpu_tile(co, bx, tx, ts);
         output.compute_root().gpu_tile(co, bx, tx, 100);
         f["output"].compute_at(output, bx).update().gpu_threads(co);
+
       } else {
         int v = 8;
         int p = 8;
@@ -247,48 +277,22 @@ public:
 
         f["fc7"].compute_root().parallel(co);
         f["fc7"].update().parallel(co);
-        // RVar r = f["fc7"].rvars()[0];
-        // RVar r1("r1");
-        // Var rr("rr");
-        // Func itm = f["fc7"].update().split(r, r, r1, 16).rfactor(r1, rr);
-        // itm.compute_at(f["fc7"], n).parallel(rr);
-        // f["fc7"].update().fuse(co, r1, co).parallel(co);
 
         f["output"].compute_root().parallel(co);
         f["output"].update().parallel(co);
 
-        // f["conv1_1"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["conv1_2"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["pool1"].fuse(n, co, co).fuse(co, y, y).compute_root()  .parallel(y).vectorize(x, v);
-        // f["conv2_1"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["conv2_2"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["pool2"].fuse(n, co, co).fuse(co, y, y).compute_root()  .parallel(y).vectorize(x, v);
-        // f["conv3_1"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["conv3_2"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["conv3_3"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["pool3"].fuse(n, co, co).fuse(co, y, y).compute_root()  .parallel(y).vectorize(x, v);
-        // f["conv4_1"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["conv4_2"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["conv4_3"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["pool4"].fuse(n, co, co).fuse(co, y, y).compute_root()  .parallel(y).vectorize(x, v);
-        // f["conv5_1"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["conv5_2"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["conv5_3"].fuse(n, co, co).fuse(co, y, y).compute_root().parallel(y).vectorize(x, v);
-        // f["pool5"].fuse(n, co, co).fuse(co, y, y).compute_root()  .parallel(y).vectorize(x, v);
-        //
-        // f["conv1_1"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv1_2"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv2_1"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv2_2"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv3_1"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv3_2"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv3_3"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv4_1"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv4_2"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv4_3"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv5_1"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv5_2"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
-        // f["conv5_3"].update().fuse(n, co, co).fuse(co, y, y).parallel(y).vectorize(x, v);
+        // Derivatives
+
+        d(f["output"]).compute_root().parallel(co);
+        d(f["fc7"]).compute_root().parallel(co);
+        d(f["fc6"]).compute_root().parallel(co);
+        // d(f["output"]).update().parallel(co);
+
+        PrintFuncOptions opts;
+        opts.depth = 12;
+        print_func(d_fc_weights[2], opts);
+        // autoschedule rfactors
+
       }
     }
   }
@@ -298,5 +302,5 @@ public:
 }  // end namespace gradient_apps
 
 HALIDE_REGISTER_GENERATOR(
-    gradient_apps::VGGForwardGenerator, 
-    vgg_forward)
+    gradient_apps::VGGForwardBackwardGenerator, 
+    vgg_forward_backward)

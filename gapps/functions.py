@@ -899,25 +899,27 @@ class VGG(Function):
     ops.vgg_forward(*args)
 
     return output
-  #
-  # @staticmethod
-  # def backward(ctx, d_loss, d_reproj_error):
-  #   inputs, homographies, reconstructed, gradient_weight = ctx.saved_variables
-  #
-  #   # d_confidence = confidence.data.new()
-  #   # d_confidence.resize_as_(confidence.data)
-  #   d_homographies = homographies.data.new()
-  #   d_homographies.resize_as_(homographies.data)
-  #   d_reconstructed = reconstructed.data.new()
-  #   d_reconstructed.resize_as_(reconstructed.data)
-  #
-  #   ops.burst_demosaicking_backward(
-  #       inputs.data, homographies.data, reconstructed.data,
-  #       gradient_weight.data, d_loss.data,
-  #       d_homographies, d_reconstructed)
-  #
-  #   # d_confidence = Variable(d_confidence)
-  #   d_homographies = Variable(d_homographies)
-  #   d_reconstructed = Variable(d_reconstructed)
-  #
-  #   return None, d_homographies, d_reconstructed, None
+
+class VGGfwd_bwd(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, conv_weights, fc_weights, biases):
+    ctx.save_for_backward(input, conv_weights, fc_weights, biases)
+
+    bs, ci, h, w = input.shape
+
+    n_out = fc_weights[-1].shape[0]
+
+    output = input.new()
+    output.resize_(bs, n_out)
+    grads = []
+    for c in conv_weights + fc_weights + biases:
+      c_g = c.new()
+      c_g.resize_as_(c)
+      grads.append(c_g)
+
+    args = [input] + conv_weights + fc_weights + biases + [output] + grads
+    ops.vgg_forward_backward(*args)
+
+    return (output, ) + tuple(grads)

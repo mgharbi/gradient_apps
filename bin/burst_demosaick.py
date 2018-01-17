@@ -28,9 +28,7 @@ def load_images(dataset, crop_x, crop_y, tile_size, max_images):
     ext = os.path.splitext(f)[-1]
     if ext == ".tiff":
       im = tiff.imread(os.path.join(dataset, f))
-      print im.max()
       im = im.astype(np.float32)/(1.0*2**16)
-      import ipdb; ipdb.set_trace()
     elif ext == ".png":
       im = skimage.io.imread(os.path.join(dataset, f))
       im = im[..., 0].astype(np.float32)/255.0
@@ -77,19 +75,23 @@ def init_homographies(images):
   FLANN_INDEX_KDTREE = 0
   MIN_MATCH_COUNT = 10
 
+  log.info("Extracting SIFT")
   images = (images.cpu().numpy()*255).astype(np.uint8)
   sift = cv2.xfeatures2d.SIFT_create()
   ref = images[0]
 
   kp_ref, des_ref = sift.detectAndCompute(ref, None)
 
+  log.info("Matching features")
   index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
   search_params = dict(checks = 50)
   flann = cv2.FlannBasedMatcher(index_params, search_params)
 
   homographies = np.zeros((images.shape[0], 8))
 
+  log.info("Computing alignments")
   for i in range(0, images.shape[0]):
+    log.info(" {} of {}".format(i+1, images.shape[0]))
     kp, des = sift.detectAndCompute(images[i], None)
     matches = flann.knnMatch(des, des_ref, k=2)
     good = []
@@ -149,6 +151,7 @@ def main(args):
   if not os.path.exists(output):
     os.makedirs(output)
 
+  log.info("Loading inputs")
   if args.synth:
     images = load_synth(args.dataset, args.x, args.y, args.tile_size, args.max_images)
   else:
@@ -158,8 +161,10 @@ def main(args):
 
   log.info("Image dimensions {}x{}x{}".format(n, h, w))
 
+  log.info("Initializing homographies")
   homographies = init_homographies(images)
 
+  log.info("Initializing reconstruction")
   recons = init_reconstruction(images, scale=args.scale)
 
   log.info("Reconstruction at {}x{}x{}".format(*recons.shape))
@@ -174,6 +179,7 @@ def main(args):
   op = modules.BurstDemosaicking()
 
   if args.cuda:
+    log.info("Running cuda")
     op = op.cuda()
     recons = recons.cuda()
     homographies = homographies.cuda()
@@ -197,6 +203,7 @@ def main(args):
           {'params': [homographies], 'lr': args.homography_lr}])
 
 
+  log.info("Optimizing")
   ema = utils.ExponentialMovingAverage(["loss"], alpha=0.9)
   for step in range(args.presteps+args.steps):
     if args.use_lbfgs:
@@ -227,6 +234,8 @@ def main(args):
     ema.update("loss", loss.data[0]) 
     log.info("{} {} loss = {:.6f}".format(step_label, step, ema["loss"]))
 
+
+  log.info("Producing outputs")
 
   for i in range(n):
     log.info(("{:.2f} "*8).format(*list(homographies.cpu().data[i].numpy())))
@@ -270,7 +279,7 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="data/burst_demosaick/hydrant")
   parser.add_argument("--x", default=0, type=int)
   parser.add_argument("--y", default=0, type=int)
-  parser.add_argument("--scale", default=1, type=int)
+  parser.add_argument("--scale", default=1, type=float)
   parser.add_argument("--max_images", type=int)
   parser.add_argument("--tile_size", default=512, type=int)
   parser.add_argument("--presteps", default=10, type=int)

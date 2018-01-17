@@ -125,7 +125,7 @@ std::map<std::string, Func> burst_demosaicking(
     Func loss("loss");
     loss(x) = 
       data_loss(0)/(1.0f*height*width*count) +
-      f_gradient_weight(0)*gradient_loss(0)/(1.0f*height*width*3.0f);
+      f_gradient_weight(0)*gradient_loss(0)/(1.0f*r_height*r_width*3.0f);
       // confidence_loss(x)/(1.0f*height*width*count);
 
     std::map<std::string, Func> func_map;

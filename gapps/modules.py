@@ -671,3 +671,85 @@ class VGG(nn.Module):
       out = funcs.VGG.apply(
           input, self.conv_weights, self.fc_weights, self.biases)
     return out
+
+
+class VGGours(nn.Module):
+  def __init__(self, pytorch=False):
+    super(VGGours, self).__init__()
+    self.pytorch = pytorch
+
+    self.wscale = 1e-3
+
+    self.conv_weights = [
+        # co, ci, ky, kx
+        self.wscale*th.ones(64, 3, 3, 3),   # conv1_1
+        self.wscale*th.ones(64, 64, 3, 3),  # conv1_2
+
+        self.wscale*th.ones(128, 64, 3, 3),   # conv2_1
+        self.wscale*th.ones(128, 128, 3, 3),  # conv2_2
+
+        self.wscale*th.ones(256, 128, 3, 3),   # conv3_1
+        self.wscale*th.ones(256, 256, 3, 3),   # conv3_2
+        self.wscale*th.ones(256, 256, 3, 3),   # conv3_3
+
+        self.wscale*th.ones(512, 256, 3, 3),   # conv4_1
+        self.wscale*th.ones(512, 512, 3, 3),   # conv4_2
+        self.wscale*th.ones(512, 512, 3, 3),   # conv4_3
+
+        self.wscale*th.ones(512, 512, 3, 3),   # conv5_1
+        self.wscale*th.ones(512, 512, 3, 3),   # conv5_2
+        self.wscale*th.ones(512, 512, 3, 3),   # conv5_3
+        ]
+
+    self.fc_weights = [
+        # co, ci
+        self.wscale*th.ones(4096, 512*7*7),  # fc6
+        self.wscale*th.ones(4096, 4096), # fc7
+        self.wscale*th.ones(1000, 4096), # fc8
+        ]
+
+    self.biases = [
+        th.zeros(64),
+        th.zeros(64),
+
+        th.zeros(128),
+        th.zeros(128),
+
+        th.zeros(256),
+        th.zeros(256),
+        th.zeros(256),
+
+        th.zeros(512),
+        th.zeros(512),
+        th.zeros(512),
+
+        th.zeros(512),
+        th.zeros(512),
+        th.zeros(512),
+
+        th.zeros(4096),
+        th.zeros(4096),
+        th.zeros(1000),
+        ]
+
+  def cuda(self, device=None):
+    super(VGGours, self).cuda(device=device)
+    if not self.pytorch:
+      for i, p in enumerate(self.conv_weights):
+        self.conv_weights[i] = p.cuda()
+
+      for i, p in enumerate(self.fc_weights):
+        self.fc_weights[i] = p.cuda()
+
+      for i, p in enumerate(self.biases):
+        self.biases[i] = p.cuda()
+
+    return self
+
+  def forward(self, input):
+    outs = funcs.VGGfwd_bwd.apply(
+        input, self.conv_weights, self.fc_weights, self.biases)
+    out = outs[0]
+    grads = outs[1:]
+    import ipdb; ipdb.set_trace()
+    return out

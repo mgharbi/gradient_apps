@@ -54,7 +54,9 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			vgg_forward
+			vgg_forward_backward \
+			# burst_demosaicking_forward burst_demosaicking_backward \
+			# naive_demosaick_forward \
 	  	# deconv_grad_forward deconv_grad_backward \
 			# deconv_alpha_forward deconv_alpha_backward \
 			# bilateral_grid_forward bilateral_grid_backward \
@@ -64,8 +66,6 @@ OPS = \
 			# spatial_transformer_forward spatial_transformer_backward \
 			# bilinear_resampling_forward bilinear_resampling_backward \
 			# spatial_transformer_forward spatial_transformer_backward \
-			# burst_demosaicking_forward burst_demosaicking_backward \
-			# naive_demosaick_forward \
 			# bilinear_resampling_forward bilinear_resampling_backward \
 			# spatial_transformer_forward spatial_transformer_backward \
 			# deconv_grad_init_forward deconv_grad_init_backward \
