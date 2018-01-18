@@ -16,7 +16,7 @@ LDFLAGS ?=
 LDFLAGS += $(HALIDE_DIR)/lib/libHalide.a -lpthread -ldl -lcurses -lz
 
 # Cuda config
-NVCC = nvcc -std c++11 #-G  -pg
+NVCC = nvcc -std c++11 -O2 #-G  -pg
 NVFLAGS = -x cu -Xcompiler -fPIC -I$(SRC_DIR) \
 					-gencode=arch=compute_30,code=\"sm_30,compute_30\" \
 					-expt-relaxed-constexpr -Wno-deprecated-gpu-targets \
@@ -54,10 +54,12 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			bilinear_resampling_forward bilinear_resampling_backward \
-			spatial_transformer_forward spatial_transformer_backward \
-			conv2d_forward conv2d_backward_scatter \
-			bilateral_layer_forward bilateral_layer_backward \
+			bilateral_slice_apply_forward bilateral_slice_apply_backward \
+			# bilinear_resampling_forward bilinear_resampling_backward \
+			# spatial_transformer_forward spatial_transformer_backward \
+			# conv2d_forward conv2d_backward_scatter \
+			# bilateral_layer_forward bilateral_layer_backward \
+			# learnable_demosaick_forward learnable_demosaick_backward \
 			# vgg_forward_backward \
 			# burst_demosaicking_forward burst_demosaicking_backward \
 			# naive_demosaick_forward \
@@ -76,12 +78,17 @@ OPS = \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
 
+CUDA_SRC = bilateral_slice
+CUDA_OBJ = $(addsuffix _cuda.so, $(addprefix $(BUILD_DIR)/, $(CUDA_SRC)))
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
-_ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS)
+_ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS) $(CUDA_OBJ)
 	@echo Python CFFI wrapper
 	@$(PYTHON) build.py
+
+$(BUILD_DIR)/%_cuda.so: $(SRC_DIR)/cuda_kernels/%.cu.cc $(SRC_DIR)/cuda_kernels/%.h $(BUILD_DIR)
+		$(NVCC) -c  $< -o $@ $(NVFLAGS) $(TORCH_INC)
 
 $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	@echo Op $(subst $(BUILD_DIR)/,, $@)
@@ -114,15 +121,6 @@ $(BUILD_DIR)/%: $(SRC_DIR)/%.hl.cxx $(HALIDE_GEN) $(BUILD_DIR)
 $(BUILD_DIR):
 	@echo Making $@ dir
 	@mkdir -p $@
-
-# C++ target to test the halide code independently of pytorch
-$(BUILD_DIR)/tester: $(SRC_DIR)/_tester.cpp $(BUILD_DIR)/deconv_cg_init_forward_cuda.a
-	# $(BUILD_DIR)/learnable_demosaick_forward_cuda.a $(BUILD_DIR)/learnable_demosaick_forward.a \
-	# $(BUILD_DIR)/learnable_demosaick_backward_cuda.a $(BUILD_DIR)/learnable_demosaick_backward.a
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I/usr/local/cuda/include -I$(BUILD_DIR) $^ -o $@ $(LDFLAGS) $(CUDA_LDFLAGS)
-
-$(BUILD_DIR)/tester2: $(SRC_DIR)/_tester2.cpp $(BUILD_DIR)/conv1d_manual_backward.a
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I/usr/local/cuda/include -I$(BUILD_DIR) $^ -o $@ $(LDFLAGS) $(CUDA_LDFLAGS)
 
 clean:
 	$(RM) -r $(BUILD_DIR) $(EXT_DIR)

@@ -25,9 +25,12 @@ def wrap_op(op, cuda_op):
   return _func
 
 
+ignores = ["bilateral_slice_manual_forward", "bilateral_slice_manual_backward"]
 th_re = re.compile(r"((?!cuda).)*_th_$")
 ops_funcs = [f for f in inspect.getmembers(ops, inspect.isfunction) if th_re.match(f[0])]
 for op_name, op in ops_funcs:
+  if op_name in ignores:
+    continue
   wrapper_name = op_name[:-4]  # remove th suffix
   cuda_name = wrapper_name + "_cuda_th_"
   try:
@@ -957,3 +960,64 @@ class BackwardConv2dGeneralScatter(Function):
     ops.conv2d_backward_scatter(d_output, weights, d_input)
 
     return d_input
+
+class BilateralSliceApplyManual(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, grid, guide, input):
+    ctx.save_for_backward(grid, guide, input)
+    output = input.new()
+    ops.bilateral_slice_manual_forward(grid, guide, input, output)
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    grid, guide, input = ctx.saved_variables
+    d_grid = grid.data.new()
+    d_guide = guide.data.new()
+    d_input = input.data.new()
+
+    ops.bilateral_slice_manual_backward(
+        grid.data, guide.data, input.data, d_output.data,
+        d_grid, d_guide, d_input)
+    
+    d_grid = Variable(d_grid)
+    d_guide = Variable(d_guide)
+    d_input = Variable(d_input)
+
+    return d_grid, d_guide, d_input
+
+class BilateralSliceApply(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, grid, guide, input):
+    ctx.save_for_backward(grid, guide, input)
+    bs, ci, h, w = input.shape
+    c = grid.shape[1]
+    output = input.new()
+    output.resize_(bs, c/(ci+1), h, w)
+    ops.bilateral_slice_apply_forward(grid, guide, input, output)
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    grid, guide, input = ctx.saved_variables
+    d_grid = grid.data.new()
+    d_guide = guide.data.new()
+    d_input = input.data.new()
+
+    d_grid.resize_as_(grid.data)
+    d_guide.resize_as_(guide.data)
+    d_input.resize_as_(input.data)
+
+    ops.bilateral_slice_apply_backward(
+        grid.data, guide.data, input.data, d_output.data,
+        d_grid, d_guide, d_input)
+    
+    d_grid = Variable(d_grid)
+    d_guide = Variable(d_guide)
+    d_input = Variable(d_input)
+
+    return d_grid, d_guide, d_input

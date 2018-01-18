@@ -53,7 +53,7 @@ class Benchmark(object):
         # th.cuda.synchronize()
         end1 = time.time()
         runtime1 = (end1-start1)*1000.0
-        print "iter {}: {:.2f}ms".format(i, runtime1)
+        # print "iter {}: {:.2f}ms".format(i, runtime1)
       end = time.time()
 
     runtime = (end-start)*1000.0/self.iters

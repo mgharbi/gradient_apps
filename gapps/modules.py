@@ -791,3 +791,15 @@ class BackwardConv2dGeneralScatter(nn.Module):
 
   def forward(self, x):
     return funcs.BackwardConv2dGeneralScatter.apply(x, self.weight)
+
+
+class BilateralSliceApply(nn.Module):
+  def __init__(self, manual=True):
+    super(BilateralSliceApply, self).__init__()
+    self.manual = manual
+
+  def forward(self, grid, guide, input):
+    if self.manual:
+      return funcs.BilateralSliceApplyManual.apply(grid, guide, input)
+    else:
+      return funcs.BilateralSliceApply.apply(grid, guide, input)

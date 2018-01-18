@@ -55,8 +55,8 @@ def main(args):
     # model.softmax_scale.cuda()
 
   # params = [p for n, p in model.named_parameters() if n != "green_filts"]
-  optimizer = th.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, nesterov=True)
-  # optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
+  # optimizer = th.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, nesterov=True)
+  optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
 
   # mse_fn = metrics.CroppedMSELoss(crop=args.fsize//2)
   l1_fn = th.nn.L1Loss()
