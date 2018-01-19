@@ -772,7 +772,15 @@ class VGGours(nn.Module):
         input, self.conv_weights, self.fc_weights, self.biases)
     out = outs[0]
     grads = outs[1:]
-    import ipdb; ipdb.set_trace()
+    print "out: ", out.abs().max().data[0]
+    for i, g in enumerate(grads):
+      if i < len(self.conv_weights):
+        name = "conv"
+      elif i < len(self.conv_weights) + len(self.fc_weights) :
+        name = "fc"
+      else:
+        name = "bias"
+      print "-", name, g.abs().max().data[0]
     return out
 
 class Conv2d(nn.Module):

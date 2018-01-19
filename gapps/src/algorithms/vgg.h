@@ -18,12 +18,14 @@ void conv(const Func input, const Func weights, const Func biases,
           const int ksize, const int chans, Func &conv, int psize, Expr bsize, bool do_relu=true) {
   RDom r(0, ksize, 0, ksize, 0, chans);
   conv(x, y, co, n) = biases(co);
-  Func clamped("clamped_"+conv.name());
-  clamped(x, y, co, n) = Halide::BoundaryConditions::constant_exterior(
-      input, 0.0f, {{0, psize}, {0, psize}, {0, chans}, {0, bsize}}) (x, y, co, n);
+
+  // Func clamped("clamped_"+conv.name());
+  // clamped(x, y, co, n) = Halide::BoundaryConditions::constant_exterior(
+  //     input, 0.0f, {{0, psize}, {0, psize}, {0, chans}, {0, bsize}}) (x, y, co, n);
+  
   // clamped
   if(do_relu) {
-    conv(x, y, co, n) += relu(clamped(x + r.x - ksize/2, y + r.y - ksize/2, r.z, n))
+    conv(x, y, co, n) += relu(input(x + r.x - ksize/2, y + r.y - ksize/2, r.z, n))
       * weights(r.x, r.y, r.z, co);
   } else {
     conv(x, y, co, n) += input(x+r.x - ksize/2, y+r.y - ksize/2, r.z, n)

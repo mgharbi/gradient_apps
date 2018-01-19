@@ -915,31 +915,27 @@ def test_vgg_cpu():
   test_vgg(cuda=False)
 
 def test_vgg(cuda=True):
-  bs = 16
+  bs = 1
   im = th.rand(bs, 3, 224, 224)
   im = Variable(im, requires_grad=False)
 
   if cuda:
     im = im.cuda()
 
-  nits_burns = 5
-  nits = 10
-  for pytorch in [True,False]:
+  nits_burns = 0
+  nits = 1
+  for pytorch in [False]:
     if pytorch:
       name = "vgg_pytorch"
       op = modules.VGG(pytorch=pytorch)
     else:
       name = "vgg_ours"
-      op = modules.VGG()
-      # op = modules.VGGours()
+      op = modules.VGGours()
     if cuda:
       op = op.cuda()
 
     for it in xrange(nits_burns):
       output = op(im)
-      # print output.cpu().data.numpy().shape
-      # loss = output.sum()
-      # loss.backward()
 
     print "running"
     start = time.time()
@@ -947,10 +943,13 @@ def test_vgg(cuda=True):
     for it in xrange(nits):
       output = op(im)
       loss = output.mean()
-      th.cuda.synchronize()
+      if pytorch:
+        loss = output.sum()
+        loss.backward()
         # loss.backward()
         # print output.cpu().data.numpy()[0, :4]
         # print "loss = {:.2f}".format(loss.data.cpu()[0])
+      # th.cuda.synchronize()
     # print prof
     end = time.time()
 
