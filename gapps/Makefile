@@ -54,15 +54,15 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			vgg_forward_backward \
+			spatial_transformer_forward spatial_transformer_backward \
+			# learnable_demosaick_forward learnable_demosaick_backward \
+			# naive_demosaick_forward \
+			# vgg_forward_backward \
 			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
 			# bilinear_resampling_forward bilinear_resampling_backward \
-			# spatial_transformer_forward spatial_transformer_backward \
 			# conv2d_forward conv2d_backward_scatter \
 			# bilateral_layer_forward bilateral_layer_backward \
-			# learnable_demosaick_forward learnable_demosaick_backward \
 			# burst_demosaicking_forward burst_demosaicking_backward \
-			# naive_demosaick_forward \
 	  	# deconv_grad_forward deconv_grad_backward \
 			# deconv_alpha_forward deconv_alpha_backward \
 			# bilateral_grid_forward bilateral_grid_backward \
@@ -83,7 +83,7 @@ CUDA_OBJ = $(addsuffix _cuda.so, $(addprefix $(BUILD_DIR)/, $(CUDA_SRC)))
 OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 
-_ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS) $(CUDA_OBJ)
+_ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS) $(CUDA_OBJ)
 	@echo Python CFFI wrapper
 	@$(PYTHON) build.py
 
