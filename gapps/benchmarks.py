@@ -55,6 +55,7 @@ class Benchmark(object):
         runtime1 = (end1-start1)*1000.0
         # print "iter {}: {:.2f}ms".format(i, runtime1)
       end = time.time()
+    # print prof
 
     runtime = (end-start)*1000.0/self.iters
 
@@ -78,21 +79,34 @@ class SpatialTransformer(Benchmark):
       return "SpatialTransformer"
 
   def run(self):
-    output = self.op(self.image, self.affine_mtx)
+    image = Variable(self.image, requires_grad=True)
+    affine_mtx = Variable(self.affine_mtx, requires_grad=True)
+    output = self.op(image, affine_mtx)
     loss = output.sum()
+
+    start = time.time()
+
     loss.backward()
+    x = image.grad.sum().cpu().data[0]
+    x = affine_mtx.grad.sum().cpu().data[0]
+
+    end = time.time()
+    runtime = (end-start)*1000.0
+    # print "func back {:.2f}".format(runtime)
 
   def reset(self):
     sz = 512
     bs = 4
-    image = th.randn(bs, 3, sz, sz)
+    image = th.ones(bs, 3, sz, sz)
 
     affine_mtx = th.zeros(bs, 2, 3)
     affine_mtx[:, 0, 1] = 1.0
     affine_mtx[:, 1, 0] = 1.0
 
-    self.image = Variable(image, requires_grad=True)
-    self.affine_mtx = Variable(affine_mtx, requires_grad=True)
+    self.image = image
+    # self.image = Variable(image, requires_grad=True)
+    # self.affine_mtx = Variable(affine_mtx, requires_grad=True)
+    self.affine_mtx = affine_mtx
 
     self.op = modules.SpatialTransformer(pytorch=self.pytorch)
 
