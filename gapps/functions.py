@@ -317,6 +317,19 @@ class LearnableDemosaick(Function):
 
     return d_mosaick, d_sel_filts, d_green_filts, d_h_chroma, d_v_chroma, d_q_chroma
 
+class FancyDemosaick(Function):
+  """"""
+  @staticmethod
+  def forward(ctx, cfa, weights, weights2d):
+    ctx.save_for_backward(cfa, weights, weights2d)
+
+    bs, h, w = cfa.shape
+    output = cfa.new()
+    output.resize_(bs, 3, h, w)
+    args = [cfa] + weights + weights2d + [output]
+    ops.vgg_forward(*args)
+    return output
+
 class DeconvCGInit(Function):
   """"""
 

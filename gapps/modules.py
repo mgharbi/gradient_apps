@@ -48,6 +48,30 @@ class LearnableDemosaick(nn.Module):
         self.h_chroma_filter, self.v_chroma_filter, self.q_chroma_filter)
     return output
 
+class FancyDemosaick(nn.Module):
+  def __init__(self):
+    super(FancyDemosaick, self).__init__()
+
+    self.weights = {
+       "dir_weights_x", nn.Parameter(th.rand(3)),
+       "dir_weights_y", nn.Parameter(th.rand(3)),
+        }
+    self.weights2d = {
+       "neigh_weights_dx", nn.Parameter(th.rand(4, 4)),
+       "neigh_weights_dy", nn.Parameter(th.rand(4, 4)),
+        }
+
+    for k, v in self.weights.iteritems():
+      self.register_parameter(k, v)
+
+    for k, v in self.weights2d.iteritems():
+      self.register_parameter(k, v)
+
+  def forward(self, mosaick):
+    output = funcs.FancyDemosaick.apply(
+        mosaick, self.weights.values(), self.weights2d.values())
+    return output
+
 class DeconvCG(nn.Module):
   def __init__(self,
                data_kernel_size=5,
