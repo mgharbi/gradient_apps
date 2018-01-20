@@ -153,6 +153,57 @@ class BilateralLayer(Benchmark):
       self.op = self.op.cuda()
 
 
+class BilateralSliceApply(Benchmark):
+  def __init__(self, cuda=False, manual_cuda=False, burn_iters=5, iters=10):
+    super(BilateralSliceApply, self).__init__(
+        cuda=cuda, burn_iters=burn_iters, iters=iters)
+    self.manual_cuda = manual_cuda
+
+  def name(self):
+    if self.manual_cuda:
+      return "BilateralSliceApplyManualCuda"
+    else:
+      return "BilateralSliceApply"
+
+  def run(self):
+    im = Variable(self.image, requires_grad=True)
+    guide = Variable(self.guide, requires_grad=True)
+    grid = Variable(self.grid, requires_grad=True)
+    output = self.op(grid, guide, im)
+    loss = output.sum()
+    loss.backward()
+
+    # Make sure pytorch actually runs, lazy as it is
+    x = im.grad.sum().cpu().data[0]
+    x = guide.grad.sum().cpu().data[0]
+
+  def reset(self):
+    bs = 16
+    ci = 3
+    co = 3
+    gd = 8
+    gh = 16
+    gw = 16
+    h = 256
+    w = 256
+    im = th.randn(bs, ci, h, w)
+    guide = th.rand(bs, h, w)
+    grid = th.rand(bs, co*(ci+1), gd, gh, gw)
+    self.image = im
+    self.guide = guide
+    self.grid = grid
+
+    if self.manual_cuda:
+      self.op = modules.BilateralSliceApply(True)
+    else:
+      self.op = modules.BilateralSliceApply(False)
+
+    if self.cuda:
+      self.image = self.image.cuda()
+      self.guide = self.guide.cuda()
+      self.grid = self.grid.cuda()
+      self.op = self.op.cuda()
+
 class VGG(Benchmark):
   def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=10):
     super(VGG, self).__init__(

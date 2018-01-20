@@ -22,6 +22,7 @@ public:
     Func output = f["output"];
     // output(x, y, c, n) = f_output(x, y, c, n);
 
+    std::cout << "pre propag" << std::endl;
     Derivative d = propagate_adjoints(output, d_output,
         {
           {d_output.dim(0).min(), d_output.dim(0).max()},
@@ -30,20 +31,28 @@ public:
           {d_output.dim(3).min(), d_output.dim(3).max()},
         });
 
+    PrintFuncOptions opts;
+    // opts.depth = 1;
+    // print_func(d_output, opts);
+
     std::vector<Func> funcs;
     for(int i = 0; i < 2; ++i) {
+      // d_weights[i](x) = 0.0f;
       assign_gradient(d, weights[i], d_weights[i]);
-      funcs.push_back(d_weights[i]);
+      // funcs.push_back(d_weights[i]);
     }
     for(int i = 0; i < 2; ++i) {
+      // d_weights2d[i](x, y) = 0.0f;
       assign_gradient(d, weights2d[i], d_weights2d[i]);
-      funcs.push_back(d_weights2d[i]);
+      // funcs.push_back(d_weights2d[i]);
     }
 
-    SimpleAutoscheduleOptions options;
-    options.gpu = get_target().has_gpu_feature();
-    std::set<std::string> dont_inline = {};
-    int bs = 1;
+    std::cout << "derivatives set" << std::endl;
+
+    // SimpleAutoscheduleOptions options;
+    // options.gpu = get_target().has_gpu_feature();
+    // std::set<std::string> dont_inline = {};
+    // int bs = 1;
   //   simple_autoschedule(funcs,
   //       {
   //       {"input.min.0", 0},

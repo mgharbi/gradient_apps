@@ -12,14 +12,14 @@ Var x("x"), y("y"), c("c"), n("n"), k("k");
 
 template <typename Input, typename InputArray, typename InputArray2>
 std::map<std::string, Func> fancy_demosaick(
-        const Input &m,
+        const Input &cfa,
         const InputArray &weights,
         const InputArray2 &weights2d
         ) {
 
-    Func cfa("cfa");
-    cfa(x, y, n) = Halide::BoundaryConditions::repeat_edge(
-        m)(x, y, n);
+    Func cfa_("cfa_");
+    cfa_(x, y, n) = Halide::BoundaryConditions::constant_exterior(
+        cfa, 0.0f)(x, y, n);
 
     Expr is_green = (x % 2 == y % 2);
     Expr is_g0 = (x % 2 == 0) && (y % 2 == 0);
@@ -33,10 +33,10 @@ std::map<std::string, Func> fancy_demosaick(
     // Compute image gradients
     Func grads("grads");
     grads(x, y, k, n) = select(
-        k == 0, abs(cfa(x+1, y, n) - cfa(x-1, y, n)),  // dx
-        k == 1, abs(cfa(x, y+1, n) - cfa(x, y-1, n)),  // dy
-        // k == 2, abs(cfa(x+1, y+1, n) - cfa(x-1, y-1, n)),  // south east
-        // k == 3, abs(cfa(x+1, y-1, n) - cfa(x-1, y+1, n)),  // north east
+        k == 0, abs(cfa_(x+1, y, n) - cfa_(x-1, y, n)),  // dx
+        k == 1, abs(cfa_(x, y+1, n) - cfa_(x, y-1, n)),  // dy
+        k == 2, abs(cfa_(x+1, y+1, n) - cfa_(x-1, y-1, n)),  // south east
+        k == 3, abs(cfa_(x+1, y-1, n) - cfa_(x-1, y+1, n)),  // north east
         0.0f);
 
     // Directional weights
@@ -57,7 +57,7 @@ std::map<std::string, Func> fancy_demosaick(
     N(1) = {0, 1};
     N(2) = {-1, 0};
     N(3) = {0, -1};
-    // N.compute_root();
+    N.compute_root();
 
     // N
     //     k == 0, {1, 0},
@@ -74,17 +74,17 @@ std::map<std::string, Func> fancy_demosaick(
 
     Func gw_sum("gw_sum");
     gw_sum(x, y, n) = 0.0f;
-    // gw_sum(x, y, n) += green_weights(x, y, rN, n);
+    gw_sum(x, y, n) += green_weights(x, y, rN, n);
 
     // Interpolate green
     Func i_g("i_g");
     i_g(x, y, n) = 0.0f;
-    // i_g(x, y, n) += cfa(x+N(rN)[0], y+N(rN)[1], n)*green_weights(x, y, rN, n);
-    // i_g(x, y, n) /= gw_sum(x, y, n);
+    // i_g(x, y, n) += cfa_(x+N(rN)[0], y+N(rN)[1], n)*green_weights(x, y, rN, n);
+    i_g(x, y, n) /= gw_sum(x, y, n);
 
     Func g("g");
     g(x, y, n) = select(
-        is_green, cfa(x, y, n),
+        is_green, cfa_(x, y, n),
         i_g(x, y, n));
 
     Func output("output");
