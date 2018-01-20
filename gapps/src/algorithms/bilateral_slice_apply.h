@@ -14,35 +14,27 @@ std::map<std::string, Func> bilateral_slice_apply(
         const Input &grid,
         const Input &guide,
         const Input &input) {
+    Func f_grid = BoundaryConditions::repeat_edge(grid);
+    Func f_guide = BoundaryConditions::repeat_edge(guide);
+    Func f_input = BoundaryConditions::repeat_edge(input);
 
-    Func f_grid("f_grid");
-    f_grid(x, y, z, c, n) =
-      Halide::BoundaryConditions::repeat_edge(grid)(x, y, z, c, n);
-    Func f_guide("f_guide");
-    f_guide(x, y, n) =
-      Halide::BoundaryConditions::repeat_edge(guide)(x, y, n);
-    Func f_input("f_input");
-    f_input(x, y, ci, n) =
-      Halide::BoundaryConditions::repeat_edge(input)(x, y, ci, n);
-
-    Expr gw = guide.dim(0).extent();
-    Expr gh = guide.dim(1).extent();
-    Expr gd = guide.dim(2).extent();
+    int sigma_s = 32;
+    Expr gd = grid.dim(2).extent();
     Expr w = input.dim(0).extent();
     Expr h = input.dim(1).extent();
     Expr nci = input.dim(2).extent();
 
     // Enclosing voxel
-    Expr gx = (x+0.5f)*gw/(1.0f*w);
-    Expr gy = (y+0.5f)*gh/(1.0f*h);
+    Expr gx = (x+0.5f) / sigma_s;
+    Expr gy = (y+0.5f) / sigma_s;
     Expr gz = clamp(f_guide(x, y, n), 0.0f, 1.0f)*gd;
 
-    Expr fx = max(cast<int>(floor(gx-0.5f)), 0);
-    Expr fy = max(cast<int>(floor(gy-0.5f)), 0);
-    Expr fz = max(cast<int>(floor(gz-0.5f)), 0);
-    Expr cx = min(fx+1, gw-1);
-    Expr cy = min(fy+1, gh-1);
-    Expr cz = min(fz+1, gd-1);
+    Expr fx = cast<int>(floor(gx-0.5f));
+    Expr fy = cast<int>(floor(gy-0.5f));
+    Expr fz = cast<int>(floor(gz-0.5f));
+    Expr cx = fx+1;
+    Expr cy = fy+1;
+    Expr cz = fz+1;
 
     Expr wx = abs(gx-0.5f - fx);
     Expr wy = abs(gy-0.5f - fy);
