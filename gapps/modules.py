@@ -52,12 +52,18 @@ class FancyDemosaick(nn.Module):
     super(FancyDemosaick, self).__init__()
 
     self.weights = [
-        ("dir_weights_x", nn.Parameter(th.rand(3))),
-        ("dir_weights_y", nn.Parameter(th.rand(3))),
+        ("dir_weights_x", nn.Parameter(th.rand(5))),
+        ("dir_weights_y", nn.Parameter(th.rand(5))),
+        ("dir_interp_g", nn.Parameter(th.randn(4))),
+        ("dir_weights_n", nn.Parameter(th.rand(5))),
+        ("dir_weights_p", nn.Parameter(th.rand(5))),
+        ("diag_interp_rb", nn.Parameter(th.randn(4))),
         ]
     self.weights2d = [
         ("neigh_weights_dx", nn.Parameter(th.rand(4, 4))),
         ("neigh_weights_dy", nn.Parameter(th.rand(4, 4))),
+        ("neigh_weights_dp", nn.Parameter(th.rand(4, 4))),
+        ("neigh_weights_dn", nn.Parameter(th.rand(4, 4))),
         ]
 
     for k, v in self.weights:

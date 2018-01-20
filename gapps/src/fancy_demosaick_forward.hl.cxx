@@ -9,8 +9,8 @@ class FancyDemosaickForwardGenerator :
   public Generator<FancyDemosaickForwardGenerator> {
 public:
   Input<Buffer<float>>  cfa{"cfa", 3};
-  Input<Func[2]> weights{"weights", Float(32), 1};
-  Input<Func[2]> weights2d{"weights2d", Float(32), 2};
+  Input<Func[n_w]> weights{"weights", Float(32), 1};
+  Input<Func[n_w2]> weights2d{"weights2d", Float(32), 2};
   Output<Buffer<float>> output{"output", 4};
 
   void generate() {
@@ -23,7 +23,6 @@ public:
     options.gpu = get_target().has_gpu_feature();
     std::set<std::string> dont_inline = {};
     std::vector<Func> funcs{output};
-    int bs = 1;
     std::cout << "forward autoschedule" << std::endl;
     simple_autoschedule(funcs,
         {
@@ -31,14 +30,22 @@ public:
         {"input.min.1", 0},
         {"input.min.2", 0},
         {"input.min.2", 0},
-        {"input.extent.0", 224},
-        {"input.extent.1", 224},
+        {"input.extent.0", 128},
+        {"input.extent.1", 128},
         {"input.extent.2", 3},
-        {"input.extent.3", bs},
+        {"input.extent.3", 4},
         {"weights_0.min.0", 0},
-        {"weights_0.extent.0", 3},
+        {"weights_0.extent.0", 5},
         {"weights_1.min.0", 0},
-        {"weights_1.extent.0", 3},
+        {"weights_1.extent.0", 5},
+        {"weights_2.min.0", 0},
+        {"weights_2.extent.0", 4},
+        {"weights_3.min.0", 0},
+        {"weights_3.extent.0", 5},
+        {"weights_4.min.0", 0},
+        {"weights_4.extent.0", 5},
+        {"weights_5.min.0", 0},
+        {"weights_5.extent.0", 4},
         {"weights2d_0.min.0", 0},
         {"weights2d_0.min.1", 0},
         {"weights2d_0.extent.0", 4},
@@ -47,9 +54,17 @@ public:
         {"weights2d_1.min.1", 0},
         {"weights2d_1.extent.0", 4},
         {"weights2d_1.extent.1", 4},
+        {"weights2d_2.min.0", 0},
+        {"weights2d_2.min.1", 0},
+        {"weights2d_2.extent.0", 4},
+        {"weights2d_2.extent.1", 4},
+        {"weights2d_3.min.0", 0},
+        {"weights2d_3.min.1", 0},
+        {"weights2d_3.extent.0", 4},
+        {"weights2d_3.extent.1", 4},
         },
         {
-        {{0, 223}, {0, 223}, {0, 2}, {0, bs-1}},
+        {{0, 127}, {0, 127}, {0, 2}, {0, 1}},
         },
         options,
         dont_inline);

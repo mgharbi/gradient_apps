@@ -67,7 +67,7 @@ def main(args):
 
   env = os.path.basename(args.output)
   checkpointer = utils.Checkpointer(
-      args.output, model, optimizer, verbose=False, interval=600)
+      args.output, model, optimizer, verbose=False, interval=60)
   callback = demosaick.DemosaickCallback(
       model, reference_model, len(loader), val_loader, env=env)
 
@@ -136,7 +136,7 @@ def main(args):
                 "ssim": ema["ssim"], "l1": ema["l1"]}
         pbar.set_postfix(logs)
         pbar.update(1)
-        if pbar.n % 100 == 0:
+        if pbar.n % args.viz_step == 0:
           callback.on_batch_end(batch_id, logs)
           callback.show_val_batch()
         checkpointer.periodic_checkpoint(epoch)
@@ -189,6 +189,7 @@ if __name__ == "__main__":
   parser.add_argument("--lr", type=float, default=1e-4)
   parser.add_argument("--batch_size", type=int, default=1)
   parser.add_argument("--num_epochs", type=int, default=100)
+  parser.add_argument("--viz_step", type=int, default=10)
   parser.add_argument("--no-cuda", dest="cuda", action="store_false")
   parser.add_argument("--regularize", dest="regularize", action="store_true")
   parser.add_argument("--nfilters", type=int, default=9)
