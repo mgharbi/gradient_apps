@@ -14,30 +14,19 @@ std::map<std::string, Func> bilateral_slice_apply(
         const Input &grid,
         const Input &guide,
         const Input &input) {
+    Func f_grid = BoundaryConditions::repeat_edge(grid);
+    Func f_guide = BoundaryConditions::repeat_edge(guide);
+    Func f_input = BoundaryConditions::repeat_edge(input);
 
-    Func f_grid("f_grid");
-    f_grid(x, y, z, c, n) =
-      Halide::BoundaryConditions::repeat_edge(grid)(x, y, z, c, n);
-    Func f_guide("f_guide");
-    f_guide(x, y, n) =
-      Halide::BoundaryConditions::repeat_edge(guide)(x, y, n);
-    Func f_input("f_input");
-    f_input(x, y, ci, n) =
-      Halide::BoundaryConditions::repeat_edge(input)(x, y, ci, n);
-
-    Expr gw = grid.dim(0).extent();
-    Expr gh = grid.dim(1).extent();
+    int sigma_s = 32;
     Expr gd = grid.dim(2).extent();
     Expr w = input.dim(0).extent();
     Expr h = input.dim(1).extent();
     Expr nci = input.dim(2).extent();
 
     // Enclosing voxel
-    // Limit the maximum reduction size to generate
-    // better Halide code
-    constexpr float eps = 1e-3f;
-    Expr gx = (x+0.5f)*max(gw/(1.0f*w), eps);
-    Expr gy = (y+0.5f)*max(gh/(1.0f*h), eps);
+    Expr gx = (x+0.5f) / sigma_s;
+    Expr gy = (y+0.5f) / sigma_s;
     Expr gz = clamp(f_guide(x, y, n), 0.0f, 1.0f)*gd;
 
     Expr fx = cast<int>(floor(gx-0.5f));

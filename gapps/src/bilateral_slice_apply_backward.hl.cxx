@@ -33,10 +33,9 @@ public:
 
         //print_func(d(f_grid));
 
-        std::map<FuncKey, Func> adjoints = d.adjoints;
-        assign_gradient(adjoints, f_grid, d_grid);
-        assign_gradient(adjoints, f_guide, d_guide);
-        assign_gradient(adjoints, f_input, d_input);
+        assign_gradient(d, f_grid, d_grid);
+        assign_gradient(d, f_guide, d_guide);
+        assign_gradient(d, f_input, d_input);
 
         if(auto_schedule) {
         } else {
@@ -58,30 +57,30 @@ public:
                                   {"guide.min.0", 0},
                                   {"guide.min.1", 0},
                                   {"guide.min.2", 0},
-                                  {"guide.extent.0", 1024},
-                                  {"guide.extent.1", 1024},
+                                  {"guide.extent.0", 2048},
+                                  {"guide.extent.1", 2048},
                                   {"guide.extent.2", 4},
                                   {"input.min.0", 0},
                                   {"input.min.1", 0},
                                   {"input.min.2", 0},
                                   {"input.min.3", 0},
-                                  {"input.extent.0", 1024},
-                                  {"input.extent.1", 1024},
+                                  {"input.extent.0", 2048},
+                                  {"input.extent.1", 2048},
                                   {"input.extent.2", 3},
                                   {"input.extent.3", 4},
                                   {"d_output.min.0", 0},
                                   {"d_output.min.1", 0},
                                   {"d_output.min.2", 0},
                                   {"d_output.min.3", 0},
-                                  {"d_output.extent.0", 1024},
-                                  {"d_output.extent.1", 1024},
+                                  {"d_output.extent.0", 2048},
+                                  {"d_output.extent.1", 2048},
                                   {"d_output.extent.2", 3},
                                   {"d_output.extent.3", 4}
                                 },
                                 {
-                                  {{0, 15}, {0, 15}, {0, 7}, {0, 11}, {0, 3}},
-                                  {{0, 255}, {0, 255}, {0, 3}},
-                                  {{0, 255}, {0, 255}, {0, 2}, {0, 3}}
+                                  {{0, 63}, {0, 63}, {0, 7}, {0, 11}, {0, 3}},
+                                  {{0, 2047}, {0, 2047}, {0, 3}},
+                                  {{0, 2047}, {0, 2047}, {0, 2}, {0, 3}}
                                 },
                                 options);
         }

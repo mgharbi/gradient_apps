@@ -178,14 +178,15 @@ class BilateralSliceApply(Benchmark):
     x = guide.grad.sum().cpu().data[0]
 
   def reset(self):
-    bs = 16
+    bs = 4
     ci = 3
     co = 3
     gd = 8
     gh = 64
     gw = 64
-    h = 512
-    w = 512
+    h = 2048
+    w = 2048
+    assert(w / gw == 32 and h / gh == 32)
     im = th.randn(bs, ci, h, w)
     guide = th.rand(bs, h, w)
     grid = th.rand(bs, co*(ci+1), gd, gh, gw)
