@@ -7,30 +7,24 @@ namespace gradient_apps {
 class SpatialTransformerBackwardGenerator
   : public Generator<SpatialTransformerBackwardGenerator> {
 public:
-    Input<Buffer<float>>  input{"input", 4};
-    Input<Buffer<float>>  affine_mtx{"affine_mtx", 3};
-    Input<Buffer<float>>  d_output{"d_output", 4};
-
+    Input<Buffer<float>>   input{"input", 4};
+    Input<Buffer<float>>   affine_mtx{"affine_mtx", 3};
+    Input<Buffer<float>>   d_output{"d_output", 4};
     Output<Buffer<float>>  d_input{"d_input", 4};
     Output<Buffer<float>>  d_affine_mtx{"d_affine_mtx", 3};
 
     void generate() {
-        std::map<std::string, Func> func_map = spatial_transformer(
-            input, affine_mtx);
-        Func f_output = func_map["output"];
-        Func f_input = func_map["input"];
-        Func f_affine_mtx = func_map["affine_mtx"];
+        Func output = spatial_transformer(input, affine_mtx);
 
         Derivative d = propagate_adjoints(
-            f_output, d_output,
+            output, d_output,
             {{d_output.dim(0).min(), d_output.dim(0).max()},
              {d_output.dim(1).min(), d_output.dim(1).max()},
              {d_output.dim(2).min(), d_output.dim(2).max()},
              {d_output.dim(3).min(), d_output.dim(3).max()}
              });
-        std::map<FuncKey, Func> adjoints = d.adjoints;
-        assign_gradient(adjoints, f_input, d_input);
-        assign_gradient(adjoints, f_affine_mtx, d_affine_mtx);
+        assign_gradient(d, input, d_input);
+        assign_gradient(d, affine_mtx, d_affine_mtx);
 
         SimpleAutoscheduleOptions options;
         options.gpu = get_target().has_gpu_feature();
@@ -38,6 +32,8 @@ public:
         std::set<std::string> dont_inline = {};
 
         std::vector<Func> funcs{d_input, d_affine_mtx};
+
+        print_func(d(affine_mtx));
 
         simple_autoschedule(funcs,
             {
@@ -70,7 +66,6 @@ public:
             },
             options,
             dont_inline);
-
     }
 };
 

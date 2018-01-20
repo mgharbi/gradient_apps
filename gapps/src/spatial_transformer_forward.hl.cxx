@@ -12,9 +12,8 @@ public:
   Output<Buffer<float>> output{"output", 4};
 
   void generate() {
-    std::map<std::string, Func> func_map = spatial_transformer(
+    Func f_output = spatial_transformer(
         input, affine_mtx);
-    Func f_output = func_map["output"];
     output(x, y, c, n) = f_output(x, y, c, n);
 
     SimpleAutoscheduleOptions options;

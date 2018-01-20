@@ -26,8 +26,8 @@ import gapps.metrics as metrics
 
 log = logging.getLogger("gapps_deconvolution")
 
-cg_iter = 1
-ref_cg_iter = 1
+cg_iter = 20
+ref_cg_iter = 20
 
 class DeconvCallback(object):
   def __init__(self, model, ref_model, val_loader, cuda, env=None):
@@ -150,8 +150,8 @@ class DeconvCallback(object):
     self.reg_thresholds_viz.update(iteration, self.model.reg_thresholds.data[0, :].cpu().numpy())
 
 def main(args):
-  model = models.DeconvCGAuto(num_stages = 3)
-  ref_model = models.DeconvCGAuto(ref = True)
+  model = models.DeconvNonlinearCG(num_stages = 3)
+  ref_model = models.DeconvNonlinearCG(ref = True)
 
   if not os.path.exists(args.output):
     os.makedirs(args.output)
@@ -222,6 +222,7 @@ def main(args):
     loss = loss_fn(output, reference)
     loss.backward()
     optimizer.step()
+    model.reg_powers.data.fill_(2.0)
 
     # Compute PSNR
     psnr = psnr_fn(output, reference)
@@ -301,7 +302,7 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="/data/graphics/approximation/datasets/imagenet/imagenet_jpeg.txt")
   parser.add_argument("--val_dataset", default="/data/graphics/approximation/datasets/imagenet/imagenet_jpeg.txt")
   parser.add_argument("--output", default="output/deconv")
-  parser.add_argument("--lr", type=float, default=1e-4)
+  parser.add_argument("--lr", type=float, default=3e-4)
   parser.add_argument("--cuda", type=bool, default=True)
   parser.add_argument("--batch_size", type=int, default=1)
   parser.add_argument("--port", type=int, default=8888)
@@ -310,6 +311,6 @@ if __name__ == "__main__":
   logging.basicConfig(
       format="[%(process)d] %(levelname)s %(filename)s:%(lineno)s | %(message)s")
   log.setLevel(logging.INFO)
-  setproctitle.setproctitle('gapps_deconvolution2')
+  setproctitle.setproctitle('gapps_deconvolution')
 
   main(args)

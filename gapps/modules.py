@@ -796,7 +796,7 @@ class VGGours(nn.Module):
         input, self.conv_weights, self.fc_weights, self.biases)
     out = outs[0]
     grads = outs[1:]
-    print "out: ", out.abs().max().data[0]
+    print("out: ", out.abs().max().data[0])
     for i, g in enumerate(grads):
       if i < len(self.conv_weights):
         name = "conv"
@@ -804,7 +804,7 @@ class VGGours(nn.Module):
         name = "fc"
       else:
         name = "bias"
-      print "-", name, g.abs().max().data[0]
+      print("-", name, g.abs().max().data[0])
     return out
 
 class Conv2d(nn.Module):

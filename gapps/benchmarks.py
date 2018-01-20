@@ -67,7 +67,7 @@ class Benchmark(object):
     
     
 class SpatialTransformer(Benchmark):
-  def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=10):
+  def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=50):
     super(SpatialTransformer, self).__init__(
         cuda=cuda, burn_iters=burn_iters, iters=iters)
     self.pytorch = pytorch
@@ -92,8 +92,8 @@ class SpatialTransformer(Benchmark):
 
   def reset(self):
     sz = 512
-    bs = 4
-    image = th.ones(bs, 3, sz, sz)
+    bs = 32
+    image = th.randn(bs, 3, sz, sz)
 
     affine_mtx = th.zeros(bs, 2, 3)
     affine_mtx[:, 0, 1] = 1.0
@@ -168,7 +168,7 @@ class VGG(Benchmark):
   def run(self):
     output = self.op(self.image)
     loss = output.mean()
-    print loss.data.cpu()[0]
+    print(loss.data.cpu()[0])
 
   def reset(self):
     bs = 1
