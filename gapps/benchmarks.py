@@ -84,15 +84,11 @@ class SpatialTransformer(Benchmark):
     output = self.op(image, affine_mtx)
     loss = output.sum()
 
-    start = time.time()
-
     loss.backward()
+
+    # Make sure pytorch actually runs, lazy as it is
     x = image.grad.sum().cpu().data[0]
     x = affine_mtx.grad.sum().cpu().data[0]
-
-    end = time.time()
-    runtime = (end-start)*1000.0
-    # print "func back {:.2f}".format(runtime)
 
   def reset(self):
     sz = 512
@@ -104,8 +100,6 @@ class SpatialTransformer(Benchmark):
     affine_mtx[:, 1, 0] = 1.0
 
     self.image = image
-    # self.image = Variable(image, requires_grad=True)
-    # self.affine_mtx = Variable(affine_mtx, requires_grad=True)
     self.affine_mtx = affine_mtx
 
     self.op = modules.SpatialTransformer(pytorch=self.pytorch)
@@ -129,9 +123,15 @@ class BilateralLayer(Benchmark):
       return "BilateralLayer"
 
   def run(self):
-    output = self.op(self.image, self.guide)
+    im = Variable(self.image, requires_grad=True)
+    guide = Variable(self.guide, requires_grad=True)
+    output = self.op(image, guide)
     loss = output.sum()
     loss.backward()
+
+    # Make sure pytorch actually runs, lazy as it is
+    x = im.grad.sum().cpu().data[0]
+    x = guide.grad.sum().cpu().data[0]
 
   def reset(self):
     sz = 512
@@ -139,8 +139,8 @@ class BilateralLayer(Benchmark):
     c = 16
     im = th.randn(bs, c, sz, sz)
     guide = th.rand(bs, sz, sz)
-    self.image = Variable(im, requires_grad=True)
-    self.guide = Variable(guide, requires_grad=True)
+    self.image = im
+    self.guide = guide
 
     if self.pytorch:
       self.op = modules.BilateralLayerTorch(c, c, 3, False)
@@ -193,7 +193,8 @@ class BackwardConv2d(Benchmark):
       return "BackwardConv2d"
 
   def run(self):
-    output = self.op(self.image)
+    image = Variable(self.image, requires_grad=True)
+    output = self.op(image)
 
   def reset(self):
     sz = 256
@@ -201,7 +202,7 @@ class BackwardConv2d(Benchmark):
     c = 3
     im = th.randn(bs, c, sz, sz)
     guide = th.rand(bs, sz, sz)
-    self.image = Variable(im, requires_grad=True)
+    self.image = im
 
     if self.general_scatter:
       self.op = modules.BackwardConv2dGeneralScatter(c, c, 3)
