@@ -44,12 +44,16 @@ Func spatial_transformer(const Input &input,
     Expr wx = (new_x - fx);
     Expr wy = (new_y - fy);
 
+    RDom rw(0, 2, 0, 2);
     Func output("output");
-    output(x, y, c, n) = 
+    output(x, y, c, n) = 0.f;
+    output(x, y, c, n) += 
+        input(fx + rw.x, fy + rw.y, c, n) * wx * wy;
+    /*
         input(fx,   fy,   c, n)*(1.0f-wx)*(1.0f-wy)
       + input(fx,   fy+1, c, n)*(1.0f-wx)*(     wy)
       + input(fx+1, fy,   c, n)*(     wx)*(1.0f-wy)
-      + input(fx+1, fy+1, c, n)*(     wx)*(     wy);
+      + input(fx+1, fy+1, c, n)*(     wx)*(     wy);*/
 
     return output;
 }

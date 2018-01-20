@@ -23,9 +23,8 @@ public:
              {d_output.dim(2).min(), d_output.dim(2).max()},
              {d_output.dim(3).min(), d_output.dim(3).max()}
              });
-        std::map<FuncKey, Func> adjoints = d.adjoints;
-        assign_gradient(adjoints, input, d_input);
-        assign_gradient(adjoints, affine_mtx, d_affine_mtx);
+        assign_gradient(d, input, d_input);
+        assign_gradient(d, affine_mtx, d_affine_mtx);
 
         SimpleAutoscheduleOptions options;
         options.gpu = get_target().has_gpu_feature();
@@ -65,7 +64,7 @@ public:
             },
             options,
             dont_inline);
-
+        print_func(d(input));
     }
 };
 
