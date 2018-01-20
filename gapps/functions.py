@@ -1032,7 +1032,7 @@ class BilateralSliceApply(Function):
     bs, ci, h, w = input.shape
     c = grid.shape[1]
     output = input.new()
-    output.resize_(bs, c/(ci+1), h, w)
+    output.resize_(bs, c//(ci+1), h, w)
     ops.bilateral_slice_apply_forward(grid, guide, input, output)
     return output
 

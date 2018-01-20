@@ -54,15 +54,20 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			naive_demosaick_forward \
-			fancy_demosaick_forward fancy_demosaick_backward \
+			bilateral_slice_apply_forward bilateral_slice_apply_backward \
+			# naive_demosaick_forward \
+			# fancy_demosaick_forward fancy_demosaick_backward \
 			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
+			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
+			# bilateral_layer_forward bilateral_layer_backward \
+			# naive_demosaick_forward \
+			# fancy_demosaick_forward fancy_demosaick_backward \
+>>>>>>> Stashed changes
 			# spatial_transformer_forward spatial_transformer_backward \
 			learnable_demosaick_forward learnable_demosaick_backward \
 			# vgg_forward_backward \
 			# bilinear_resampling_forward bilinear_resampling_backward \
 			# conv2d_forward conv2d_backward_scatter \
-			# bilateral_layer_forward bilateral_layer_backward \
 			# burst_demosaicking_forward burst_demosaicking_backward \
 	  	# deconv_grad_forward deconv_grad_backward \
 			# deconv_alpha_forward deconv_alpha_backward \

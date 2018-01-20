@@ -182,10 +182,10 @@ class BilateralSliceApply(Benchmark):
     ci = 3
     co = 3
     gd = 8
-    gh = 16
-    gw = 16
-    h = 256
-    w = 256
+    gh = 64
+    gw = 64
+    h = 512
+    w = 512
     im = th.randn(bs, ci, h, w)
     guide = th.rand(bs, h, w)
     grid = th.rand(bs, co*(ci+1), gd, gh, gw)

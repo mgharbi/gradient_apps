@@ -31,6 +31,8 @@ public:
              {d_output.dim(3).min(), d_output.dim(3).max()}}
              );
 
+        //print_func(d(f_grid));
+
         std::map<FuncKey, Func> adjoints = d.adjoints;
         assign_gradient(adjoints, f_grid, d_grid);
         assign_gradient(adjoints, f_guide, d_guide);
@@ -48,31 +50,31 @@ public:
                                   {"grid.min.2", 0},
                                   {"grid.min.3", 0},
                                   {"grid.min.4", 0},
-                                  {"grid.extent.0", 16},
-                                  {"grid.extent.1", 16},
+                                  {"grid.extent.0", 64},
+                                  {"grid.extent.1", 64},
                                   {"grid.extent.2", 8},
                                   {"grid.extent.3", 12},
                                   {"grid.extent.4", 4},
                                   {"guide.min.0", 0},
                                   {"guide.min.1", 0},
                                   {"guide.min.2", 0},
-                                  {"guide.extent.0", 256},
-                                  {"guide.extent.1", 256},
+                                  {"guide.extent.0", 1024},
+                                  {"guide.extent.1", 1024},
                                   {"guide.extent.2", 4},
                                   {"input.min.0", 0},
                                   {"input.min.1", 0},
                                   {"input.min.2", 0},
                                   {"input.min.3", 0},
-                                  {"input.extent.0", 256},
-                                  {"input.extent.1", 256},
+                                  {"input.extent.0", 1024},
+                                  {"input.extent.1", 1024},
                                   {"input.extent.2", 3},
                                   {"input.extent.3", 4},
                                   {"d_output.min.0", 0},
                                   {"d_output.min.1", 0},
                                   {"d_output.min.2", 0},
                                   {"d_output.min.3", 0},
-                                  {"d_output.extent.0", 256},
-                                  {"d_output.extent.1", 256},
+                                  {"d_output.extent.0", 1024},
+                                  {"d_output.extent.1", 1024},
                                   {"d_output.extent.2", 3},
                                   {"d_output.extent.3", 4}
                                 },

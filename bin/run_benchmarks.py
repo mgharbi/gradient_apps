@@ -24,7 +24,7 @@ def main():
   ]
 
   for r in res:
-    print r()
+    print(r())
 
 
 if __name__ == "__main__":
