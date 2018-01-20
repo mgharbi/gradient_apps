@@ -64,7 +64,6 @@ public:
             },
             options,
             dont_inline);
-        print_func(d(input));
     }
 };
 
