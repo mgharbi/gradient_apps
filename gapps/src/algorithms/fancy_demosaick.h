@@ -44,27 +44,24 @@ std::map<std::string, Func> fancy_demosaick(
     Func dir_wts_y("dir_wts_y");
     RDom r_dir_wts(-1, 3);
     dir_wts_x(x, y, n) = eps;
-    dir_wts_x(x, y, n) += grads(x + r_dir_wts, y, 0, n)*weights[0](1 + r_dir_wts);
+    dir_wts_x(x, y, n) += grads(x + r_dir_wts, y, 0, n)*weights[0](1+r_dir_wts);
     dir_wts_y(x, y, n) = eps;
-    dir_wts_y(x, y, n) += grads(x, y + r_dir_wts, 1, n)*weights[1](1 + r_dir_wts);
+    dir_wts_y(x, y, n) += grads(x, y + r_dir_wts, 1, n)*weights[1](1+r_dir_wts);
 
-    // . G .
-    // G . G
-    // . G .
-    Func N("N");
-    RDom rN(0, 4);
-    // N(k) = {1, 0};
-    // N(1) = {0, 1};
-    // N(2) = {-1, 0};
-    // N(3) = {0, -1};
-    // N.compute_root();
+    // // . G .
+    // // G . G
+    // // . G .
+    RDom rN(0, 4, "rN");
+    Expr dx = select(rN == 0, 1, rN == 2, -1, 0);
+    Expr dy = select(rN == 1, 1, rN == 3, -1, 0);
+
 
     // Weights on the four green neighbors, based on gradients
     Func green_weights("green_weights");
     green_weights(x, y, k, n) = 0.0f;
-    // green_weights(x, y, k, n) += 
-    //     dir_wts_x(x+N(rN)[0], y+N(rN)[1], n)*weights2d[0](rN, k)
-    //   + dir_wts_y(x+N(rN)[0], y+N(rN)[1], n)*weights2d[1](rN, k);
+    green_weights(x, y, k, n) += 
+        dir_wts_x(x+dx, y+dy, n)*weights2d[0](rN, k)
+      + dir_wts_y(x+dx, y+dy, n)*weights2d[1](rN, k);
 
     Func gw_sum("gw_sum");
     gw_sum(x, y, n) = 0.0f;
@@ -72,10 +69,10 @@ std::map<std::string, Func> fancy_demosaick(
 
     // Interpolate green
     Func i_g("i_g");
-    i_g(x, y, n) = gw_sum(x, y, n);
-    // i_g(x, y, n) = 0.0f;
-    // i_g(x, y, n) += cfa_(x+N(rN)[0], y+N(rN)[1], n)*green_weights(x, y, rN, n);
-    // i_g(x, y, n) /= gw_sum(x, y, n);
+    // i_g(x, y, n) = gw_sum(x, y, n);
+    i_g(x, y, n) = 0.0f;
+    i_g(x, y, n) += cfa_(x+dx, y+dy, n)*green_weights(x, y, rN, n);
+    i_g(x, y, n) /= gw_sum(x, y, n);
 
     Func g("g");
     g(x, y, n) = select(
@@ -83,7 +80,9 @@ std::map<std::string, Func> fancy_demosaick(
         i_g(x, y, n));
 
     Func output("output");
-    output(x, y, c, n) = g(x, y, n);
+    output(x, y, c, n) = select(
+        c == 1, g(x, y, n),
+        0.0f);
 
     std::map<std::string, Func> func_map;
     func_map["output"] = output;

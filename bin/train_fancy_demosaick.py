@@ -46,7 +46,7 @@ def main(args):
   # model.sel_filts.data = th.from_numpy(vects)
 
   loader = DataLoader(dset, batch_size=args.batch_size, num_workers=4, shuffle=True)
-  val_loader = DataLoader(val_dset, batch_size=args.batch_size)
+  val_loader = DataLoader(val_dset, batch_size=args.batch_size, shuffle=True)
 
   if args.cuda:
     model = model.cuda()
@@ -93,6 +93,8 @@ def main(args):
       callback.show_val_batch()
       for batch_id, batch in enumerate(loader):
         mosaick, reference = batch
+        reference[:, 0, ...] = 0
+        reference[:, 2, ...] = 0
         mosaick = Variable(mosaick, requires_grad=False)
         reference = Variable(reference, requires_grad=False)
 
