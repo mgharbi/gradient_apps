@@ -90,6 +90,7 @@ def main(args):
     with tqdm(total=len(loader), unit=' batches') as pbar:
       pbar.set_description("Epoch {}/{}".format(epoch+1, args.num_epochs))
       # callback.on_epoch_begin(epoch)
+      callback.show_val_batch()
       for batch_id, batch in enumerate(loader):
         mosaick, reference = batch
         mosaick = Variable(mosaick, requires_grad=False)
@@ -135,6 +136,7 @@ def main(args):
         pbar.update(1)
         if pbar.n % 100 == 0:
           callback.on_batch_end(batch_id, logs)
+          callback.show_val_batch()
         checkpointer.periodic_checkpoint(epoch)
 
     # Validation
@@ -181,9 +183,9 @@ if __name__ == "__main__":
   parser.add_argument("--dataset", default="data/demosaick/train/filelist.txt")
   parser.add_argument("--val_dataset", default="data/demosaick/val/filelist.txt")
   parser.add_argument("--chkpt")
-  parser.add_argument("--output", default="output/demosaick")
+  parser.add_argument("--output", default="output/fancy_demosaick")
   parser.add_argument("--lr", type=float, default=1e-4)
-  parser.add_argument("--batch_size", type=int, default=32)
+  parser.add_argument("--batch_size", type=int, default=1)
   parser.add_argument("--num_epochs", type=int, default=100)
   parser.add_argument("--no-cuda", dest="cuda", action="store_false")
   parser.add_argument("--regularize", dest="regularize", action="store_true")

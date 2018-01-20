@@ -320,15 +320,36 @@ class LearnableDemosaick(Function):
 class FancyDemosaick(Function):
   """"""
   @staticmethod
-  def forward(ctx, cfa, weights, weights2d):
-    ctx.save_for_backward(cfa, weights, weights2d)
+  def forward(ctx, cfa, *weights):
+    ctx.save_for_backward(cfa, *weights)
 
-    bs, h, w = cfa.shape
+    bs, _, h, w = cfa.shape
     output = cfa.new()
     output.resize_(bs, 3, h, w)
-    args = [cfa] + weights + weights2d + [output]
-    ops.vgg_forward(*args)
+
+    args = [cfa.view(bs, h, w)] + list(weights) + [output]
+
+    ops.fancy_demosaick_forward(*args)
     return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    saved = ctx.saved_variables
+    cfa = saved[0]
+    weights = list(saved[1:])
+
+    grads = []
+    for c in weights:
+      c_g = c.data.new()
+      c_g.resize_as_(c.data)
+      grads.append(c_g)
+
+    args = [cfa.data] + [w.data for w in weights] + [d_output.data] \
+        + grads
+    ops.fancy_demosaick_backward(*args)
+    v_grads = [Variable(g) for g in grads]
+
+    return (None, ) + tuple(v_grads)
 
 class DeconvCGInit(Function):
   """"""

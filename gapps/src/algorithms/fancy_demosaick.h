@@ -53,17 +53,11 @@ std::map<std::string, Func> fancy_demosaick(
     // . G .
     Func N("N");
     RDom rN(0, 4);
-    N(k) = {1, 0};
-    N(1) = {0, 1};
-    N(2) = {-1, 0};
-    N(3) = {0, -1};
-    N.compute_root();
-
-    // N
-    //     k == 0, {1, 0},
-    //     k == 1, {0, 1},
-    //     k == 2, {-1, 0},
-    //     {0, -1});
+    // N(k) = {1, 0};
+    // N(1) = {0, 1};
+    // N(2) = {-1, 0};
+    // N(3) = {0, -1};
+    // N.compute_root();
 
     // Weights on the four green neighbors, based on gradients
     Func green_weights("green_weights");
@@ -78,9 +72,10 @@ std::map<std::string, Func> fancy_demosaick(
 
     // Interpolate green
     Func i_g("i_g");
-    i_g(x, y, n) = 0.0f;
+    i_g(x, y, n) = gw_sum(x, y, n);
+    // i_g(x, y, n) = 0.0f;
     // i_g(x, y, n) += cfa_(x+N(rN)[0], y+N(rN)[1], n)*green_weights(x, y, rN, n);
-    i_g(x, y, n) /= gw_sum(x, y, n);
+    // i_g(x, y, n) /= gw_sum(x, y, n);
 
     Func g("g");
     g(x, y, n) = select(
@@ -88,7 +83,6 @@ std::map<std::string, Func> fancy_demosaick(
         i_g(x, y, n));
 
     Func output("output");
-    // output(x, y, c, n) = 0.0f;
     output(x, y, c, n) = g(x, y, n);
 
     std::map<std::string, Func> func_map;

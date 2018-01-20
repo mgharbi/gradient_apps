@@ -63,6 +63,9 @@ class DemosaickCallback(object):
     if "l1" in logs.keys():
       self.l1_viz.update(epoch+1, logs['l1'], name="val")
 
+    self.show_val_batch()
+
+  def show_val_batch(self):
     self.viz.update(self._get_im_batch(), per_row=self.val_loader.batch_size,
                     caption="input | gt | ours | ref | diff (x4)")
 
