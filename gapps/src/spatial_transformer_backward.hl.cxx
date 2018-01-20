@@ -33,6 +33,8 @@ public:
 
         std::vector<Func> funcs{d_input, d_affine_mtx};
 
+        print_func(d(affine_mtx));
+
         simple_autoschedule(funcs,
             {
               {"input.min.0", 0},

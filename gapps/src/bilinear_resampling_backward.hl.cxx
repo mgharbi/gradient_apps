@@ -15,12 +15,7 @@ public:
     Output<Buffer<float>>  d_warp{"d_warp", 4};
 
     void generate() {
-        std::map<std::string, Func> func_map = bilinear_resampling(
-            input, warp);
-        Func f_output = func_map["output"];
-        Func f_input = func_map["input"];
-        Func f_warp = func_map["warp"];
-
+        Func f_output = bilinear_resampling(input, warp);
         Derivative d = propagate_adjoints(
             f_output, d_output,
             {{d_output.dim(0).min(), d_output.dim(0).max()},
@@ -28,9 +23,8 @@ public:
              {d_output.dim(2).min(), d_output.dim(2).max()},
              {d_output.dim(3).min(), d_output.dim(3).max()}
              });
-        std::map<FuncKey, Func> adjoints = d.adjoints;
-        assign_gradient(adjoints, f_input, d_input);
-        assign_gradient(adjoints, f_warp, d_warp);
+        assign_gradient(d, input, d_input);
+        assign_gradient(d, warp, d_warp);
 
         SimpleAutoscheduleOptions options;
         options.gpu = get_target().has_gpu_feature();

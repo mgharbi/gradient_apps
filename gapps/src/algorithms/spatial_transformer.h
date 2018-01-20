@@ -19,7 +19,7 @@ Func spatial_transformer(const Input &input,
     // Normalize image coordinates to [-1, 1]^2
     Expr nrm_x = 2.0f*(x * 1.0f / width) - 1.0f;
     Expr nrm_y = 2.0f*(y * 1.0f / height) - 1.0f;
-    Func nrm_coords("nrm_coords");
+    Func nrm_coords;
     nrm_coords(x, y, z) = 0.f;
     nrm_coords(x, y, 0) = 2.f * (x * 1.f / width) - 1.f;
     nrm_coords(x, y, 1) = 2.f * (y * 1.f / height) - 1.f;

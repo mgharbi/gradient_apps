@@ -12,9 +12,7 @@ public:
   Output<Buffer<float>> output{"output", 4};
 
   void generate() {
-    std::map<std::string, Func> func_map = bilinear_resampling(
-        input, warp);
-    Func f_output = func_map["output"];
+    Func f_output = bilinear_resampling(input, warp);
     output(x, y, c, n) = f_output(x, y, c, n);
 
     SimpleAutoscheduleOptions options;
