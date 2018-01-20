@@ -24,6 +24,7 @@ public:
     std::set<std::string> dont_inline = {};
     std::vector<Func> funcs{output};
     int bs = 1;
+    std::cout << "forward autoschedule" << std::endl;
     simple_autoschedule(funcs,
         {
         {"input.min.0", 0},

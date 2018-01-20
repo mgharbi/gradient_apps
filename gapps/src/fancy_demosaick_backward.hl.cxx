@@ -30,6 +30,13 @@ public:
           {d_output.dim(3).min(), d_output.dim(3).max()},
         });
 
+    std::map<FuncKey, Func> adjoints = d.adjoints;
+    assert(adjoints.find(FuncKey{weights[0].name(), -1}) != adjoints.end());
+    std::cout << "adjoints\n"; 
+    for(std::pair<FuncKey, Func> p : adjoints) {
+      std::cout << p.second.name() <<"\n";
+    }
+
     PrintFuncOptions opts;
     // opts.depth = 1;
     // print_func(d_output, opts);
@@ -38,11 +45,13 @@ public:
     for(int i = 0; i < 2; ++i) {
       d_weights[i](x) = 0.0f;
       // assign_gradient(d, weights[i], d_weights[i]);
+      // d_weights[i] = d(weights[i]);
       funcs.push_back(d_weights[i]);
     }
     for(int i = 0; i < 2; ++i) {
-      d_weights2d[i](x, y) = 0.0f;
+      // d_weights2d[i](x, y) = 0.0f;
       // assign_gradient(d, weights2d[i], d_weights2d[i]);
+      d_weights2d[i] = d(weights2d[i]);
       funcs.push_back(d_weights2d[i]);
     }
 
@@ -53,38 +62,45 @@ public:
     std::set<std::string> dont_inline = {};
     int bs = 1;
     std::set<std::string> skip = {};
-    skip.insert("N");
-    simple_autoschedule(funcs,
-        {
-        {"input.min.0", 0},
-        {"input.min.1", 0},
-        {"input.min.2", 0},
-        {"input.min.2", 0},
-        {"input.extent.0", 224},
-        {"input.extent.1", 224},
-        {"input.extent.2", 3},
-        {"input.extent.3", bs},
-        {"weights_0.min.0", 0},
-        {"weights_0.extent.0", 3},
-        {"weights_1.min.0", 0},
-        {"weights_1.extent.0", 3},
-        {"weights2d_0.min.0", 0},
-        {"weights2d_0.min.1", 0},
-        {"weights2d_0.extent.0", 4},
-        {"weights2d_0.extent.1", 4},
-        {"weights2d_1.min.0", 0},
-        {"weights2d_1.min.1", 0},
-        {"weights2d_1.extent.0", 4},
-        {"weights2d_1.extent.1", 4},
-        },
-        {
-          {{0, 2}},
-          {{0, 2}},
-          {{0, 3}, {0, 3}},
-          {{0, 3}, {0, 3}},
-        },
-        options,
-        dont_inline, skip);
+    // skip.insert("N");
+    // std::cout << "backward autoschedule" << std::endl;
+    // simple_autoschedule(funcs,
+    //     {
+    //     {"cfa.min.0", 0},
+    //     {"cfa.min.1", 0},
+    //     {"cfa.min.2", 0},
+    //     {"cfa.extent.0", 224},
+    //     {"cfa.extent.1", 224},
+    //     {"cfa.extent.3", bs},
+    //     {"weights_0.min.0", 0},
+    //     {"weights_0.extent.0", 3},
+    //     {"weights_1.min.0", 0},
+    //     {"weights_1.extent.0", 3},
+    //     {"weights2d_0.min.0", 0},
+    //     {"weights2d_0.min.1", 0},
+    //     {"weights2d_0.extent.0", 4},
+    //     {"weights2d_0.extent.1", 4},
+    //     {"weights2d_1.min.0", 0},
+    //     {"weights2d_1.min.1", 0},
+    //     {"weights2d_1.extent.0", 4},
+    //     {"weights2d_1.extent.1", 4},
+    //     {"d_output.min.0", 0},
+    //     {"d_output.min.1", 0},
+    //     {"d_output.min.2", 0},
+    //     {"d_output.min.2", 0},
+    //     {"d_output.extent.0", 224},
+    //     {"d_output.extent.1", 224},
+    //     {"d_output.extent.2", 3},
+    //     {"d_output.extent.3", bs},
+    //     },
+    //     {
+    //       {{0, 2}},
+    //       {{0, 2}},
+    //       {{0, 3}, {0, 3}},
+    //       {{0, 3}, {0, 3}},
+    //     },
+    //     options,
+    //     dont_inline, skip);
   }
 };
 
