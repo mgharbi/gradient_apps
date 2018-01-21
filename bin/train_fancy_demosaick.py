@@ -93,6 +93,8 @@ def main(args):
       callback.show_val_batch()
       for batch_id, batch in enumerate(loader):
         mosaick, reference = batch
+        reference[:, 1, ...] = 0.0
+        reference[:, 2, ...] = 0.0
         mosaick = Variable(mosaick, requires_grad=False)
         reference = Variable(reference, requires_grad=False)
 

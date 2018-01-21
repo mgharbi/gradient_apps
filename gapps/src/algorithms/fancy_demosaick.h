@@ -6,9 +6,9 @@
 
 #include "helpers.h"
 
-#define n_w 6
+#define n_w 5
 #define n_w2 7
-#define n_w3 2
+#define n_w3 3
 
 using namespace Halide;
 
@@ -84,7 +84,7 @@ std::map<std::string, Func> fancy_demosaick(
 
     // Normalize interpolation
     Func gw_sum("gw_sum");
-    gw_sum(x, y, n) = 0.0f;
+    gw_sum(x, y, n) = eps;
     gw_sum(x, y, n) += green_weights(x, y, rN, n);
     Func n_i_g("n_i_g");
     n_i_g(x, y, n) = i_g(x, y, n) / gw_sum(x, y, n);
@@ -122,10 +122,10 @@ std::map<std::string, Func> fancy_demosaick(
     // . R .    . . .
     // B . B    2 . 1
     RDom rD(0, 4, "rD");
-    Expr dx_diag = select(rD == 0 || rD == 1, 1, -1);
-    Expr dy_diag = select(rD == 0 || rD == 3, -1, 1);
-    Expr k_dx_diag = select(k == 0 || k == 1, 1, 1);
-    Expr k_dy_diag = select(k == 0 || k == 3, -1, 1);
+    Expr dx_diag = select(rD == 0 || rD == 1,  1, -1);
+    Expr dy_diag = select(rD == 0 || rD == 3, -1,  1);
+    Expr k_dx_diag = select(k == 0 || k == 1,  1, -1);
+    Expr k_dy_diag = select(k == 0 || k == 3, -1,  1);
 
     Func diag_weights("diag_weights");
     diag_weights(x, y, k, n) = 0.0f;
@@ -140,9 +140,9 @@ std::map<std::string, Func> fancy_demosaick(
     // . R . 
     // b . b 
     Func d_rb("d_rb");
-    ri = RDom(-1, 5, "ri");
+    ri = RDom(1, 2, 1, 2, "ri");
     d_rb(x, y, k, n) = 0.0f;
-    d_rb(x, y, k, n) += cd(x + ri*k_dx_diag, y + ri*k_dy_diag, n)*weights[5](1+ri);
+    d_rb(x, y, k, n) += cd(x + ri.x*k_dx_diag, y + ri.y*k_dy_diag, n)*weights2d[4](ri.x-1, ri.y-1);
 
     // Interpolate color difference
     Func i_cd("i_cd");
@@ -151,7 +151,7 @@ std::map<std::string, Func> fancy_demosaick(
 
     // Normalize interpolation
     Func rbw_sum("rbw_sum");
-    rbw_sum(x, y, n) = 0.0f;
+    rbw_sum(x, y, n) = eps;
     rbw_sum(x, y, n) += diag_weights(x, y, rD, n);
     Func n_i_cd("n_i_cd");
     n_i_cd(x, y, n) = i_cd(x, y, n) / rbw_sum(x, y, n);
@@ -179,9 +179,9 @@ std::map<std::string, Func> fancy_demosaick(
     Func icd_dir_wts_y("icd_dir_wts_y");
     r_dir_wts = RDom(-2, 5);
     icd_dir_wts_x(x, y, c, n) = eps;
-    icd_dir_wts_x(x, y, c, n) += icd_grads(x + r_dir_wts, y, c, 0, n)*weights2d[4](2+r_dir_wts, c);
+    icd_dir_wts_x(x, y, c, n) += icd_grads(x + r_dir_wts, y, c, 0, n)*weights2d[5](2+r_dir_wts, c);
     icd_dir_wts_y(x, y, c, n) = eps;
-    icd_dir_wts_y(x, y, c, n) += icd_grads(x, y + r_dir_wts, c, 1, n)*weights2d[5](2+r_dir_wts, c);
+    icd_dir_wts_y(x, y, c, n) += icd_grads(x, y + r_dir_wts, c, 1, n)*weights2d[6](2+r_dir_wts, c);
 
     // . RB .     . 3 .
     // RB . RB    2 . 0
@@ -203,7 +203,7 @@ std::map<std::string, Func> fancy_demosaick(
     Func c_icd("c_icd");
     ri = RDom (-1, 5, "ri");
     c_icd(x, y, c, k, n) = 0.0f;
-    c_icd(x, y, c, k, n) += split_cd(x + ri*k_dx, y + ri*k_dy, c, n)*weights2d[6](1+ri, c);
+    c_icd(x, y, c, k, n) += split_cd(x + ri*k_dx, y + ri*k_dy, c, n)*weights3d[2](1+ri, k, c);
 
     // Interpolate color diff
     Func i_cd2("i_cd2");
@@ -212,7 +212,7 @@ std::map<std::string, Func> fancy_demosaick(
 
     // Normalize interpolation
     Func icd_sum("icd_sum");
-    icd_sum(x, y, c, n) = 0.0f;
+    icd_sum(x, y, c, n) = eps;
     icd_sum(x, y, c, n) += icd_weights(x, y, c, rN, n);
     Func n_i_cd2("n_i_cd2");
     n_i_cd2(x, y, c, n) = i_cd2(x, y, c, n) / icd_sum(x, y, c, n);
