@@ -16,12 +16,10 @@ std::map<std::string, Func> bilateral_slice_apply(
         const Input &input) {
     Func f_grid = BoundaryConditions::repeat_edge(grid);
     Func f_guide = BoundaryConditions::repeat_edge(guide);
-    Func f_input = BoundaryConditions::repeat_edge(input);
+    Func f_input = BoundaryConditions::repeat_edge(input)(x, y, ci, n);
 
     int sigma_s = 32;
     Expr gd = grid.dim(2).extent();
-    Expr w = input.dim(0).extent();
-    Expr h = input.dim(1).extent();
     Expr nci = input.dim(2).extent();
 
     // Enclosing voxel
@@ -32,9 +30,6 @@ std::map<std::string, Func> bilateral_slice_apply(
     Expr fx = cast<int>(floor(gx-0.5f));
     Expr fy = cast<int>(floor(gy-0.5f));
     Expr fz = cast<int>(floor(gz-0.5f));
-    Expr cx = fx+1;
-    Expr cy = fy+1;
-    Expr cz = fz+1;
 
     Expr wx = abs(gx-0.5f - fx);
     Expr wy = abs(gy-0.5f - fy);
@@ -43,14 +38,14 @@ std::map<std::string, Func> bilateral_slice_apply(
     // Slice affine coeffs
     Func affine_coeffs("affine_coeffs");
     affine_coeffs(x, y, c, n) =
-         f_grid(fx, fy, fz, c, n)*(1.f - wx)*(1.f - wy)*(1.f - wz)
-       + f_grid(fx, fy, cz, c, n)*(1.f - wx)*(1.f - wy)*(      wz)
-       + f_grid(fx, cy, fz, c, n)*(1.f - wx)*(      wy)*(1.f - wz)
-       + f_grid(fx, cy, cz, c, n)*(1.f - wx)*(      wy)*(      wz)
-       + f_grid(cx, fy, fz, c, n)*(      wx)*(1.f - wy)*(1.f - wz)
-       + f_grid(cx, fy, cz, c, n)*(      wx)*(1.f - wy)*(      wz)
-       + f_grid(cx, cy, fz, c, n)*(      wx)*(      wy)*(1.f - wz)
-       + f_grid(cx, cy, cz, c, n)*(      wx)*(      wy)*(      wz);
+         f_grid(fx  , fy  , fz  , c, n)*(1.f - wx)*(1.f - wy)*(1.f - wz)
+       + f_grid(fx  , fy  , fz+1, c, n)*(1.f - wx)*(1.f - wy)*(      wz)
+       + f_grid(fx  , fy+1, fz  , c, n)*(1.f - wx)*(      wy)*(1.f - wz)
+       + f_grid(fx  , fy+1, fz+1, c, n)*(1.f - wx)*(      wy)*(      wz)
+       + f_grid(fx+1, fy  , fz  , c, n)*(      wx)*(1.f - wy)*(1.f - wz)
+       + f_grid(fx+1, fy  , fz+1, c, n)*(      wx)*(1.f - wy)*(      wz)
+       + f_grid(fx+1, fy+1, fz  , c, n)*(      wx)*(      wy)*(1.f - wz)
+       + f_grid(fx+1, fy+1, fz+1, c, n)*(      wx)*(      wy)*(      wz);
 
     // Apply them to the input
     Func output("output");
