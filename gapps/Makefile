@@ -54,9 +54,9 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			bilateral_slice_apply_forward bilateral_slice_apply_backward \
+			fancy_demosaick_forward fancy_demosaick_backward \
+			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
 			# naive_demosaick_forward \
-			# fancy_demosaick_forward fancy_demosaick_backward \
 			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
 			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
 			# bilateral_layer_forward bilateral_layer_backward \

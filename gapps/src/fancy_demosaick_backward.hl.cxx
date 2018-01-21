@@ -45,6 +45,7 @@ public:
 
     std::set<std::string> skip = {};
     skip.insert("N");
+    // skip.insert("cd_0_d_def__");
 
     std::vector<Func> funcs;
     for(int i = 0; i < n_w; ++i) {
@@ -77,7 +78,7 @@ public:
         {"cfa.min.2", 0},
         {"cfa.extent.0", 128},
         {"cfa.extent.1", 128},
-        {"cfa.extent.3", 4},
+        {"cfa.extent.3", 1},
         {"weights_0.min.0", 0},
         {"weights_0.extent.0", 5},
         {"weights_1.min.0", 0},
@@ -109,11 +110,11 @@ public:
         {"d_output.min.0", 0},
         {"d_output.min.1", 0},
         {"d_output.min.2", 0},
-        {"d_output.min.2", 0},
+        {"d_output.min.3", 0},
         {"d_output.extent.0", 127},
         {"d_output.extent.1", 127},
         {"d_output.extent.2", 3},
-        {"d_output.extent.3", 4},
+        {"d_output.extent.3", 1},
         },
         {
           {{0, 4}},

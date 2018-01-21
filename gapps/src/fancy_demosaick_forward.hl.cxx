@@ -26,14 +26,14 @@ public:
     std::cout << "forward autoschedule" << std::endl;
     simple_autoschedule(funcs,
         {
-        {"input.min.0", 0},
-        {"input.min.1", 0},
-        {"input.min.2", 0},
-        {"input.min.2", 0},
-        {"input.extent.0", 128},
-        {"input.extent.1", 128},
-        {"input.extent.2", 3},
-        {"input.extent.3", 4},
+        {"cfa.min.0", 0},
+        {"cfa.min.1", 0},
+        {"cfa.min.2", 0},
+        {"cfa.min.2", 0},
+        {"cfa.extent.0", 128},
+        {"cfa.extent.1", 128},
+        {"cfa.extent.2", 3},
+        {"cfa.extent.3", 1},
         {"weights_0.min.0", 0},
         {"weights_0.extent.0", 5},
         {"weights_1.min.0", 0},
@@ -64,7 +64,7 @@ public:
         {"weights2d_3.extent.1", 4},
         },
         {
-        {{0, 127}, {0, 127}, {0, 2}, {0, 1}},
+        {{0, 127}, {0, 127}, {0, 2}, {0, 0}},
         },
         options,
         dont_inline);

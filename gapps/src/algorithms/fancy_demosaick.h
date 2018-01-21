@@ -61,7 +61,6 @@ std::map<std::string, Func> fancy_demosaick(
     Expr k_dy = select(k == 1, 1, k == 3, -1, 0);
 
     // ---- H/V interpolation of green at R/B ---------------------------------
-    //
     // Weights on the four green neighbors, based on gradients terms
     Func green_weights("green_weights");
     green_weights(x, y, k, n) = 0.0f;
@@ -163,18 +162,19 @@ std::map<std::string, Func> fancy_demosaick(
     // ------------------------------------------------------------------------
 
     // ---- H/V interpolation of color difference at green --------------------
-    
+    // ------------------------------------------------------------------------
+
     Func final_cd("final_cd");
     final_cd(x, y, k, n) = select(
         is_green, 0.0f, split_cd(x, y, k, n));
 
-    // ------------------------------------------------------------------------
     
     Func output("output");
-    output(x, y, c, n) = g(x, y, n) + select(
-        c == 0, final_cd(x, y, 0, n),
-        c == 2, final_cd(x, y, 1, n),
-        0.0f);
+    output(x, y, c, n) = g(x, y, n) + final_cd(x, y, 0, n);
+    // select(
+    //     c == 0, final_cd(x, y, 0, n),
+    //     c == 2, final_cd(x, y, 1, n),
+    //     0.0f);
 
     std::map<std::string, Func> func_map;
     func_map["output"] = output;
