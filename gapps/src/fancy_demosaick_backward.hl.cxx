@@ -11,14 +11,16 @@ public:
   Input<Buffer<float>>  cfa{"cfa", 3};
   Input<Func[n_w]> weights{"weights", Float(32), 1};
   Input<Func[n_w2]> weights2d{"weights2d", Float(32), 2};
+  Input<Func[n_w3]> weights3d{"weights3d", Float(32), 3};
   Input<Buffer<float>> d_output{"d_output", 4};
 
   Output<Func[n_w]> d_weights{"d_weights", Float(32), 1};
   Output<Func[n_w2]> d_weights2d{"d_weights2d", Float(32), 2};
+  Output<Func[n_w3]> d_weights3d{"d_weights3d", Float(32), 3};
 
   void generate() {
     std::map<std::string, Func> f = fancy_demosaick(
-        cfa, weights, weights2d);
+        cfa, weights, weights2d, weights3d);
     Func f_output = f["output"];
 
     std::cout << "pre propag" << std::endl;
@@ -49,21 +51,20 @@ public:
 
     std::vector<Func> funcs;
     for(int i = 0; i < n_w; ++i) {
-      // d_weights[i](x) = 0.0f;
       std::cout << "assigning " << weights[i].name() << "\n"; 
       assign_gradient(d, weights[i], d_weights[i]);
-      // d_weights[i] = d(weights[i]);
       funcs.push_back(d_weights[i]);
-      // d_weights[i].gpu_tile(d_weights[i].args()[0], y, x, 3);
-      // skip.insert(d_weights[i].name());
     }
     for(int i = 0; i < n_w2; ++i) {
       // d_weights2d[i](x, y) = 0.0f;
       std::cout << "assigning " << weights2d[i].name() << "\n"; 
       assign_gradient(d, weights2d[i], d_weights2d[i]);
-      // d_weights2d[i] = d(weights2d[i]);
       funcs.push_back(d_weights2d[i]);
-      // skip.insert(d_weights2d[i].name());
+    }
+    for(int i = 0; i < n_w3; ++i) {
+      std::cout << "assigning " << weights3d[i].name() << "\n"; 
+      assign_gradient(d, weights3d[i], d_weights3d[i]);
+      funcs.push_back(d_weights3d[i]);
     }
     std::cout << "derivatives set" << std::endl;
 
@@ -84,13 +85,13 @@ public:
         {"weights_1.min.0", 0},
         {"weights_1.extent.0", 5},
         {"weights_2.min.0", 0},
-        {"weights_2.extent.0", 4},
+        {"weights_2.extent.0", 5},
         {"weights_3.min.0", 0},
         {"weights_3.extent.0", 5},
         {"weights_4.min.0", 0},
         {"weights_4.extent.0", 5},
         {"weights_5.min.0", 0},
-        {"weights_5.extent.0", 4},
+        {"weights_5.extent.0", 5},
         {"weights2d_0.min.0", 0},
         {"weights2d_0.min.1", 0},
         {"weights2d_0.extent.0", 4},
@@ -107,6 +108,30 @@ public:
         {"weights2d_3.min.1", 0},
         {"weights2d_3.extent.0", 4},
         {"weights2d_3.extent.1", 4},
+        {"weights2d_4.min.0", 0},
+        {"weights2d_4.min.1", 0},
+        {"weights2d_4.extent.0", 5},
+        {"weights2d_4.extent.1", 2},
+        {"weights2d_5.min.0", 0},
+        {"weights2d_5.min.1", 0},
+        {"weights2d_5.extent.0", 5},
+        {"weights2d_5.extent.1", 2},
+        {"weights2d_6.min.0", 0},
+        {"weights2d_6.min.1", 0},
+        {"weights2d_6.extent.0", 5},
+        {"weights2d_6.extent.1", 2},
+        {"weights3d_0.min.0", 0},
+        {"weights3d_0.min.1", 0},
+        {"weights3d_0.min.2", 0},
+        {"weights3d_0.extent.0", 4},
+        {"weights3d_0.extent.1", 4},
+        {"weights3d_0.extent.2", 2},
+        {"weights3d_1.min.0", 0},
+        {"weights3d_1.min.1", 0},
+        {"weights3d_1.min.2", 0},
+        {"weights3d_1.extent.0", 4},
+        {"weights3d_1.extent.1", 4},
+        {"weights3d_1.extent.2", 2},
         {"d_output.min.0", 0},
         {"d_output.min.1", 0},
         {"d_output.min.2", 0},
@@ -119,14 +144,19 @@ public:
         {
           {{0, 4}},
           {{0, 4}},
-          {{0, 3}},
           {{0, 4}},
           {{0, 4}},
-          {{0, 3}},
+          {{0, 4}},
+          {{0, 4}},
           {{0, 3}, {0, 3}},
           {{0, 3}, {0, 3}},
           {{0, 3}, {0, 3}},
           {{0, 3}, {0, 3}},
+          {{0, 4}, {0, 1}},
+          {{0, 4}, {0, 1}},
+          {{0, 4}, {0, 1}},
+          {{0, 3}, {0, 3}, {0, 1}},
+          {{0, 3}, {0, 3}, {0, 1}},
         },
         options,
         dont_inline, skip);

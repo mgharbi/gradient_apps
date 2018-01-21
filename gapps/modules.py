@@ -54,16 +54,24 @@ class FancyDemosaick(nn.Module):
     self.weights = [
         ("dir_weights_x", nn.Parameter(th.rand(5))),
         ("dir_weights_y", nn.Parameter(th.rand(5))),
-        ("dir_interp_g", nn.Parameter(th.randn(4))),
+        ("dir_interp_g", nn.Parameter(th.randn(5))),
         ("dir_weights_n", nn.Parameter(th.rand(5))),
         ("dir_weights_p", nn.Parameter(th.rand(5))),
-        ("diag_interp_rb", nn.Parameter(th.randn(4))),
+        ("diag_interp_rb", nn.Parameter(th.randn(5))),
         ]
     self.weights2d = [
         ("neigh_weights_dx", nn.Parameter(th.rand(4, 4))),
         ("neigh_weights_dy", nn.Parameter(th.rand(4, 4))),
         ("neigh_weights_dp", nn.Parameter(th.rand(4, 4))),
         ("neigh_weights_dn", nn.Parameter(th.rand(4, 4))),
+        ("cd_dir_weights_x", nn.Parameter(th.randn(2, 5))),
+        ("cd_dir_weights_y", nn.Parameter(th.randn(2, 5))),
+        ("dir_interp_cd", nn.Parameter(th.randn(2, 5))),
+        ]
+
+    self.weights3d = [
+        ("cd_weights_dx", nn.Parameter(th.rand(2, 4, 4))),
+        ("cd_weights_dy", nn.Parameter(th.rand(2, 4, 4))),
         ]
 
     for k, v in self.weights:
@@ -72,8 +80,13 @@ class FancyDemosaick(nn.Module):
     for k, v in self.weights2d:
       self.register_parameter(k, v)
 
+    for k, v in self.weights3d:
+      self.register_parameter(k, v)
+
   def forward(self, mosaick):
-    weights = [w[1] for w in self.weights] + [w[1] for w in self.weights2d]
+    weights = [w[1] for w in self.weights]
+    weights += [w[1] for w in self.weights2d]
+    weights += [w[1] for w in self.weights3d]
     output = funcs.FancyDemosaick.apply(
         mosaick, *weights)
     return output
