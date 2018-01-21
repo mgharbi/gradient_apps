@@ -16,7 +16,7 @@ std::map<std::string, Func> bilateral_slice_apply(
         const Input &input) {
     Func f_grid = BoundaryConditions::repeat_edge(grid);
     Func f_guide = BoundaryConditions::repeat_edge(guide);
-    Func f_input = BoundaryConditions::repeat_edge(input)(x, y, ci, n);
+    Func f_input = BoundaryConditions::repeat_edge(input);
 
     int sigma_s = 32;
     Expr gd = grid.dim(2).extent();
