@@ -20,14 +20,14 @@ Func spatial_transformer(const Input &input,
     Expr nrm_x = 2.0f*(x * 1.0f / width) - 1.0f;
     Expr nrm_y = 2.0f*(y * 1.0f / height) - 1.0f;
     Func nrm_coords;
-    nrm_coords(x, y, z) = 0.f;
+    nrm_coords(x, y, z) = 1.f;
     nrm_coords(x, y, 0) = 2.f * (x * 1.f / width) - 1.f;
     nrm_coords(x, y, 1) = 2.f * (y * 1.f / height) - 1.f;
  
     // Convert back to image space
     RDom rm(0, 3);
     Func xformed("xformed");
-    xformed(x, y, z, n) += affine_mtx(rm, z, n) * nrm_coords(x, y, z);
+    xformed(x, y, z, n) += affine_mtx(rm, z, n) * nrm_coords(x, y, rm);
     xformed(x, y, z, n) = 0.5f * (xformed(x, y, z, n) + 1.f);
 
     // Bilinear interpolation
@@ -37,7 +37,7 @@ Func spatial_transformer(const Input &input,
     Expr wx = new_x - fx;
     Expr wy = new_y - fy;
     Func output("output");
-    output(x, y, c, n) += 
+    output(x, y, c, n) = 
         input(fx,   fy,   c, n)*(1.0f-wx)*(1.0f-wy)
       + input(fx,   fy+1, c, n)*(1.0f-wx)*(     wy)
       + input(fx+1, fy,   c, n)*(     wx)*(1.0f-wy)
