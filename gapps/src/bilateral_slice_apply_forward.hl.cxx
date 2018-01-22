@@ -17,6 +17,9 @@ public:
         output(x, y, c, n) = f_output(x, y, c, n);
         Func output_func = output;
 
+        //Func affine_coeffs = func_map["affine_coeffs"];
+        //affine_coeffs.memoize();
+
         if(auto_schedule) {
         } else {
             SimpleAutoscheduleOptions options;
@@ -49,7 +52,8 @@ public:
                                   {"input.extent.3", 4}
                                 },
                                 {{0, 2047}, {0, 2047}, {0, 2}, {0, 3}},
-                                options);
+                                options,
+                                {"affine_coeffs"});
         }
     }
 };

@@ -54,20 +54,20 @@ EXT_DIR = _ext
 
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
-			fancy_demosaick_forward fancy_demosaick_backward \
+			spatial_transformer_forward spatial_transformer_backward \
+			# deconv_grad_forward deconv_grad_backward \
+			# deconv_alpha_forward deconv_alpha_backward \
+			# bilateral_grid_forward bilateral_grid_backward \
+			# deconv_prior_forward deconv_prior_backward
 			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
+			# fancy_demosaick_forward fancy_demosaick_backward \
 			# naive_demosaick_forward \
 			# bilateral_layer_forward bilateral_layer_backward \
-			# spatial_transformer_forward spatial_transformer_backward \
 			# learnable_demosaick_forward learnable_demosaick_backward \
 			# vgg_forward_backward \
 			# bilinear_resampling_forward bilinear_resampling_backward \
 			# conv2d_forward conv2d_backward_scatter \
 			# burst_demosaicking_forward burst_demosaicking_backward \
-			# deconv_grad_forward deconv_grad_backward \
-			# deconv_alpha_forward deconv_alpha_backward \
-			# bilateral_grid_forward bilateral_grid_backward \
-			# deconv_prior_forward deconv_prior_backward \
 			# deconv_cg_init_forward deconv_cg_init_backward deconv_cg_iter_forward deconv_cg_iter_backward \
 			# deconv_cg_weight_forward deconv_cg_weight_backward \
 			# deconv_grad_init_forward deconv_grad_init_backward \

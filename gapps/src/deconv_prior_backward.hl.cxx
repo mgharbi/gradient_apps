@@ -33,6 +33,7 @@ public:
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            options.gpu_tile_channel = 3;
             std::vector<Func> funcs{d_f, d_reg_kernels, d_thresholds};
             simple_autoschedule(funcs,
                                 {{"f.min.0", 0},

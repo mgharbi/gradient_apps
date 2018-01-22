@@ -22,6 +22,9 @@ public:
         Func f_guide = func_map["f_guide"];
         Func f_input = func_map["f_input"];
 
+        //Func affine_coeffs = func_map["affine_coeffs"];
+        //affine_coeffs.memoize();
+
         Derivative d = propagate_adjoints(
             f_output, 
             d_output,
@@ -30,8 +33,6 @@ public:
              {d_output.dim(2).min(), d_output.dim(2).max()},
              {d_output.dim(3).min(), d_output.dim(3).max()}}
              );
-
-        //print_func(d(f_grid));
 
         assign_gradient(d, f_grid, d_grid);
         assign_gradient(d, f_guide, d_guide);
@@ -82,7 +83,8 @@ public:
                                   {{0, 2047}, {0, 2047}, {0, 3}},
                                   {{0, 2047}, {0, 2047}, {0, 2}, {0, 3}}
                                 },
-                                options);
+                                options,
+                                {"affine_coeffs"});
         }
     }
 };

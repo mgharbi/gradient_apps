@@ -54,6 +54,7 @@ public:
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            options.gpu_tile_channel = 1;
             std::vector<Func> funcs{d_xk,
                 d_data_kernel_weights, d_data_kernels,
                 d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets};

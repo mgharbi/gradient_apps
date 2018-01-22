@@ -58,6 +58,7 @@ std::map<std::string, Func> bilateral_slice_apply(
     func_map["f_grid"]  = f_grid;
     func_map["f_guide"]  = f_guide;
     func_map["f_input"]  = f_input;
+    func_map["affine_coeffs"] = affine_coeffs;
     func_map["output"] = output;
     return func_map;
 }
