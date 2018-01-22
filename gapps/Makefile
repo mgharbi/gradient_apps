@@ -55,11 +55,11 @@ EXT_DIR = _ext
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
 			spatial_transformer_forward spatial_transformer_backward \
+			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
 			# deconv_grad_forward deconv_grad_backward \
 			# deconv_alpha_forward deconv_alpha_backward \
 			# bilateral_grid_forward bilateral_grid_backward \
 			# deconv_prior_forward deconv_prior_backward
-			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
 			# fancy_demosaick_forward fancy_demosaick_backward \
 			# naive_demosaick_forward \
 			# bilateral_layer_forward bilateral_layer_backward \
@@ -91,20 +91,39 @@ _ext/operators/_operators.so: $(OPS_LIBS) $(CUDA_OPS_LIBS) $(CUDA_OBJ)
 $(BUILD_DIR)/%_cuda.so: $(SRC_DIR)/cuda_kernels/%.cu.cc $(SRC_DIR)/cuda_kernels/%.h $(BUILD_DIR)
 		$(NVCC) -c  $< -o $@ $(NVFLAGS) $(TORCH_INC)
 
-$(BUILD_DIR)/%.a: $(BUILD_DIR)/%
+$(BUILD_DIR)/%_forward.a: $(BUILD_DIR)/%_forward
 	@echo Op $(subst $(BUILD_DIR)/,, $@)
 	@cd $(BUILD_DIR); \
-	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
+	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=0 \
 										./$(basename $(@F)) -g $(basename $(@F)) \
 										-e static_library,h,pytorch_wrapper,html\
 										-o . target=host$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 
-$(BUILD_DIR)/%_cuda.a: $(BUILD_DIR)/% 
+$(BUILD_DIR)/%_backward.a: $(BUILD_DIR)/%_backward
+	@echo Op $(subst $(BUILD_DIR)/,, $@)
+	@cd $(BUILD_DIR); \
+	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=1 \
+										./$(basename $(@F)) -g $(basename $(@F)) \
+										-e static_library,h,pytorch_wrapper,html\
+										-o . target=host$(TARGET_FEATURES) \
+										auto_schedule=$(AUTO_SCHEDULE)
+
+$(BUILD_DIR)/%_forward_cuda.a: $(BUILD_DIR)/%_forward
 	@$(eval name = $(subst _cuda,,$(basename $(@F))))
 	@echo "Op (CUDA) $(name)"
 	@cd $(BUILD_DIR); \
-	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin \
+	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=0 \
+										./$(name) -g $(name) -f $(name)_cuda \
+										-e static_library,pytorch_wrapper,h,html \
+										-o . target=host-cuda-cuda_capability_61-user_context$(TARGET_FEATURES) \
+										auto_schedule=$(AUTO_SCHEDULE)
+
+$(BUILD_DIR)/%_backward_cuda.a: $(BUILD_DIR)/%_backward
+	@$(eval name = $(subst _cuda,,$(basename $(@F))))
+	@echo "Op (CUDA) $(name)"
+	@cd $(BUILD_DIR); \
+	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=1 \
 										./$(name) -g $(name) -f $(name)_cuda \
 										-e static_library,pytorch_wrapper,h,html \
 										-o . target=host-cuda-cuda_capability_61-user_context$(TARGET_FEATURES) \

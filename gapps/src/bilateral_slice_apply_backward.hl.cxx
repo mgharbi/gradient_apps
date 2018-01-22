@@ -22,9 +22,6 @@ public:
         Func f_guide = func_map["f_guide"];
         Func f_input = func_map["f_input"];
 
-        //Func affine_coeffs = func_map["affine_coeffs"];
-        //affine_coeffs.memoize();
-
         Derivative d = propagate_adjoints(
             f_output, 
             d_output,
@@ -83,8 +80,7 @@ public:
                                   {{0, 2047}, {0, 2047}, {0, 3}},
                                   {{0, 2047}, {0, 2047}, {0, 2}, {0, 3}}
                                 },
-                                options,
-                                {"affine_coeffs"});
+                                options);
         }
     }
 };
