@@ -24,7 +24,7 @@ class DemosaickCallback(object):
     self.loss_viz = viz.ScalarVisualizer(
         "loss", opts={"legend": ["train", "val"]}, env=env)
     self.psnr_viz = viz.ScalarVisualizer(
-        "psnr", opts={"legend": ["train", "val"]}, env=env)
+        "psnr", opts={"legend": ["train", "train_g", "val"]}, env=env)
     self.ssim_viz = viz.ScalarVisualizer(
         "1-ssim", opts={"legend": ["train", "val"]}, env=env)
     self.l1_viz = viz.ScalarVisualizer(
@@ -76,6 +76,8 @@ class DemosaickCallback(object):
       self.loss_viz.update(frac, logs['loss'], name="train")
     if "psnr" in logs.keys():
       self.psnr_viz.update(frac, logs['psnr'], name="train")
+    if "psnr_g" in logs.keys():
+      self.psnr_viz.update(frac, logs['psnr_g'], name="train_g")
     if "ssim" in logs.keys():
       self.ssim_viz.update(frac, logs['ssim'], name="train")
     if "l1" in logs.keys():

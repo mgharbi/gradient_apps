@@ -83,7 +83,7 @@ def main(args):
     chkpt_name, _ = checkpointer.load_latest()
     log.info("Resuming from latest checkpoint {}.".format(chkpt_name))
 
-  ema = utils.ExponentialMovingAverage(["loss", "psnr", "ssim", "l1"])
+  ema = utils.ExponentialMovingAverage(["loss", "psnr", "ssim", "l1", "psnr_g"])
   for epoch in range(args.num_epochs):
     # callback.on_epoch_end(epoch, {})
 
@@ -108,6 +108,7 @@ def main(args):
           output = output[:, :, crop:-crop, crop:-crop]
           reference = reference[:, :, crop:-crop, crop:-crop]
 
+
         ssim_ = 1-msssim_fn(output, reference)
         l1_ = l1_fn(output, reference)
         loss = ssim_*alpha + (1-alpha)*l1_
@@ -125,18 +126,22 @@ def main(args):
 
 
         psnr = psnr_fn(output, reference)
+        psnr_green = psnr_fn(output[:, 1, ...], reference[:, 1, ...])
 
         ema.update("loss", loss.data[0]) 
         ema.update("psnr", psnr.data[0]) 
+        ema.update("psnr_g", psnr_green.data[0]) 
         ema.update("ssim", ssim_.data[0]) 
         ema.update("l1", l1_.data[0]) 
 
         logs = {"loss": ema["loss"], "psnr": ema["psnr"], 
+                "psnr_g": ema["psnr_g"],
                 "ssim": ema["ssim"], "l1": ema["l1"]}
         pbar.set_postfix(logs)
         pbar.update(1)
-        if pbar.n % 100 == 0:
+        if pbar.n % args.viz_step == 0:
           callback.on_batch_end(batch_id, logs)
+          callback.show_val_batch()
         checkpointer.periodic_checkpoint(epoch)
 
     # Validation
@@ -184,6 +189,7 @@ if __name__ == "__main__":
   parser.add_argument("--val_dataset", default="data/demosaick/val/filelist.txt")
   parser.add_argument("--chkpt")
   parser.add_argument("--output", default="output/demosaick")
+  parser.add_argument("--viz_step", type=int, default=10)
   parser.add_argument("--lr", type=float, default=1e-4)
   parser.add_argument("--batch_size", type=int, default=32)
   parser.add_argument("--num_epochs", type=int, default=100)

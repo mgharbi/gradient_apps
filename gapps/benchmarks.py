@@ -265,3 +265,30 @@ class BackwardConv2d(Benchmark):
       self.image = self.image.cuda()
       self.op = self.op.cuda()
 
+class Demosaick(Benchmark):
+  def __init__(self, cuda=False, num_filters=8, fsize=5, burn_iters=5, iters=10):
+    super(Demosaick, self).__init__(
+        cuda=cuda, burn_iters=burn_iters, iters=iters)
+    self.num_filters = num_filters
+    self.fsize = fsize
+
+  def name(self):
+    return "Demosaick {} filters,  fsize={}".format(self.num_filters, self.fsize)
+
+  def run(self):
+    mosaick = Variable(self.mosaick, requires_grad=False)
+    output = self.op(mosaick)
+
+  def reset(self):
+    sz = 1024
+    bs = 2
+    c = 3
+    mosaick = th.randn(bs, 1, sz, sz)
+    self.mosaick = mosaick
+
+    self.op = modules.LearnableDemosaick(
+        num_filters=self.num_filters, fsize=self.fsize)
+
+    if self.cuda:
+      self.mosaick = self.mosaick.cuda()
+      self.op = self.op.cuda()

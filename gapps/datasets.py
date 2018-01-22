@@ -150,6 +150,10 @@ class DemosaickingDataset(Dataset):
   def __getitem__(self, idx):
     reference = skimage.io.imread(os.path.join(self.root, self.files[idx]))
     reference = reference.astype(np.float32)/255.0
+    h, w = reference.shape[:2]
+    if h > w:
+      reference = np.transpose(reference, [1, 0, 2])
+
     mosaick = utils.make_mosaick(reference)
     reference = reference.transpose((2, 0, 1))
     mosaick = np.expand_dims(mosaick, 0)

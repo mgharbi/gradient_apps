@@ -11,8 +11,8 @@ def main():
     # b.BilateralLayer(True, True),
     # b.BilateralLayer(False),
     # b.BilateralLayer(False, True),
-    b.BilateralSliceApply(True),
-    b.BilateralSliceApply(True, True),
+    # b.BilateralSliceApply(True),
+    # b.BilateralSliceApply(True, True),
     # b.SpatialTransformer(False),
     # b.SpatialTransformer(False, True),
     # b.SpatialTransformer(True),
@@ -21,6 +21,12 @@ def main():
     # b.VGG(False, True),
     # b.VGG(True),
     # b.VGG(True, True),
+    # b.Demosaick(True, 9, 5),
+    # b.Demosaick(False, 9, 5),
+    # b.Demosaick(True, 2, 5),
+    # b.Demosaick(False, 2, 5),
+    # b.Demosaick(True, 15, 7),
+    # b.Demosaick(False, 15, 7),
   ]
 
   for r in res:
