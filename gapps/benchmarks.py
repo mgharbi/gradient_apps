@@ -92,8 +92,8 @@ class SpatialTransformer(Benchmark):
 
   def reset(self):
     sz = 512
-    bs = 32
-    image = th.randn(bs, 3, sz, sz)
+    bs = 4
+    image = th.randn(bs, 16, sz, sz)
 
     affine_mtx = th.zeros(bs, 2, 3)
     affine_mtx[:, 0, 1] = 1.0

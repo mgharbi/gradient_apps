@@ -31,8 +31,6 @@ public:
              {d_output.dim(3).min(), d_output.dim(3).max()}}
              );
 
-        //print_func(d(f_grid));
-
         assign_gradient(d, f_grid, d_grid);
         assign_gradient(d, f_guide, d_guide);
         assign_gradient(d, f_input, d_input);

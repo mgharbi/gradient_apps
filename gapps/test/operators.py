@@ -605,7 +605,7 @@ def _test_deconv_nonlinear_cg(gpu=False):
     kernel = kernel.cuda()
     op.cuda()
 
-  output = op(blurred, kernel, num_cg_iter = 20).view(3, w, h)
+  output = op(blurred, kernel, num_cg_iter = 2).view(3, w, h)
   loss = output.sum()
   loss.backward()
 
@@ -937,7 +937,7 @@ def test_vgg(cuda=True):
     for it in xrange(nits_burns):
       output = op(im)
 
-    print "running"
+    print("running")
     start = time.time()
     # with profiler.profile() as prof:
     for it in xrange(nits):
@@ -995,7 +995,7 @@ def test_bilateral_slice_apply(gpu=False):
     out = op(grid, guide, input)
     loss = out.mean()
     loss.backward()
-    print  loss.data.cpu()[0], input.grad.data.mean(), grid.grad.data.mean(), guide.grad.data.mean()
+    print(loss.data.cpu()[0], input.grad.data.mean(), grid.grad.data.mean(), guide.grad.data.mean())
   # th.cuda.synchronize()
   end = time.time()
   print("Halide: running time {}ms".format((end-start)*1000/nits))
@@ -1009,7 +1009,7 @@ def test_bilateral_slice_apply(gpu=False):
     out_manual = op_manual(grid, guide, input)
     loss = out_manual.mean()
     loss.backward()
-    print  loss.data.cpu()[0], input.grad.data.mean(), grid.grad.data.mean(), guide.grad.data.mean()
+    print(loss.data.cpu()[0], input.grad.data.mean(), grid.grad.data.mean(), guide.grad.data.mean())
   # th.cuda.synchronize()
   end = time.time()
   print("Manual: running time {}ms".format((end-start)*1000/nits))

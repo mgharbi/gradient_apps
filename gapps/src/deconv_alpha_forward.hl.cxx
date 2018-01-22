@@ -32,6 +32,7 @@ public:
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            options.gpu_tile_channel = 1;
             Func output_func = output;
             simple_autoschedule(output_func,
                                 {
@@ -85,7 +86,7 @@ public:
                                  {"direction.extent.2", 3}
                                 },
                                 {
-                                 {{0, 1}},
+                                 {{0, 0}},
                                 },
                                 options);
         }

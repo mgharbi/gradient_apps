@@ -20,6 +20,7 @@ public:
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            options.gpu_tile_channel = 3;
             Func weights_func = weights;
             simple_autoschedule(weights_func,
                                 {{"f.min.0", 0},
