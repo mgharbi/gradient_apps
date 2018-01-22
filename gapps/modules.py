@@ -52,9 +52,58 @@ class FancyDemosaick(nn.Module):
     super(FancyDemosaick, self).__init__()
 
     self.weights = [
+        ("tmp", nn.Parameter(th.rand(9))),
+        ]
+    self.weights2d = [
+        ("tmp2", nn.Parameter(th.rand(9, 8))),
+        ]
+
+    self.weights3d = [
+        ("g_interp", nn.Parameter(1.0/(7*7)*th.rand(9, 7, 7))),
+        ("cd_interp", nn.Parameter(0.5/(7*7)*th.rand(9, 7, 7))),
+        ("cd_interp_g", nn.Parameter(0.5/(7*7)*th.rand(9, 7, 7))),
+        ("fcd_interp", nn.Parameter(0.5/(7*7)*th.rand(9*2, 7, 7))),
+        ("fcd_interp_g", nn.Parameter(0.5/(7*7)*th.rand(9*2, 7, 7))),
+        ]
+
+    self.weights4d = [
+        ("g_weights", nn.Parameter(th.rand(9, 4, 7, 7))),
+        ("cd_weights", nn.Parameter(th.rand(9, 4, 7, 7))),
+        ("cdg_weights", nn.Parameter(th.rand(9, 4, 7, 7))),
+        ("fcd0_weights", nn.Parameter(th.rand(9*2, 4, 7, 7))),
+        ("fcd1_weights", nn.Parameter(th.rand(9*2, 4, 7, 7))),
+        ("fcdg_weights", nn.Parameter(th.rand(9*2, 4, 7, 7))),
+        ]
+
+    for k, v in self.weights:
+      self.register_parameter(k, v)
+
+    for k, v in self.weights2d:
+      self.register_parameter(k, v)
+
+    for k, v in self.weights3d:
+      self.register_parameter(k, v)
+
+    for k, v in self.weights4d:
+      self.register_parameter(k, v)
+
+  def forward(self, mosaick):
+    weights = [w[1] for w in self.weights]
+    weights += [w[1] for w in self.weights2d]
+    weights += [w[1] for w in self.weights3d]
+    weights += [w[1] for w in self.weights4d]
+    output = funcs.FancyDemosaick.apply(
+        mosaick, *weights)
+    return output
+
+class FancyDemosaick2(nn.Module):
+  def __init__(self):
+    super(FancyDemosaick, self).__init__()
+
+    self.weights = [
         ("dir_weights_x", nn.Parameter(th.rand(5))),
         ("dir_weights_y", nn.Parameter(th.rand(5))),
-        ("dir_interp_g", nn.Parameter(th.randn(5))),
+        ("dir_interp_g", nn.Parameter(th.rand(5))),
         ("dir_weights_n", nn.Parameter(th.rand(5))),
         ("dir_weights_p", nn.Parameter(th.rand(5))),
         ]
@@ -63,9 +112,9 @@ class FancyDemosaick(nn.Module):
         ("neigh_weights_dy", nn.Parameter(th.rand(4, 4))),
         ("neigh_weights_dp", nn.Parameter(th.rand(4, 4))),
         ("neigh_weights_dn", nn.Parameter(th.rand(4, 4))),
-        ("diag_interp_rb", nn.Parameter(th.randn(2, 2))),
-        ("cd_dir_weights_x", nn.Parameter(th.randn(2, 5))),
-        ("cd_dir_weights_y", nn.Parameter(th.randn(2, 5))),
+        ("diag_interp_rb", nn.Parameter(th.rand(2, 2))),
+        ("cd_dir_weights_x", nn.Parameter(th.rand(2, 5))),
+        ("cd_dir_weights_y", nn.Parameter(th.rand(2, 5))),
         ]
 
     self.weights3d = [

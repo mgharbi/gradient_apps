@@ -163,10 +163,18 @@ def main(args):
   log.info("Image dimensions {}x{}x{}".format(n, h, w))
 
   log.info("Initializing homographies")
+  start = time.time()
   homographies = init_homographies(images)
+  end = time.time()
+  runtime = (end-start)*1000.0
+  print "init homographies {:.1f} ms".format(runtime)
 
   log.info("Initializing reconstruction")
+  start = time.time()
   recons = init_reconstruction(images, scale=args.scale)
+  end = time.time()
+  runtime = (end-start)*1000.0
+  print "init recons {:.1f} ms".format(runtime)
 
   log.info("Reconstruction at {}x{}x{}".format(*recons.shape))
 
@@ -206,6 +214,7 @@ def main(args):
 
   log.info("Optimizing")
   ema = utils.ExponentialMovingAverage(["loss"], alpha=0.9)
+  start = time.time()
   for step in range(args.presteps+args.steps):
     if args.use_lbfgs:
       raise NotImplemented
@@ -235,6 +244,9 @@ def main(args):
     ema.update("loss", loss.data[0]) 
     log.info("{} {} loss = {:.6f}".format(step_label, step, ema["loss"]))
 
+  end = time.time()
+  runtime = (end-start)*1000.0
+  print "optimization {:.1f} ms".format(runtime)
 
   log.info("Producing outputs")
 

@@ -62,7 +62,7 @@ def main(args):
   # grad_l1_fn = metrics.CroppedGradientLoss(crop=args.fsize//2)
   # loss_fn = lambda a, b: 0.84*msssim_fn(a, b) + (1-0.84)*l1_fn(a, b)
   alpha = args.alpha
-  crop = args.fsize // 2
+  crop = 16 
   psnr_fn = metrics.PSNR(crop=args.fsize//2)
 
   env = os.path.basename(args.output)
@@ -81,7 +81,7 @@ def main(args):
     chkpt_name, _ = checkpointer.load_latest()
     log.info("Resuming from latest checkpoint {}.".format(chkpt_name))
 
-  ema = utils.ExponentialMovingAverage(["loss", "psnr", "ssim", "l1"])
+  ema = utils.ExponentialMovingAverage(["loss", "psnr", "psnr_g", "ssim", "l1"], alpha=0.99)
   for epoch in range(args.num_epochs):
     # callback.on_epoch_end(epoch, {})
 
@@ -93,8 +93,9 @@ def main(args):
       callback.show_val_batch()
       for batch_id, batch in enumerate(loader):
         mosaick, reference = batch
-        reference[:, 1, ...] = 0.0
-        reference[:, 2, ...] = 0.0
+        if args.green_only:
+          reference[:, 0, ...] = 0.0
+          reference[:, 2, ...] = 0.0
         mosaick = Variable(mosaick, requires_grad=False)
         reference = Variable(reference, requires_grad=False)
 
@@ -103,6 +104,14 @@ def main(args):
           reference = reference.cuda()
 
         output = model(mosaick)
+
+        # print output[:, 0].min(), output[:, 0].max(),
+        # print output[:, 1].min(), output[:, 1].max(),
+        # print output[:, 2].min(), output[:, 2].max()
+
+        if args.green_only:
+          output[:, 0, ...] = 0.0
+          output[:, 2, ...] = 0.0
 
         optimizer.zero_grad()
         if crop > 0:
@@ -127,12 +136,16 @@ def main(args):
 
         psnr = psnr_fn(output, reference)
 
+        psnr_green = psnr_fn(output[:, 1, ...], reference[:, 1, ...])
+
         ema.update("loss", loss.data[0]) 
         ema.update("psnr", psnr.data[0]) 
+        ema.update("psnr_g", psnr_green.data[0]) 
         ema.update("ssim", ssim_.data[0]) 
         ema.update("l1", l1_.data[0]) 
 
         logs = {"loss": ema["loss"], "psnr": ema["psnr"], 
+                "psnr_g": ema["psnr_g"],
                 "ssim": ema["ssim"], "l1": ema["l1"]}
         pbar.set_postfix(logs)
         pbar.update(1)
@@ -187,7 +200,7 @@ if __name__ == "__main__":
   parser.add_argument("--chkpt")
   parser.add_argument("--output", default="output/fancy_demosaick")
   parser.add_argument("--lr", type=float, default=1e-4)
-  parser.add_argument("--batch_size", type=int, default=1)
+  parser.add_argument("--batch_size", type=int, default=4)
   parser.add_argument("--num_epochs", type=int, default=100)
   parser.add_argument("--viz_step", type=int, default=10)
   parser.add_argument("--no-cuda", dest="cuda", action="store_false")
@@ -195,7 +208,8 @@ if __name__ == "__main__":
   parser.add_argument("--nfilters", type=int, default=9)
   parser.add_argument("--fsize", type=int, default=5)
   parser.add_argument("--alpha", type=float, default=0.84)
-  parser.set_defaults(cuda=True, regularize=False)
+  parser.add_argument("--green_only", dest="green_only", action="store_true")
+  parser.set_defaults(cuda=True, regularize=False, green_only=False)
   args = parser.parse_args()
 
   logging.basicConfig(
