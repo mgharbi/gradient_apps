@@ -28,6 +28,8 @@ public:
 
         SimpleAutoscheduleOptions options;
         options.gpu = get_target().has_gpu_feature();
+        options.gpu_tile_width = 32;
+        options.gpu_tile_height = 1;
 
         std::set<std::string> dont_inline = {};
 
@@ -70,5 +72,5 @@ public:
 }  // end namespace gradient_apps
 
 HALIDE_REGISTER_GENERATOR(
-    gradient_apps::SpatialTransformerBackwardGenerator, 
+    gradient_apps::SpatialTransformerBackwardGenerator,
     spatial_transformer_backward)

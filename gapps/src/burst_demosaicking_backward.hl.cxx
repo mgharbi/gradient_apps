@@ -36,6 +36,7 @@ public:
         assign_gradient(adjoints, f_reconstructed, d_reconstructed);
 
         SimpleAutoscheduleOptions options;
+        // options.gpu_tile_channel = 1;
         options.gpu = get_target().has_gpu_feature();
 
         std::set<std::string> dont_inline = {};

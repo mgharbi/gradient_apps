@@ -24,6 +24,7 @@ public:
     reproj_error(x, y, n) = f_reproj(x, y, n);
 
     SimpleAutoscheduleOptions options;
+    // options.gpu_tile_channel = 1;
     options.gpu = get_target().has_gpu_feature();
     Func loss_func = loss;
     Func reproj_func = reproj_error;
@@ -49,7 +50,7 @@ public:
         {"homographies.min.0", 0},
         {"homographies.min.1", 0},
         {"homographies.extent.0", 8},
-        {"homographies.extent.1", 5},
+        {"homographies.extent.1", 13},
         {"reconstructed.min.0", 0},
         {"reconstructed.min.1", 0},
         {"reconstructed.min.2", 0},
@@ -60,7 +61,7 @@ public:
         {"gradient_weight.extent.0", 0},
         },
         {
-          {{0, 1}},
+          {{0, 0}},
           {{0, 255}, {0, 255}, {0, 5}},
         },
         options,
