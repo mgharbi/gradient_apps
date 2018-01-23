@@ -8,6 +8,7 @@ import time
 import math
 
 import gapps.functions as funcs
+import gapps.resample2d_package.modules.resample2d as nvidia_resample
 
 class NaiveDemosaick(nn.Module):
   def __init__(self):
@@ -623,25 +624,37 @@ class SpatialTransformer(nn.Module):
     return out
 
 class BilinearResampling(nn.Module):
-  def __init__(self, pytorch=False):
+  def __init__(self, mode="halide"):
     super(BilinearResampling, self).__init__()
-    self.pytorch = pytorch
+    assert mode in ["halide", "nvidia", "pytorch"]
+    self.mode = mode
+
+    if self.mode == "nvidia":
+      self.op = nvidia_resample.Resample2d()
 
   def forward(self, x, warp):
     bs = x.shape[0]
 
-    if self.pytorch:
+    if self.mode == "pytorch":
       assert warp.shape[0] == bs
       assert warp.shape[1] == x.shape[2]
       assert warp.shape[2] == x.shape[3]
       assert warp.shape[3] == 2
       out = nn.functional.grid_sample(x, warp, 'bilinear', 'zeros')
-    else:
+    elif self.mode == "halide":
       assert warp.shape[0] == bs
       assert warp.shape[1] == 2
       assert warp.shape[2] == x.shape[2]
       assert warp.shape[3] == x.shape[3]
       out = funcs.BilinearResampling.apply(x, warp)
+    else: # nvidia
+      assert warp.shape[0] == bs
+      assert warp.shape[1] == 2
+      assert warp.shape[2] == x.shape[2]
+      assert warp.shape[3] == x.shape[3]
+      out = self.op(x, warp)
+
+      print out.max()
 
     return out
 
@@ -897,7 +910,7 @@ class BackwardConv2dGeneralScatter(nn.Module):
 
 
 class BilateralSliceApply(nn.Module):
-  def __init__(self, mode=True):
+  def __init__(self, mode="halide"):
     super(BilateralSliceApply, self).__init__()
     assert mode in ["halide", "manual", "pytorch"]
     self.mode = mode

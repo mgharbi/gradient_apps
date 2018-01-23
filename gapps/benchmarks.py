@@ -111,16 +111,19 @@ class SpatialTransformer(Benchmark):
 
 
 class Flownet(Benchmark):
-  def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=50):
+  def __init__(self, cuda=False, mode="halide", burn_iters=5, iters=50):
     super(Flownet, self).__init__(
         cuda=cuda, burn_iters=burn_iters, iters=iters)
-    self.pytorch = pytorch
+    assert mode in ["halide", "nvidia", "pytorch"]
+    self.mode = mode
 
   def name(self):
-    if self.pytorch:
+    if self.mode == "pytorch":
       return "FlownetPytorch"
-    else:
+    elif self.mode == "halide":
       return "Flownet"
+    elif self.mode == "nvidia":
+      return "FlownetNvidia"
 
   def run(self):
     image = Variable(self.image, requires_grad=True)
@@ -136,16 +139,16 @@ class Flownet(Benchmark):
 
   def reset(self):
     sz = 512
-    bs = 4
+    bs = 16
     image = th.randn(bs, 16, sz, sz)
-    if self.pytorch:
+    if self.mode == "pytorch":
       warp = th.rand(bs, sz, sz, 2)
     else:
       warp = th.rand(bs, 2, sz, sz)
     self.image = image
     self.warp = warp
 
-    self.op = modules.BilinearResampling(pytorch=self.pytorch)
+    self.op = modules.BilinearResampling(mode=self.mode)
 
     if self.cuda:
       self.image = self.image.cuda()
@@ -224,15 +227,14 @@ class BilateralSliceApply(Benchmark):
     x = guide.grad.sum().cpu().data[0]
 
   def reset(self):
-    bs = 20
+    bs = 4
     ci = 3
     co = 3
     gd = 8
     gh = 64
     gw = 64
-    h = 256
-    w = 256
-    # assert(w / gw == 32 and h / gh == 32)
+    h = 1024
+    w = 1024
     im = th.randn(bs, ci, h, w)
     guide = th.rand(bs, h, w)
     grid = th.rand(bs, co*(ci+1), gd, gh, gw)
@@ -263,7 +265,6 @@ class VGG(Benchmark):
   def run(self):
     output = self.op(self.image)
     loss = output.mean()
-    print(loss.data.cpu()[0])
 
   def reset(self):
     bs = 1
