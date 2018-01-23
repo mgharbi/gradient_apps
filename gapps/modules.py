@@ -918,54 +918,34 @@ class BilateralSliceApply(nn.Module):
       bs, ci, h, w = input.shape
       _, c, gd, gh, gw = grid.shape
 
-      # Precompute some indices and weights, so we dont do unnecessary CPU->GPU
-      # transfers
-      if self.w is None or w != self.w or self.h is None or h != self.h:
-        # Update image dimensions
-        self.w = w
-        self.h = h
+      # Coordinates in the fullres image
+      xx = Variable(th.arange(0, w).cuda().view(1, -1).repeat(h, 1))
+      yy = Variable(th.arange(0, h).cuda().view(-1, 1).repeat(1, w))
 
-        # Coordinates in the fullres image
-        xx, yy = np.meshgrid(np.arange(0, w), np.arange(0, h))
-        xx = Variable(th.from_numpy(xx.astype(np.float32)).cuda())
-        yy = Variable(th.from_numpy(yy.astype(np.float32)).cuda())
-        self.xx = xx 
-        self.yy = yy
-
-      # Precompute some indices and weights, so we dont do unnecessary CPU->GPU
-      # transfers
-      if self.gw is None or gw != self.gw or self.gh is None or gh != self.gh:
-        # Update grid dimensions
-        self.gw = gw
-        self.gh = gh
-
-        # Spatial coordinates in the smal, bilateral grid 
-        self.gx = ((self.xx+0.5)/w) * gw
-        self.gy = ((self.yy+0.5)/h) * gh
-
-        # Coordinates of the neighboring grid voxels
-        self.fx = th.clamp(th.floor(self.gx - 0.5), min=0)
-        self.fy = th.clamp(th.floor(self.gy - 0.5), min=0)
-
-        # Interpolation weights
-        self.wx = self.gx - 0.5 - self.fx
-        self.wy = self.gy - 0.5 - self.fy
-        self.wx = self.wx.unsqueeze(0).unsqueeze(0)
-        self.wy = self.wy.unsqueeze(0).unsqueeze(0)
-
-        # Make the voxel coordinates integers to be use in slicing
-        self.fx = self.fx.long().unsqueeze(0).unsqueeze(0)
-        self.fy = self.fy.long().unsqueeze(0).unsqueeze(0)
-        self.cx = th.clamp(self.fx+1, max=gw-1);
-        self.cy = th.clamp(self.fy+1, max=gh-1);
-
-      # Compute the same quantities on the z dimension. These depend on
-      # the dynamic, guide value
+      # Spatial coordinates in the bilateral grid 
+      gx = ((xx+0.5)/w) * gw
+      gy = ((yy+0.5)/h) * gh
       gz = th.clamp(guide, 0.0, 1.0)*gd
+
+      # Coordinates of the neighboring grid voxels
+      fx = th.clamp(th.floor(gx - 0.5), min=0)
+      fy = th.clamp(th.floor(gy - 0.5), min=0)
       fz = th.clamp(th.floor(gz-0.5), min=0)
+
+      # Interpolation weights
+      wx = gx - 0.5 - fx
+      wy = gy - 0.5 - fy
+      wx = wx.unsqueeze(0).unsqueeze(0)
+      wy = wy.unsqueeze(0).unsqueeze(0)
       wz = th.abs(gz-0.5 - fz)
-      fz = fz.long()
       wz = wz.unsqueeze(1)
+
+      # Make the voxel coordinates integers to be use in slicing
+      fx = fx.long().unsqueeze(0).unsqueeze(0)
+      fy = fy.long().unsqueeze(0).unsqueeze(0)
+      fz = fz.long()
+      cx = th.clamp(fx+1, max=gw-1);
+      cy = th.clamp(fy+1, max=gh-1);
       cz = th.clamp(fz+1, max=gd-1)
 
       # Make indices broadcastable
@@ -973,23 +953,23 @@ class BilateralSliceApply(nn.Module):
       cz = cz.view(bs, 1, h, w)
 
       # Indices to slice along the batch axis
-      batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1).cuda()
+      batch_idx = th.arange(bs).view(bs, 1, 1, 1).long().cuda()
       out = []
       # Number of output channels
       co = c // (ci+1)
       # Construct the output channels, one at a time
       for c_ in range(co):
         # Select the relevant affine coefficients in the grid
-        c_idx = th.from_numpy(np.arange((ci+1)*c_, (ci+1)*(c_+1))).view(1, ci+1, 1, 1).cuda()
+        c_idx = th.arange((ci+1)*c_, (ci+1)*(c_+1)).view(1, ci+1, 1, 1).long().cuda()
         # Slice to upsample them to full-res
-        a = grid[batch_idx, c_idx, fz, self.fy, self.fx]*(1-self.wx)*(1-self.wy)*(1-wz) + \
-                 grid[batch_idx, c_idx, cz, self.fy, self.fx]*(1-self.wx)*(1-self.wy)*(  wz) + \
-                 grid[batch_idx, c_idx, fz, self.cy, self.fx]*(1-self.wx)*(  self.wy)*(1-wz) + \
-                 grid[batch_idx, c_idx, cz, self.cy, self.fx]*(1-self.wx)*(  self.wy)*(  wz) + \
-                 grid[batch_idx, c_idx, fz, self.fy, self.cx]*(  self.wx)*(1-self.wy)*(1-wz) + \
-                 grid[batch_idx, c_idx, cz, self.fy, self.cx]*(  self.wx)*(1-self.wy)*(  wz) + \
-                 grid[batch_idx, c_idx, fz, self.cy, self.cx]*(  self.wx)*(  self.wy)*(1-wz) + \
-                 grid[batch_idx, c_idx, cz, self.cy, self.cx]*(  self.wx)*(  self.wy)*(  wz)
+        a = grid[batch_idx, c_idx, fz, fy, fx]*(1-wx)*(1-wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, fy, fx]*(1-wx)*(1-wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, cy, fx]*(1-wx)*(  wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, cy, fx]*(1-wx)*(  wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, fy, cx]*(  wx)*(1-wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, fy, cx]*(  wx)*(1-wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, cy, cx]*(  wx)*(  wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, cy, cx]*(  wx)*(  wy)*(  wz)
 
         # Construct the output channel as an affine combination of input channels
         o = th.sum(a[:, :-1, ...]*input, 1) + a[:, -1, ...]
