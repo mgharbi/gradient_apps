@@ -232,7 +232,7 @@ class BilateralSliceApply(Benchmark):
     gw = 64
     h = 2048
     w = 2048
-    assert(w / gw == 32 and h / gh == 32)
+    # assert(w / gw == 32 and h / gh == 32)
     im = th.randn(bs, ci, h, w)
     guide = th.rand(bs, h, w)
     grid = th.rand(bs, co*(ci+1), gd, gh, gw)

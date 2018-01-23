@@ -902,6 +902,12 @@ class BilateralSliceApply(nn.Module):
     assert mode in ["halide", "manual", "pytorch"]
     self.mode = mode
 
+    self.w = None
+    self.h = None
+
+    self.gw = None
+    self.gh = None
+
   def forward(self, grid, guide, input):
     if self.mode == "manual":
       return funcs.BilateralSliceApplyManual.apply(grid, guide, input)
@@ -911,62 +917,62 @@ class BilateralSliceApply(nn.Module):
       bs, ci, h, w = input.shape
       _, c, gd, gh, gw = grid.shape
 
-      # Slice
-      xx, yy = np.meshgrid(np.arange(0, w), np.arange(0, h))
-      xx = xx.astype(np.float32)
-      yy = yy.astype(np.float32)
-      gx = th.from_numpy(((xx+0.5)/w) * gw)
-      gy = th.from_numpy(((yy+0.5)/h) * gh)
+      if self.w is None or w != self.w or self.h is None or h != self.h:
+        # Precompute some indices so we dont do unnecessary CPU->GPU transfers
+        self.w = w
+        self.h = h
+        # Slice
+        xx, yy = np.meshgrid(np.arange(0, w), np.arange(0, h))
+        xx = Variable(th.from_numpy(xx.astype(np.float32)).cuda())
+        yy = Variable(th.from_numpy(yy.astype(np.float32)).cuda())
+        self.xx = xx 
+        self.yy = yy
+
+      if self.gw is None or gw != self.gw or self.gh is None or gh != self.gh:
+        # Precompute some indices so we dont do unnecessary CPU->GPU transfers
+        self.gw = gw
+        self.gh = gh
+
+        self.gx = ((self.xx+0.5)/w) * gw
+        self.gy = ((self.yy+0.5)/h) * gh
+
+        self.fx = th.clamp(th.floor(self.gx - 0.5), min=0)
+        self.fy = th.clamp(th.floor(self.gy - 0.5), min=0)
+        self.wx = self.gx - 0.5 - self.fx
+        self.wy = self.gy - 0.5 - self.fy
+        self.wx = self.wx.unsqueeze(0).unsqueeze(0)
+        self.wy = self.wy.unsqueeze(0).unsqueeze(0)
+        self.fx = self.fx.long().unsqueeze(0).unsqueeze(0)
+        self.fy = self.fy.long().unsqueeze(0).unsqueeze(0)
+        self.cx = th.clamp(self.fx+1, max=gw-1);
+        self.cy = th.clamp(self.fy+1, max=gh-1);
+
       gz = th.clamp(guide, 0.0, 1.0)*gd
-
-      gx = Variable(gx.cuda())
-      gy = Variable(gy.cuda())
-
-      # Enclosing cell
-      fx = th.clamp(th.floor(gx - 0.5), min=0)
-      fy = th.clamp(th.floor(gy - 0.5), min=0)
       fz = th.clamp(th.floor(gz-0.5), min=0)
-
-      # Trilerp weights
-      wx = gx - 0.5 - fx
-      wy = gy - 0.5 - fy
       wz = th.abs(gz-0.5 - fz)
-
-      fx = fx.long().unsqueeze(0).unsqueeze(0)
-      fy = fy.long().unsqueeze(0).unsqueeze(0)
       fz = fz.long()
-
-      wx = wx.unsqueeze(0).unsqueeze(0)
-      wy = wy.unsqueeze(0).unsqueeze(0)
       wz = wz.unsqueeze(1)
-
-      cx = th.clamp(fx+1, max=gw-1);
-      cy = th.clamp(fy+1, max=gh-1);
       cz = th.clamp(fz+1, max=gd-1)
 
       # Make indices broadcastable
       fz = fz.view(bs, 1, h, w)
       cz = cz.view(bs, 1, h, w)
 
-      c_idx = th.from_numpy(np.arange(c)).view(1, c, 1, 1).cuda()
-      batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1).cuda()
-
-      affine = grid[batch_idx, c_idx, fz, fy, fx]*(1-wx)*(1-wy)*(1-wz) + \
-               grid[batch_idx, c_idx, cz, fy, fx]*(1-wx)*(1-wy)*(  wz) + \
-               grid[batch_idx, c_idx, fz, cy, fx]*(1-wx)*(  wy)*(1-wz) + \
-               grid[batch_idx, c_idx, cz, cy, fx]*(1-wx)*(  wy)*(  wz) + \
-               grid[batch_idx, c_idx, fz, fy, cx]*(  wx)*(1-wy)*(1-wz) + \
-               grid[batch_idx, c_idx, cz, fy, cx]*(  wx)*(1-wy)*(  wz) + \
-               grid[batch_idx, c_idx, fz, cy, cx]*(  wx)*(  wy)*(1-wz) + \
-               grid[batch_idx, c_idx, cz, cy, cx]*(  wx)*(  wy)*(  wz)
-
-
-      out = []
       co = c // (ci+1)
+      batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1).cuda()
+      out = []
       for c_ in range(co):
-        a = affine[:, (ci+1)*c_:(ci+1)*(c_+1), ...]
+        c_idx = th.from_numpy(np.arange((ci+1)*c_, (ci+1)*(c_+1))).view(1, ci+1, 1, 1).cuda()
+        a = grid[batch_idx, c_idx, fz, self.fy, self.fx]*(1-self.wx)*(1-self.wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, self.fy, self.fx]*(1-self.wx)*(1-self.wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, self.cy, self.fx]*(1-self.wx)*(  self.wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, self.cy, self.fx]*(1-self.wx)*(  self.wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, self.fy, self.cx]*(  self.wx)*(1-self.wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, self.fy, self.cx]*(  self.wx)*(1-self.wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, self.cy, self.cx]*(  self.wx)*(  self.wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, self.cy, self.cx]*(  self.wx)*(  self.wy)*(  wz)
+
         o = th.sum(a[:, :-1, ...]*input, 1) + a[:, -1, ...]
         out.append(o.unsqueeze(1))
       out = th.cat(out, 1)
       return out
-
