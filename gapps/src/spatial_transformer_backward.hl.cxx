@@ -28,12 +28,13 @@ public:
 
         SimpleAutoscheduleOptions options;
         options.gpu = get_target().has_gpu_feature();
+        options.gpu_tile_width = 16;
+        options.gpu_tile_height = 16;
+        options.unroll_rvar_size = 8;
 
         std::set<std::string> dont_inline = {};
 
         std::vector<Func> funcs{d_input, d_affine_mtx};
-
-        print_func(d(affine_mtx));
 
         simple_autoschedule(funcs,
             {
@@ -72,5 +73,5 @@ public:
 }  // end namespace gradient_apps
 
 HALIDE_REGISTER_GENERATOR(
-    gradient_apps::SpatialTransformerBackwardGenerator, 
+    gradient_apps::SpatialTransformerBackwardGenerator,
     spatial_transformer_backward)
