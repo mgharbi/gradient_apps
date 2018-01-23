@@ -959,7 +959,7 @@ def test_vgg(cuda=True):
 
     print("{}: running time {}ms".format(name, (end-start)*1000/nits))
 
-def test_bilateral_slice_apply(gpu=False):
+def test_bilateral_slice_apply(gpu=True):
   bs = 20
   ci = 3
   co = 3
@@ -974,14 +974,10 @@ def test_bilateral_slice_apply(gpu=False):
   guide = th.rand(bs, h, w)*0.5
   input = th.rand(bs, ci, h, w)
 
-  op = modules.BilateralSliceApply(False)
-  op_manual = modules.BilateralSliceApply(True)
 
   grid = grid.cuda()
   guide = guide.cuda()
   input = input.cuda()
-  op.cuda()
-  op_manual.cuda()
 
   grid = Variable(grid, requires_grad=True)
   guide = Variable(guide, requires_grad=True)
@@ -990,31 +986,21 @@ def test_bilateral_slice_apply(gpu=False):
   nbits = 5
   nits = 10
 
-  for i in range(nbits):
-    out = op(grid, guide, input)
-    loss = out.mean()
-    loss.backward()
-  start = time.time()
-  for i in range(nits):
-    out = op(grid, guide, input)
-    loss = out.mean()
-    loss.backward()
-    print(loss.data.cpu()[0], input.grad.data.mean(), grid.grad.data.mean(), guide.grad.data.mean())
-  # th.cuda.synchronize()
-  end = time.time()
-  print("Halide: running time {}ms".format((end-start)*1000/nits))
+  for mode in ["pytorch", "manual", "halide"]:
+    op = modules.BilateralSliceApply(mode)
+    op.cuda()
 
-  for i in range(nbits):
-    out = op_manual(grid, guide, input)
-    loss = out.mean()
-    loss.backward()
-  start = time.time()
-  for i in range(nits):
-    out_manual = op_manual(grid, guide, input)
-    loss = out_manual.mean()
-    loss.backward()
-    print(loss.data.cpu()[0], input.grad.data.mean(), grid.grad.data.mean(), guide.grad.data.mean())
-  # th.cuda.synchronize()
-  end = time.time()
-  print("Manual: running time {}ms".format((end-start)*1000/nits))
+    for i in range(nbits):
+      out = op(grid, guide, input)
+      loss = out.mean()
+      loss.backward()
+    start = time.time()
+    for i in range(nits):
+      out = op(grid, guide, input)
+      loss = out.mean()
+      loss.backward()
+      print(loss.data.cpu()[0], input.grad.data.mean(), grid.grad.data.mean(), guide.grad.data.mean())
+    # th.cuda.synchronize()
+    end = time.time()
+    print("{}: running time {}ms".format(mode, (end-start)*1000/nits))
 

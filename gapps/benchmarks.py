@@ -197,14 +197,17 @@ class BilateralLayer(Benchmark):
 
 
 class BilateralSliceApply(Benchmark):
-  def __init__(self, cuda=False, manual_cuda=False, burn_iters=5, iters=10):
+  def __init__(self, cuda=False, mode="halide", burn_iters=5, iters=10):
     super(BilateralSliceApply, self).__init__(
         cuda=cuda, burn_iters=burn_iters, iters=iters)
-    self.manual_cuda = manual_cuda
+    assert mode in ["halide", "manual", "pytorch"]
+    self.mode = mode
 
   def name(self):
-    if self.manual_cuda:
+    if self.mode == "manual":
       return "BilateralSliceApplyManualCuda"
+    elif self.mode == "pytorch":
+      return "BilateralSliceApplyPytorch"
     else:
       return "BilateralSliceApply"
 
@@ -237,10 +240,7 @@ class BilateralSliceApply(Benchmark):
     self.guide = guide
     self.grid = grid
 
-    if self.manual_cuda:
-      self.op = modules.BilateralSliceApply(True)
-    else:
-      self.op = modules.BilateralSliceApply(False)
+    self.op = modules.BilateralSliceApply(self.mode)
 
     if self.cuda:
       self.image = self.image.cuda()

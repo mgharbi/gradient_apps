@@ -55,8 +55,8 @@ EXT_DIR = _ext
 # The makefile assumes that each op that has a backward also has a forward
 OPS = \
 			bilinear_resampling_forward bilinear_resampling_backward \
+			bilateral_slice_apply_forward bilateral_slice_apply_backward \
 			# spatial_transformer_forward spatial_transformer_backward \
-			# bilateral_slice_apply_forward bilateral_slice_apply_backward \
 			# deconv_grad_forward deconv_grad_backward \
 			# deconv_alpha_forward deconv_alpha_backward \
 			# bilateral_grid_forward bilateral_grid_backward \
