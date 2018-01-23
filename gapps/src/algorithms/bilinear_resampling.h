@@ -13,8 +13,6 @@ Var x("x"), y("y"), c("c"), n("n");
 template <typename Input>
 Func bilinear_resampling(const Input &input,
                          const Input &warp) {
-    // Func clamped = Halide::BoundaryConditions::constant_exterior(input);
-
     Expr width = input.dim(0).extent();
     Expr height = input.dim(1).extent();
 
