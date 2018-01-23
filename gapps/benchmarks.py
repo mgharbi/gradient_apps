@@ -93,6 +93,7 @@ class SpatialTransformer(Benchmark):
   def reset(self):
     sz = 512
     bs = 4
+    th.manual_seed(2)
     image = th.randn(bs, 16, sz, sz)
 
     affine_mtx = th.zeros(bs, 2, 3)
@@ -130,7 +131,6 @@ class Flownet(Benchmark):
     warp = Variable(self.warp, requires_grad=True)
     output = self.op(image, warp)
     loss = output.sum()
-
     loss.backward()
 
     # Make sure pytorch actually runs, lazy as it is
@@ -139,12 +139,19 @@ class Flownet(Benchmark):
 
   def reset(self):
     sz = 512
-    bs = 16
-    image = th.randn(bs, 16, sz, sz)
+    bs = 4
+    th.manual_seed(2)
+    image = th.randn(bs, 64, sz, sz)
+    warp = th.rand(bs, 2, sz, sz)
+    # xx, yy = np.meshgrid(np.linspace(-1, 1, sz), np.linspace(-1, 1, sz))
+    # xx = th.from_numpy(xx.astype(np.float32))
+    # yy = th.from_numpy(yy.astype(np.float32))
+    # dx = 0.1*th.cos(yy*2*np.pi*8.0) + yy
+    # dy = 0.3*th.sin(yy*2*np.pi*8.0) + xx
+    # warp = th.cat([dx.unsqueeze(0), dy.unsqueeze(0)], 0).unsqueeze(0)
+    # warp = warp.repeat(bs, 1, 1, 1)
     if self.mode == "pytorch":
-      warp = th.rand(bs, sz, sz, 2)
-    else:
-      warp = th.rand(bs, 2, sz, sz)
+      warp = warp.permute(0, 2, 3, 1)
     self.image = image
     self.warp = warp
 
@@ -183,6 +190,7 @@ class BilateralLayer(Benchmark):
     sz = 512
     bs = 8
     c = 16
+    th.manual_seed(2)
     im = th.randn(bs, c, sz, sz)
     guide = th.rand(bs, sz, sz)
     self.image = im
@@ -235,6 +243,7 @@ class BilateralSliceApply(Benchmark):
     gw = 64
     h = 1024
     w = 1024
+    th.manual_seed(2)
     im = th.randn(bs, ci, h, w)
     guide = th.rand(bs, h, w)
     grid = th.rand(bs, co*(ci+1), gd, gh, gw)
@@ -268,6 +277,7 @@ class VGG(Benchmark):
 
   def reset(self):
     bs = 1
+    th.manual_seed(2)
     self.image = Variable(th.rand(bs, 3, 224, 224), requires_grad=False)
     self.op = modules.VGG(pytorch=self.pytorch)
 
@@ -296,6 +306,7 @@ class BackwardConv2d(Benchmark):
     sz = 256
     bs = 1
     c = 3
+    th.manual_seed(2)
     im = th.randn(bs, c, sz, sz)
     guide = th.rand(bs, sz, sz)
     self.image = im
@@ -327,6 +338,7 @@ class Demosaick(Benchmark):
     sz = 1024
     bs = 2
     c = 3
+    th.manual_seed(2)
     mosaick = th.randn(bs, 1, sz, sz)
     self.mosaick = mosaick
 

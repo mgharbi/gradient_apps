@@ -630,7 +630,7 @@ class BilinearResampling(nn.Module):
     self.mode = mode
 
     if self.mode == "nvidia":
-      self.op = nvidia_resample.Resample2d()
+      self.op = nvidia_resample.Resample2d(1)
 
   def forward(self, x, warp):
     bs = x.shape[0]
@@ -653,8 +653,6 @@ class BilinearResampling(nn.Module):
       assert warp.shape[2] == x.shape[2]
       assert warp.shape[3] == x.shape[3]
       out = self.op(x, warp)
-
-      print out.max()
 
     return out
 
@@ -932,9 +930,12 @@ class BilateralSliceApply(nn.Module):
       _, c, gd, gh, gw = grid.shape
 
       # Coordinates in the fullres image
-      xx = Variable(th.arange(0, w).cuda().view(1, -1).repeat(h, 1))
-      yy = Variable(th.arange(0, h).cuda().view(-1, 1).repeat(1, w))
+      xx = Variable(th.arange(0, w).view(1, -1).repeat(h, 1))
+      yy = Variable(th.arange(0, h).view(-1, 1).repeat(1, w))
 
+      if input.is_cuda:
+        xx = xx.cuda()
+        yy = yy.cuda()
       # Spatial coordinates in the bilateral grid 
       gx = ((xx+0.5)/w) * gw
       gy = ((yy+0.5)/h) * gh
@@ -966,14 +967,18 @@ class BilateralSliceApply(nn.Module):
       cz = cz.view(bs, 1, h, w)
 
       # Indices to slice along the batch axis
-      batch_idx = th.arange(bs).view(bs, 1, 1, 1).long().cuda()
+      batch_idx = th.arange(bs).view(bs, 1, 1, 1).long()
+      if gz.is_cuda:
+        batch_idx = batch_idx.cuda()
       out = []
       # Number of output channels
       co = c // (ci+1)
       # Construct the output channels, one at a time
       for c_ in range(co):
         # Select the relevant affine coefficients in the grid
-        c_idx = th.arange((ci+1)*c_, (ci+1)*(c_+1)).view(1, ci+1, 1, 1).long().cuda()
+        c_idx = th.arange((ci+1)*c_, (ci+1)*(c_+1)).view(1, ci+1, 1, 1).long()
+        if gz.is_cuda:
+          c_idx = c_idx.cuda()
         # Slice to upsample them to full-res
         a = grid[batch_idx, c_idx, fz, fy, fx]*(1-wx)*(1-wy)*(1-wz) + \
                  grid[batch_idx, c_idx, cz, fy, fx]*(1-wx)*(1-wy)*(  wz) + \

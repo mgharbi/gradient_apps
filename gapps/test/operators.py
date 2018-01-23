@@ -744,13 +744,13 @@ def test_stn(cuda=True):
     # skimage.io.imsave(
     #     os.path.join(out_dir, name), output)
 
-def test_bilinear_resampling(cuda=False):
+def test_bilinear_resampling(cuda=True):
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
 
   sz = 256
   image = image[:sz, :sz, :]
 
-  bs = 1
+  bs = 16
   h, w, _ = image.shape
   image = np.expand_dims(
       image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
@@ -775,36 +775,33 @@ def test_bilinear_resampling(cuda=False):
     warp = warp.cuda()
 
   nits_burns = 5
-  nits = 10
-  for pytorch in [False, True]:
-    if pytorch:
+  nits = 20
+  for mode in ["halide", "nvidia", "pytorch"]:
+    if mode == "pytorch":
       w = warp.permute(0, 2, 3, 1)
     else:
       w = warp
-    op = modules.BilinearResampling(pytorch=pytorch)
+    op = modules.BilinearResampling(mode=mode)
     if cuda:
       op = op.cuda()
 
-    if pytorch:
-      name = "resampling_torch_output.png"
-    else:
-      name = "resampling_ours_output.png"
+    name = "resampling_"+mode+"_output.png"
 
     for it in range(nits_burns):
       output = op(image, w)
       loss = output.sum()
       loss.backward()
 
-      start = time.time()
-      for it in range(nits):
-        output = op(image, w)
-        loss = output.sum()
-        loss.backward()
-      end = time.time()
+    start = time.time()
+    for it in range(nits):
+      output = op(image, w)
+      loss = output.sum()
+      loss.backward()
+    end = time.time()
 
     print("{}: running time {}ms".format(name, (end-start)*1000/nits))
 
-    print(output.min(), output.max())
+    print(output.min().data[0], output.max().data[0])
 
     output = output.data[0].cpu().numpy()
     output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
