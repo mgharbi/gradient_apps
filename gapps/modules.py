@@ -630,14 +630,17 @@ class BilinearResampling(nn.Module):
   def forward(self, x, warp):
     bs = x.shape[0]
 
-    assert warp.shape[0] == bs
-    assert warp.shape[1] == 2
-    assert warp.shape[2] == x.shape[2]
-    assert warp.shape[3] == x.shape[3]
-
     if self.pytorch:
-      raise NotImplemented
+      assert warp.shape[0] == bs
+      assert warp.shape[1] == x.shape[2]
+      assert warp.shape[2] == x.shape[3]
+      assert warp.shape[3] == 2
+      out = nn.functional.grid_sample(x, warp, 'bilinear', 'zeros')
     else:
+      assert warp.shape[0] == bs
+      assert warp.shape[1] == 2
+      assert warp.shape[2] == x.shape[2]
+      assert warp.shape[3] == x.shape[3]
       out = funcs.BilinearResampling.apply(x, warp)
 
     return out

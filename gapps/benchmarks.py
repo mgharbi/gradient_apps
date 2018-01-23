@@ -110,6 +110,49 @@ class SpatialTransformer(Benchmark):
       self.op = self.op.cuda()
 
 
+class Flownet(Benchmark):
+  def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=50):
+    super(Flownet, self).__init__(
+        cuda=cuda, burn_iters=burn_iters, iters=iters)
+    self.pytorch = pytorch
+
+  def name(self):
+    if self.pytorch:
+      return "FlownetPytorch"
+    else:
+      return "Flownet"
+
+  def run(self):
+    image = Variable(self.image, requires_grad=True)
+    warp = Variable(self.warp, requires_grad=True)
+    output = self.op(image, warp)
+    loss = output.sum()
+
+    loss.backward()
+
+    # Make sure pytorch actually runs, lazy as it is
+    x = image.grad.sum().cpu().data[0]
+    x = warp.grad.sum().cpu().data[0]
+
+  def reset(self):
+    sz = 512
+    bs = 4
+    image = th.randn(bs, 16, sz, sz)
+    if self.pytorch:
+      warp = th.rand(bs, sz, sz, 2)
+    else:
+      warp = th.rand(bs, 2, sz, sz)
+    self.image = image
+    self.warp = warp
+
+    self.op = modules.BilinearResampling(pytorch=self.pytorch)
+
+    if self.cuda:
+      self.image = self.image.cuda()
+      self.warp = self.warp.cuda()
+      self.op = self.op.cuda()
+
+
 class BilateralLayer(Benchmark):
   def __init__(self, cuda=False, pytorch=False, burn_iters=5, iters=10):
     super(BilateralLayer, self).__init__(

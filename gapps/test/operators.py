@@ -756,12 +756,12 @@ def test_bilinear_resampling(cuda=False):
       image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
   image = np.tile(image, [bs, 1 ,1 ,1])
 
-  xx, yy = np.meshgrid(np.linspace(0, 1, sz), np.linspace(0, 1, sz))
+  xx, yy = np.meshgrid(np.linspace(-1, 1, sz), np.linspace(-1, 1, sz))
   xx = th.from_numpy(xx.astype(np.float32))
   yy = th.from_numpy(yy.astype(np.float32))
 
-  dx = 10.0*th.cos(yy*2*np.pi*8.0)
-  dy = 0.0*th.sin(yy*2*np.pi*8.0)
+  dx = 0.1*th.cos(yy*2*np.pi*8.0) + yy
+  dy = 0.0*th.sin(yy*2*np.pi*8.0) + xx
   dx = dx.unsqueeze(0).unsqueeze(0)
   dy = dy.unsqueeze(0).unsqueeze(0)
   warp = th.cat([dx, dy], 1)
@@ -776,7 +776,11 @@ def test_bilinear_resampling(cuda=False):
 
   nits_burns = 5
   nits = 10
-  for pytorch in [False]:
+  for pytorch in [False, True]:
+    if pytorch:
+      w = warp.permute(0, 2, 3, 1)
+    else:
+      w = warp
     op = modules.BilinearResampling(pytorch=pytorch)
     if cuda:
       op = op.cuda()
@@ -787,13 +791,13 @@ def test_bilinear_resampling(cuda=False):
       name = "resampling_ours_output.png"
 
     for it in range(nits_burns):
-      output = op(image, warp)
+      output = op(image, w)
       loss = output.sum()
       loss.backward()
 
       start = time.time()
       for it in range(nits):
-        output = op(image, warp)
+        output = op(image, w)
         loss = output.sum()
         loss.backward()
       end = time.time()
