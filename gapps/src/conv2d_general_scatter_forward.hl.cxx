@@ -2,7 +2,7 @@
 
 namespace gradient_apps {
 
-class Conv2dBackwardScatterGenerator : public Generator<Conv2dBackwardScatterGenerator> {
+class Conv2dGeneralScatterGenerator : public Generator<Conv2dGeneralScatterGenerator> {
 public:
     Input<Buffer<float>>  d_output{"d_output", 4};
     Input<Buffer<float>>  filter{"filter", 4};
@@ -48,4 +48,4 @@ public:
 }  // end namespace gradient_apps
 
 HALIDE_REGISTER_GENERATOR(
-    gradient_apps::Conv2dBackwardScatterGenerator, conv2d_backward_scatter)
+    gradient_apps::Conv2dGeneralScatterGenerator, conv2d_general_scatter_forward)

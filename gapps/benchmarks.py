@@ -304,8 +304,8 @@ class BackwardConv2d(Benchmark):
 
   def reset(self):
     sz = 256
-    bs = 1
-    c = 3
+    bs = 16
+    c = 16
     th.manual_seed(2)
     im = th.randn(bs, c, sz, sz)
     guide = th.rand(bs, sz, sz)

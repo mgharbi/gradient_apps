@@ -992,7 +992,7 @@ class BackwardConv2dGeneralScatter(Function):
 
     d_input = d_output.new()
     d_input.resize_(bs, n_in, h, w)
-    ops.conv2d_backward_scatter(d_output, weights, d_input)
+    ops.conv2d_general_scatter_forward(d_output, weights, d_input)
 
     return d_input
 
