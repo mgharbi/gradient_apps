@@ -28,8 +28,9 @@ public:
 
         SimpleAutoscheduleOptions options;
         options.gpu = get_target().has_gpu_feature();
-        options.gpu_tile_width = 32;
-        options.gpu_tile_height = 1;
+        options.gpu_tile_width = 16;
+        options.gpu_tile_height = 16;
+        options.unroll_rvar_size = 8;
 
         std::set<std::string> dont_inline = {};
 
@@ -44,13 +45,13 @@ public:
               {"input.extent.0", 512},
               {"input.extent.1", 512},
               {"input.extent.2", 16},
-              {"input.extent.3", 8},
+              {"input.extent.3", 4},
               {"affine_mtx.min.0", 0},
               {"affine_mtx.min.1", 0},
               {"affine_mtx.min.2", 0},
               {"affine_mtx.extent.0", 3},
               {"affine_mtx.extent.1", 2},
-              {"affine_mtx.extent.2", 8},
+              {"affine_mtx.extent.2", 4},
               {"d_output.min.0", 0},
               {"d_output.min.1", 0},
               {"d_output.min.2", 0},
@@ -58,11 +59,11 @@ public:
               {"d_output.extent.0", 512},
               {"d_output.extent.1", 512},
               {"d_output.extent.2", 16},
-              {"d_output.extent.3", 8}
+              {"d_output.extent.3", 4}
             },
             {
-              {{0, 512}, {0, 512}, {0, 15}, {0, 7}},
-              {{0, 2}, {0, 1}, {0, 7}},
+              {{0, 512}, {0, 512}, {0, 15}, {0, 3}},
+              {{0, 2}, {0, 1}, {0, 3}},
             },
             options,
             dont_inline);
