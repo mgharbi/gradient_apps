@@ -914,39 +914,53 @@ class BilateralSliceApply(nn.Module):
     elif self.mode == "halide":
       return funcs.BilateralSliceApply.apply(grid, guide, input)
     else: # pytorch
+      # Get input dimensions
       bs, ci, h, w = input.shape
       _, c, gd, gh, gw = grid.shape
 
+      # Precompute some indices and weights, so we dont do unnecessary CPU->GPU
+      # transfers
       if self.w is None or w != self.w or self.h is None or h != self.h:
-        # Precompute some indices so we dont do unnecessary CPU->GPU transfers
+        # Update image dimensions
         self.w = w
         self.h = h
-        # Slice
+
+        # Coordinates in the fullres image
         xx, yy = np.meshgrid(np.arange(0, w), np.arange(0, h))
         xx = Variable(th.from_numpy(xx.astype(np.float32)).cuda())
         yy = Variable(th.from_numpy(yy.astype(np.float32)).cuda())
         self.xx = xx 
         self.yy = yy
 
+      # Precompute some indices and weights, so we dont do unnecessary CPU->GPU
+      # transfers
       if self.gw is None or gw != self.gw or self.gh is None or gh != self.gh:
-        # Precompute some indices so we dont do unnecessary CPU->GPU transfers
+        # Update grid dimensions
         self.gw = gw
         self.gh = gh
 
+        # Spatial coordinates in the smal, bilateral grid 
         self.gx = ((self.xx+0.5)/w) * gw
         self.gy = ((self.yy+0.5)/h) * gh
 
+        # Coordinates of the neighboring grid voxels
         self.fx = th.clamp(th.floor(self.gx - 0.5), min=0)
         self.fy = th.clamp(th.floor(self.gy - 0.5), min=0)
+
+        # Interpolation weights
         self.wx = self.gx - 0.5 - self.fx
         self.wy = self.gy - 0.5 - self.fy
         self.wx = self.wx.unsqueeze(0).unsqueeze(0)
         self.wy = self.wy.unsqueeze(0).unsqueeze(0)
+
+        # Make the voxel coordinates integers to be use in slicing
         self.fx = self.fx.long().unsqueeze(0).unsqueeze(0)
         self.fy = self.fy.long().unsqueeze(0).unsqueeze(0)
         self.cx = th.clamp(self.fx+1, max=gw-1);
         self.cy = th.clamp(self.fy+1, max=gh-1);
 
+      # Compute the same quantities on the z dimension. These depend on
+      # the dynamic, guide value
       gz = th.clamp(guide, 0.0, 1.0)*gd
       fz = th.clamp(th.floor(gz-0.5), min=0)
       wz = th.abs(gz-0.5 - fz)
@@ -958,11 +972,16 @@ class BilateralSliceApply(nn.Module):
       fz = fz.view(bs, 1, h, w)
       cz = cz.view(bs, 1, h, w)
 
-      co = c // (ci+1)
+      # Indices to slice along the batch axis
       batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1).cuda()
       out = []
+      # Number of output channels
+      co = c // (ci+1)
+      # Construct the output channels, one at a time
       for c_ in range(co):
+        # Select the relevant affine coefficients in the grid
         c_idx = th.from_numpy(np.arange((ci+1)*c_, (ci+1)*(c_+1))).view(1, ci+1, 1, 1).cuda()
+        # Slice to upsample them to full-res
         a = grid[batch_idx, c_idx, fz, self.fy, self.fx]*(1-self.wx)*(1-self.wy)*(1-wz) + \
                  grid[batch_idx, c_idx, cz, self.fy, self.fx]*(1-self.wx)*(1-self.wy)*(  wz) + \
                  grid[batch_idx, c_idx, fz, self.cy, self.fx]*(1-self.wx)*(  self.wy)*(1-wz) + \
@@ -972,7 +991,9 @@ class BilateralSliceApply(nn.Module):
                  grid[batch_idx, c_idx, fz, self.cy, self.cx]*(  self.wx)*(  self.wy)*(1-wz) + \
                  grid[batch_idx, c_idx, cz, self.cy, self.cx]*(  self.wx)*(  self.wy)*(  wz)
 
+        # Construct the output channel as an affine combination of input channels
         o = th.sum(a[:, :-1, ...]*input, 1) + a[:, -1, ...]
         out.append(o.unsqueeze(1))
+      # Assemble all the output channels in a single tensor
       out = th.cat(out, 1)
       return out
