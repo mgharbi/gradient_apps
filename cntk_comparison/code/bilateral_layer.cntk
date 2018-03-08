@@ -1,0 +1,39 @@
+# BilateralLayer netowrk
+# command to run
+command=Test
+
+Train = [
+  action = "test"
+]
+
+Test = [
+  action = "test"
+]
+
+BilateralayerBuilder = {
+  NInputs = 3
+  NOutputs = 3
+  Height = 128
+  Width = 128
+
+  KernelSize = 3
+  SigmaS = 8
+  SigmaR = 8
+
+  image = Input {Ninputs:Height:Width:Ninputs}
+  guide = Input {Ninputs:Height:Width}
+
+  # params
+
+  # operations
+
+  output = image + image
+
+  err = SquareError(output - 0)
+
+  # root nodes
+  featuresNodes = ()
+  labelNodes = ()
+  criterionNodes = (err)
+  outputNodes = (output)
+}
