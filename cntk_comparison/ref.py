@@ -8,7 +8,7 @@ def fwd(guide, grid, sigma_s, sigma_r):
   _, n_chans, small_sz, _ ,_ = grid.shape
   xx, yy = np.meshgrid(np.arange(0, sz), np.arange(0, sz))
 
-  start = time.time()
+  # start = time.time()
   guide = guide.unsqueeze(1)
 
   # Slice
@@ -25,8 +25,8 @@ def fwd(guide, grid, sigma_s, sigma_r):
   cz = th.clamp(fz+1, max=sigma_r-1)
 
   # Trilerp weights
-  wx = Variable(th.from_numpy((gx - 0.5 - fx).astype(np.float32)))
-  wy = Variable(th.from_numpy((gy - 0.5 - fy).astype(np.float32)))
+  wx = Variable(th.from_numpy((gx - 0.5 - fx).astype(np.float32)).cuda())
+  wy = Variable(th.from_numpy((gy - 0.5 - fy).astype(np.float32)).cuda())
   wz = th.abs(gz-0.5 - fz)
 
   # Make indices broadcastable
@@ -35,8 +35,8 @@ def fwd(guide, grid, sigma_s, sigma_r):
   fz = fz.long()[:, 0].view(bs, 1, sz, sz)
   cz = cz.long()[:, 0].view(bs, 1, sz, sz)
 
-  batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
-  c_idx = th.from_numpy(np.arange(n_chans)).view(1, n_chans, 1, 1)
+  batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1).cuda()
+  c_idx = th.from_numpy(np.arange(n_chans)).view(1, n_chans, 1, 1).cuda()
 
   out = grid[batch_idx, c_idx, fy, fx, fz]*(1-wx)*(1-wy)*(1-wz) + \
         grid[batch_idx, c_idx, fy, fx, cz]*(1-wx)*(1-wy)*(  wz) + \
@@ -46,8 +46,8 @@ def fwd(guide, grid, sigma_s, sigma_r):
         grid[batch_idx, c_idx, fy, cx, cz]*(  wx)*(1-wy)*(  wz) + \
         grid[batch_idx, c_idx, cy, cx, fz]*(  wx)*(  wy)*(1-wz) + \
         grid[batch_idx, c_idx, cy, cx, cz]*(  wx)*(  wy)*(  wz)
-  elapsed = (time.time() - start)*1000
-  print("runtime {}ms".format(elapsed))
+  # elapsed = (time.time() - start)*1000
+  # print("runtime {}ms".format(elapsed))
 
   return out
 
@@ -71,19 +71,21 @@ def main():
   guide = Variable(guide, requires_grad=True)
   grid = Variable(grid, requires_grad=True)
 
-  n = 10
+  guide = guide.cuda()
+  grid = grid.cuda()
+
+  n = 8
   for i in range(n):
     if i == 1:
       start = time.time()
 
     out = fwd(guide, grid, sigma_s, sigma_r)
-    # loss = out.sum()
-    # loss.backward()
+    loss = out.sum()
+    loss.backward()
 
   elapsed = (time.time() - start)*1000
   elapsed /= n-1
-  # print(ret)
-  # print("runtime {}ms".format(elapsed))
+  print("runtime {}ms".format(elapsed))
 
   print(out.shape)
 
