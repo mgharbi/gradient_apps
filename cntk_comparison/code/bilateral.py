@@ -8,16 +8,21 @@ def grid_coord(guide, xx, yy, sz, grid_sz, sigma_r):
   gy = ((yy+0.5)/sz) * grid_sz
   expanded_guide = C.reshape(guide, [1, sz, sz])
   gz = expanded_guide*sigma_r
-  fx = C.floor(gx - 0.5)
-  fy = C.floor(gy - 0.5)
+  fx = C.clip(C.floor(gx - 0.5), 0, grid_sz-1)
+  fy = C.clip(C.floor(gy - 0.5), 0, grid_sz-1)
   fz = C.clip(C.floor(gz - 0.5), 0, sigma_r-1)
   cx = C.element_min(fx+1, grid_sz-1)
   cy = C.element_min(fy+1, grid_sz-1)
   cz = C.clip(fz+1, 0, sigma_r-1)
   return gx, gy, gz, fx, fy, fz, cx, cy, cz
 
-def BilateralSlice(sz, n_chans, grid_sz=16, sigma_r=8, sigma_s=16):
-  grid = C.Parameter([n_chans, sigma_r, grid_sz, grid_sz], name="grid")
+
+def BilateralSlice(sz, n_chans, grid_sz=64, sigma_r=12):
+  gsize = [n_chans, sigma_r, grid_sz, grid_sz]
+  grid = C.Parameter(gsize, 
+                     name="grid", init=np.random.uniform(size=gsize))
+  guide_scale = C.Parameter((1, ), 
+                     name="guide_scale", init=np.ones((1, )))
 
   # Flatten data for gather op
   flat_grid = C.reshape(grid, [grid_sz*grid_sz*sigma_r*n_chans])
@@ -34,11 +39,12 @@ def BilateralSlice(sz, n_chans, grid_sz=16, sigma_r=8, sigma_s=16):
 
   @C.functions.BlockFunction("BilateralSlice", "bilateral_slice")
   def bilateral_slice(guide, guide_no_grad):
+    # Make sure
     gx_d, gy_d, gz_d, fx_d, fy_d, fz_d, _, _, _ = grid_coord(
         guide, xx, yy, sz, grid_sz, sigma_r)
-    wx = (gx_d - 0.5 - fx_d)
-    wy = (gy_d - 0.5 - fy_d)
-    wz = C.abs(gz_d-0.5 - fz_d)
+    wx = C.abs(gx_d - 0.5 - fx_d)
+    wy = C.abs(gy_d - 0.5 - fy_d)
+    wz = C.abs(gz_d - 0.5 - fz_d)
 
     # Enclosing cell
     gx, gy, gz, fx, fy, fz, cx, cy, cz = grid_coord(
@@ -51,14 +57,14 @@ def BilateralSlice(sz, n_chans, grid_sz=16, sigma_r=8, sigma_s=16):
         wy_ = (1-wy) if iy == 0 else wy
         for iz, z in enumerate([fz, cz]):
           wz_ = (1-wz) if iz == 0 else wz
-          linear_idx = x + grid_sz*(y + grid_sz*(z + sigma_r*cc))
 
+          linear_idx = x + grid_sz*(y + grid_sz*(z + sigma_r*cc))
           flat_linear_idx = C.reshape(linear_idx, [n_chans*sz*sz])
 
           # Slice
           interp = C.gather(flat_grid, flat_linear_idx)
-          interp_fsz = C.reshape(interp, [n_chans, sz, sz])
-          output_components.append(interp_fsz*wx_*wy_*wz_)
+          interp_fsz = C.reshape(interp, [n_chans, sz, sz])*wx_*wy_*wz_
+          output_components.append(interp_fsz)
 
     out = sum(output_components)
 
@@ -66,68 +72,63 @@ def BilateralSlice(sz, n_chans, grid_sz=16, sigma_r=8, sigma_s=16):
   
   return bilateral_slice
 
-GRID_SZ = 16
-SZ = 128
-
 def main():
-  sz = 128
-  N = 1
-  n_chans = 1
+  # C.device.try_set_default_device(C.device.cpu())
+  show_image = False
+  if show_image:
+    sz = 256
+    n_chans = 3
+    bs = 1
+    data = skio.imread("/data/rgb.png").mean(2)[:sz, :sz].astype(np.float32)
+    data = np.expand_dims(data / 255.0, 0)
+    n_epochs = 1000
+    lr = 0.001
+  else:
+    sz = 1024
+    n_chans = 4
+    bs = 4
+    N = 4
+    data = np.random.uniform(size=[N, sz, sz]).astype(np.float32)
+    n_epochs = 50
+    lr = 0.000000001
+
 
   guide = C.input_variable([sz, sz], needs_gradient=True)
   guide_no_grad = C.input_variable([sz, sz], needs_gradient=False)
   model = BilateralSlice(sz, n_chans)
-  print(model)
-
   out = model(guide, guide_no_grad)
-  print(out)
+
+  inputs = {guide:data[0], guide_no_grad:data[0]}
+  out_ = out.eval(inputs)
 
   loss = C.squared_error(model(guide, guide_no_grad), guide_no_grad)
-  data = np.random.uniform(size=[N, sz, sz]).astype(np.float32)
 
-  print(out.forward({guide:data, guide_no_grad:data}))
-  return
+  # --- Train -----------------------------------------------------------------
+  start = time.time()
+  C.debugging.profiler.start_profiler("/output/pyprof")
+  C.debugging.profiler.enable_profiler()
+  learner = C.sgd(model.parameters, C.learning_parameter_schedule(lr))
+  progress_writer = C.logging.ProgressPrinter(0)
+  print(model.parameters)
+  summary = loss.train((data, data), parameter_learners=[learner],
+                       callbacks=[progress_writer], max_epochs=n_epochs,
+                       minibatch_size=bs)
+  C.debugging.profiler.stop_profiler()
+  elapsed = (time.time() - start)*1000/n_epochs
+  print("training", elapsed, "ms/it")
+  # ---------------------------------------------------------------------------
 
-  # C.debugging.profiler.start_profiler("/output/pyprof")
-  # C.debugging.profiler.enable_profiler()
-  # learner = C.sgd(model.parameters, C.learning_parameter_schedule(0.01))
-  # progress_writer = C.logging.ProgressPrinter(0)
-  # print(model.parameters)
-  # summary = loss.train((data, data), parameter_learners=[learner],
-  #                      callbacks=[progress_writer], max_epochs=10,
-  #                      minibatch_size=1)
-  # C.debugging.profiler.stop_profiler()
-  # # ---------------------------------------------------------------------------
 
-  # learner = C.learners.sgd([grid], lr=C.learning_parameter_schedule(1e-1))
-  # loss.train([guide_data], parameter_learners=[learner])
-  # inputs = {grid:grid_data, guide:guide_data, guide_non_diff:guide_data}
+  # --- Show output -----------------------------------------------------------
+  if show_image:
+    inputs = {guide:data[0], guide_no_grad:data[0]}
+    out_ = out.eval(inputs)
+    print(out_.shape)
+    out_ = np.clip(np.transpose(np.squeeze(out_), [1, 2, 0]), 0, 1)
+    print(out_.shape, out_.min(), out_.max())
+    skio.imsave("/output/imout.png", out_)
+  # ---------------------------------------------------------------------------
 
-  # # out_ = out.eval(inputs)
-  # # out_ = np.transpose(np.squeeze(out_), [1, 2, 0])
-  # # # out_ = np.squeeze(guide_data)
-  # # print(out_.shape, out_.min(), out_.max())
-  # # skio.imsave("/output/imout.png", out_)
-  #
-  # start = time.time()
-  # for i in range(1):
-  #   ret = loss.grad(inputs)
-  # elapsed = (time.time() - start)*1000
-  # print(elapsed)
-  #
-  # # for i in range(n):
-  # #   if i == 1:
-  # #     start = time.time()
-  # #
-  # #   ret = loss.grad(inputs)
-  # #   # ret = grid.grad(inputs)
-  # #   # ret = wy.eval(inputs)
-  # #   # ret = loss.grad(inputs)
-  # #   # ret = loss.eval(inputs)
-  # # elapsed = (time.time() - start)*1000
-  # # elapsed /= n-1
-  # # print(ret)
-  # print("runtime {}ms".format(elapsed))
 
 if __name__ == "__main__":
   main()
