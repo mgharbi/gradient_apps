@@ -177,5 +177,11 @@ def main():
   # # print(ret)
   # print("runtime {}ms".format(elapsed))
 
+  # start = time.time()
+  # inputs = {guide:data[0], guide_no_grad:data[0]}
+  # out_ = out.grad(inputs, wrt=[guide])
+  # elapsed = (time.time() - start)*1000
+  # print("grad", elapsed, "ms", np.abs(out_).max())
+
 if __name__ == "__main__":
   main()

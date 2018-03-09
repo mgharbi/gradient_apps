@@ -39,9 +39,10 @@ def BilateralSlice(sz, n_chans, grid_sz=64, sigma_r=12):
 
   @C.functions.BlockFunction("BilateralSlice", "bilateral_slice")
   def bilateral_slice(guide, guide_no_grad):
-    # Make sure
+    # Make sure we do sth that requires the gradient w.r.t guide
+    scaled_guide = guide_scale*guide  
     gx_d, gy_d, gz_d, fx_d, fy_d, fz_d, _, _, _ = grid_coord(
-        guide, xx, yy, sz, grid_sz, sigma_r)
+        scaled_guide, xx, yy, sz, grid_sz, sigma_r)
     wx = C.abs(gx_d - 0.5 - fx_d)
     wy = C.abs(gy_d - 0.5 - fy_d)
     wz = C.abs(gz_d - 0.5 - fz_d)
@@ -98,10 +99,17 @@ def main():
   model = BilateralSlice(sz, n_chans)
   out = model(guide, guide_no_grad)
 
-  inputs = {guide:data[0], guide_no_grad:data[0]}
-  out_ = out.eval(inputs)
-
   loss = C.squared_error(model(guide, guide_no_grad), guide_no_grad)
+
+  start = time.time()
+  n = 10
+  for _ in range(n):
+    inputs = {guide:data[0], guide_no_grad:data[0]}
+    out_ = loss.grad(inputs)
+  elapsed = (time.time() - start)*1000/n
+  print("forward", elapsed, "ms/it")
+  print(out_.shape)
+
 
   # --- Train -----------------------------------------------------------------
   start = time.time()
