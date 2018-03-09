@@ -4,48 +4,35 @@
 
 namespace gradient_apps {
 
-class DeconvCgBackwardGenerator
-  : public Generator<DeconvCgBackwardGenerator> {
+class DeconvAlphaForwardGenerator
+  : public Generator<DeconvAlphaForwardGenerator> {
 public:
     Input<Buffer<float>>  blurred{"blurred", 3};
-    Input<Buffer<float>>  x0{"x0", 3};
+    Input<Buffer<float>>  xk{"xk", 3};
     Input<Buffer<float>>  kernel{"kernel", 2};
     Input<Buffer<float>>  data_kernel_weights{"data_kernel_weights", 1};
     Input<Buffer<float>>  data_kernels{"data_kernels", 3};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
+    Input<Buffer<float>>  reg_powers{"reg_powers", 1};
     Input<Buffer<float>>  reg_targets{"reg_targets", 4};
-    Input<Buffer<float>>  d_output{"d_output", 3};
-    Output<Buffer<float>> d_x0{"d_x0", 3};
-    Output<Buffer<float>> d_data_kernel_weights{"d_data_kernel_weights", 1};
-    Output<Buffer<float>> d_data_kernels{"d_data_kernels", 3};
-    Output<Buffer<float>> d_reg_kernel_weights{"d_reg_kernel_weights", 1};
-    Output<Buffer<float>> d_reg_kernels{"d_reg_kernels", 3};
-    Output<Buffer<float>> d_reg_targets{"d_reg_targets", 4};
+    Input<Buffer<float>>  direction{"direction", 3};
+    Output<Buffer<float>> output{"output", 1};
 
     void generate() {
-        auto func_map = deconv_cg(blurred, x0, kernel,
+        Func cost = deconv_cost(
+            xk, blurred, kernel,
             data_kernel_weights, data_kernels,
-            reg_kernel_weights, reg_kernels, reg_targets);
-        Derivative d = propagate_adjoints(
-            output,
-            d_output,
-            {{d_output.dim(0).min(), d_output.dim(0).max()},
-             {d_output.dim(1).min(), d_output.dim(1).max()},
-             {d_output.dim(2).min(), d_output.dim(2).max()}}
-        );
-        std::map<FuncKey, Func> adjoints = d.adjoints;
-        assign_gradient(adjoints, func_map["x0"], d_x0);
-        assign_gradient(adjoints, data_kernel_weights, d_data_kernel_weights);
-        assign_gradient(adjoints, data_kernels, d_data_kernels);
-        assign_gradient(adjoints, reg_kernel_weights, d_reg_kernel_weights);
-        assign_gradient(adjoints, reg_kernels, d_reg_kernels);
-        assign_gradient(adjoints, reg_targets, d_reg_targets);
+            reg_kernel_weights, reg_kernels, reg_powers, reg_targets);
+        Func g_dot_d = propagate_tangents(cost, {{xk.name(), Func(direction)}});
+        Func d_H_d = propagate_tangents(g_dot_d, {{xk.name(), Func(direction)}});
+        output(x) = -g_dot_d() / d_H_d();
 
         if (auto_schedule) {
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            options.gpu_tile_channel = 1;
             Func output_func = output;
             simple_autoschedule(output_func,
                                 {
@@ -55,12 +42,12 @@ public:
                                  {"blurred.extent.0", 256},
                                  {"blurred.extent.1", 256},
                                  {"blurred.extent.2", 3},
-                                 {"x0.min.0", 0},
-                                 {"x0.min.1", 0},
-                                 {"x0.min.2", 0},
-                                 {"x0.extent.0", 256},
-                                 {"x0.extent.1", 256},
-                                 {"x0.extent.2", 3},
+                                 {"xk.min.0", 0},
+                                 {"xk.min.1", 0},
+                                 {"xk.min.2", 0},
+                                 {"xk.extent.0", 256},
+                                 {"xk.extent.1", 256},
+                                 {"xk.extent.2", 3},
                                  {"kernel.min.0", 0},
                                  {"kernel.min.1", 0},
                                  {"kernel.extent.0", 11},
@@ -81,6 +68,8 @@ public:
                                  {"reg_kernels.extent.0", 5},
                                  {"reg_kernels.extent.1", 5},
                                  {"reg_kernels.extent.2", 5},
+                                 {"reg_powers.min.0", 0},
+                                 {"reg_powers.extent.0", 5},
                                  {"reg_targets.min.0", 0},
                                  {"reg_targets.min.1", 0},
                                  {"reg_targets.min.2", 0},
@@ -89,28 +78,15 @@ public:
                                  {"reg_targets.extent.1", 256},
                                  {"reg_targets.extent.2", 3},
                                  {"reg_targets.extent.3", 5},
-                                 {"d_output.min.0", 0},
-                                 {"d_output.min.1", 0},
-                                 {"d_output.min.2", 0},
-                                 {"d_output.extent.0", 256},
-                                 {"d_output.extent.1", 256},
-                                 {"d_output.extent.2", 3}
+                                 {"direction.min.0", 0},
+                                 {"direction.min.1", 0},
+                                 {"direction.min.2", 0},
+                                 {"direction.extent.0", 256},
+                                 {"direction.extent.1", 256},
+                                 {"direction.extent.2", 3}
                                 },
-                                {{{0, 255}, // x0
-                                  {0, 255},
-                                  {0, 2}},
-                                 {{0, 4}}, // data_kernel_weights
-                                 {{0, 4},  // data_kernels
-                                  {0, 4},
-                                  {0, 4}},
-                                 {{0, 4}}, // reg_kernel_weights
-                                 {{0, 4},  // reg_kernels
-                                  {0, 4},
-                                  {0, 4}},
-                                 {{0, 255}, // reg_targets
-                                  {0, 255},
-                                  {0, 2},
-                                  {0, 4}}
+                                {
+                                 {{0, 0}},
                                 },
                                 options);
         }
@@ -119,5 +95,6 @@ public:
 
 }  // end namespace gradient_apps
 
+
 HALIDE_REGISTER_GENERATOR(
-    gradient_apps::DeconvCgForwardGenerator, deconv_cg_forward)
+    gradient_apps::DeconvAlphaForwardGenerator, deconv_alpha_forward)

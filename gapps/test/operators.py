@@ -82,11 +82,11 @@ def test_profile_deconv_cg_gpu():
 def test_deconv_cg_cpu():
   _test_deconv_cg(False)
 
-def test_deconv_cg_auto_cpu():
-  _test_deconv_cg_auto(False)
+def test_deconv_nonlinear_cg_cpu():
+  _test_deconv_nonlinear_cg(False)
 
-def test_deconv_cg_auto_gpu():
-  _test_deconv_cg_auto(True)
+def test_deconv_nonlinear_cg_gpu():
+  _test_deconv_nonlinear_cg(True)
 
 # ---------------------------------------------------------------------------
 
@@ -584,11 +584,11 @@ def _test_deconv_cg(gpu=False):
   skimage.io.imsave(
       os.path.join(out_dir, "deconv.png"), output)
 
-def _test_deconv_cg_auto(gpu=False):
+def _test_deconv_nonlinear_cg(gpu=False):
   image = skimage.io.imread(
       os.path.join(data_dir, "rgb.png")).astype(np.float32)/255.0
-  w = 32
-  h = 32
+  w = 256
+  h = 256
   image = image[100:100 + w, 100:100 + h, :]
   np.random.seed(1234)
   kernel = utils.sample_psf(11)
@@ -598,14 +598,14 @@ def _test_deconv_cg_auto(gpu=False):
   blurred = blurred.transpose((2, 0, 1))
   blurred = Variable(th.from_numpy(blurred), requires_grad=True).contiguous().view(1, 3, w, h)
   kernel = Variable(th.from_numpy(kernel), requires_grad=False).contiguous().view(1, 11, 11)
-  op = modules.DeconvCGAuto()
+  op = modules.DeconvNonlinearCG()
 
   if gpu:
     blurred = blurred.cuda()
     kernel = kernel.cuda()
     op.cuda()
 
-  output = op(blurred, kernel, num_cg_iter = 1).view(3, w, h)
+  output = op(blurred, kernel, num_cg_iter = 2).view(3, w, h)
   loss = output.sum()
   loss.backward()
 
@@ -689,10 +689,10 @@ def test_stn_gpu():
 def test_stn_cpu():
   test_stn(False)
 
-def test_stn(cuda=False):
+def test_stn(cuda=True):
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
 
-  sz = 256
+  sz = 512
   image = image[:sz, :sz, :]
 
   bs = 16
@@ -744,24 +744,24 @@ def test_stn(cuda=False):
     # skimage.io.imsave(
     #     os.path.join(out_dir, name), output)
 
-def test_bilinear_resampling(cuda=False):
+def test_bilinear_resampling(cuda=True):
   image = skimage.io.imread(os.path.join(data_dir, "rgb.png"))
 
   sz = 256
   image = image[:sz, :sz, :]
 
-  bs = 1
+  bs = 16
   h, w, _ = image.shape
   image = np.expand_dims(
       image.transpose([2, 0 , 1])/255.0, 0).astype(np.float32)
   image = np.tile(image, [bs, 1 ,1 ,1])
 
-  xx, yy = np.meshgrid(np.linspace(0, 1, sz), np.linspace(0, 1, sz))
+  xx, yy = np.meshgrid(np.linspace(-1, 1, sz), np.linspace(-1, 1, sz))
   xx = th.from_numpy(xx.astype(np.float32))
   yy = th.from_numpy(yy.astype(np.float32))
 
-  dx = 10.0*th.cos(yy*2*np.pi*8.0)
-  dy = 0.0*th.sin(yy*2*np.pi*8.0)
+  dx = 0.1*th.cos(yy*2*np.pi*8.0) + yy
+  dy = 0.0*th.sin(yy*2*np.pi*8.0) + xx
   dx = dx.unsqueeze(0).unsqueeze(0)
   dy = dy.unsqueeze(0).unsqueeze(0)
   warp = th.cat([dx, dy], 1)
@@ -775,35 +775,229 @@ def test_bilinear_resampling(cuda=False):
     warp = warp.cuda()
 
   nits_burns = 5
-  nits = 10
-  for pytorch in [False]:
-    op = modules.BilinearResampling(pytorch=pytorch)
+  nits = 20
+  for mode in ["halide", "nvidia", "pytorch"]:
+    if mode == "pytorch":
+      w = warp.permute(0, 2, 3, 1)
+    else:
+      w = warp
+    op = modules.BilinearResampling(mode=mode)
     if cuda:
       op = op.cuda()
 
-    if pytorch:
-      name = "resampling_torch_output.png"
-    else:
-      name = "resampling_ours_output.png"
+    name = "resampling_"+mode+"_output.png"
 
     for it in range(nits_burns):
-      output = op(image, warp)
+      output = op(image, w)
       loss = output.sum()
       loss.backward()
 
-      start = time.time()
-      for it in range(nits):
-        output = op(image, warp)
-        loss = output.sum()
-        loss.backward()
-      end = time.time()
+    start = time.time()
+    for it in range(nits):
+      output = op(image, w)
+      loss = output.sum()
+      loss.backward()
+    end = time.time()
 
-    print "{}: running time {}ms".format(name, (end-start)*1000/nits)
+    print("{}: running time {}ms".format(name, (end-start)*1000/nits))
 
-    print output.min(), output.max()
+    print(output.min().data[0], output.max().data[0])
 
     output = output.data[0].cpu().numpy()
     output = np.clip(np.transpose(output, [1, 2, 0]), 0, 1)
     output = np.squeeze(output)
     skimage.io.imsave(
         os.path.join(out_dir, name), output)
+
+
+def test_burst_demosaicking(cuda=False):
+  images = []
+  shift_x = [1, 0, 1, 0]
+  shift_y = [1, 0, 1, 0]
+  for i in range(4):
+    im = skimage.io.imread(os.path.join(data_dir, "burst", "{}.png".format(i)))
+    im = im[:, :, 0].astype(np.float32)/255.0  # images are grayscales
+    im = im[shift_y[i]:, shift_x[i]:]
+    im = np.pad(im, ((0, shift_y[i]), (0, shift_x[i])), 'constant')
+    im = np.expand_dims(im, 0)
+    im = th.from_numpy(im)
+    images.append(im)
+  images = th.cat(images, 0)
+  images = Variable(images, requires_grad=True)
+
+  n, h, w = images.shape
+
+  demos = modules.NaiveDemosaick()
+
+
+  for i in range(n):
+    im = images[0].view(1, 1, h, w)
+    out = demos(im)
+    out = out.data[0].cpu().numpy()
+    out = np.clip(np.transpose(out, [1, 2, 0]), 0, 1)
+    out = np.squeeze(out)
+    skimage.io.imsave(
+        os.path.join(out_dir, "burst_demosaick_{}.png".format(i)), out)
+
+  images = images.data
+
+  # init to identity
+  homographies = th.zeros(n, 8)
+  homographies[:, 0] = 1.0
+  homographies[:, 4] = 1.0
+  homographies = homographies
+
+  # init to first image, with naive demosaick
+  init_idx = 1
+  im = images[init_idx].view(1, 1, h, w)
+  init = demos(im)
+  recons = init.data.clone().squeeze(0)
+
+  op = modules.BurstDemosaicking()
+
+  gradient_weight = th.ones(1)*1e-5
+
+  if cuda:
+    op = op.cuda()
+    recons = recons.cuda()
+    homographies = homographies.cuda()
+    images = images.cuda()
+    gradient_weight = gradient_weight.cuda()
+
+  images = Variable(images, False)
+  recons = Variable(recons, True)
+  gradient_weight = Variable(gradient_weight, False)
+  homographies = Variable(homographies, True)
+
+  lr = 1e1
+  optimizer = th.optim.SGD(
+      [{'params': [homographies], 'lr': 1e-5*lr},
+        {'params': [recons], 'lr': 1e-1*lr}],
+      momentum=0.9, nesterov=True)
+
+  for step in range(1000):
+    optimizer.zero_grad()
+    loss, reproj = op(images, homographies, recons, gradient_weight)
+    loss.backward()
+    # print recons.grad.abs().max().data[0]
+    # print homographies.grad.abs().max().data[0]
+    optimizer.step()
+    print("Step {} loss = {:.4f}".format(step, loss.data[0]))
+
+  for i in range(n):
+    print(list(homographies.cpu().data[i].numpy()))
+
+  for i in range(n):
+    im = reproj[0].view(1, 1, h, w)
+    out = im.abs()*10
+    out = out.data[0].cpu().numpy()
+    out = np.clip(np.transpose(out, [1, 2, 0]), 0, 1)
+    out = np.squeeze(out)
+    skimage.io.imsave(
+        os.path.join(out_dir, "burst_demosaick_reproj_error{}.png".format(i)), out)
+
+  out = recons.data.cpu().numpy()
+  out = np.clip(np.transpose(out, [1, 2, 0]), 0, 1)
+  out = np.squeeze(out)
+  skimage.io.imsave(
+      os.path.join(out_dir, "burst_demosaicking_reconstructed.png"), out)
+
+  diff = (init.data - recons.data.cpu()).abs().numpy()
+  print("Max diff", diff.max())
+  diff = np.squeeze(diff)*100
+  diff = np.clip(np.transpose(diff, [1, 2, 0]), 0, 1)
+  skimage.io.imsave(
+      os.path.join(out_dir, "burst_demosaicking_diff_from_init.png"), diff)
+
+def test_vgg_gpu():
+  test_vgg(cuda=True)
+
+def test_vgg_cpu():
+  test_vgg(cuda=False)
+
+def test_vgg(cuda=True):
+  bs = 1
+  im = th.rand(bs, 3, 224, 224)
+  im = Variable(im, requires_grad=False)
+
+  if cuda:
+    im = im.cuda()
+
+  nits_burns = 0
+  nits = 1
+  for pytorch in [False]:
+    if pytorch:
+      name = "vgg_pytorch"
+      op = modules.VGG(pytorch=pytorch)
+    else:
+      name = "vgg_ours"
+      op = modules.VGGours()
+    if cuda:
+      op = op.cuda()
+
+    for it in xrange(nits_burns):
+      output = op(im)
+
+    print("running")
+    start = time.time()
+    # with profiler.profile() as prof:
+    for it in xrange(nits):
+      output = op(im)
+      loss = output.mean()
+      if pytorch:
+        loss = output.sum()
+        loss.backward()
+        # loss.backward()
+        # print output.cpu().data.numpy()[0, :4]
+        # print "loss = {:.2f}".format(loss.data.cpu()[0])
+      # th.cuda.synchronize()
+    # print prof
+    end = time.time()
+
+    print("{}: running time {}ms".format(name, (end-start)*1000/nits))
+
+def test_bilateral_slice_apply(gpu=True):
+  bs = 20
+  ci = 3
+  co = 3
+  gd = 8
+  gh = 16
+  gw = 16
+
+  h = 256
+  w = 256
+
+  grid =  th.rand(bs, (ci+1)*co, gd, gh, gw)
+  guide = th.rand(bs, h, w)*0.5
+  input = th.rand(bs, ci, h, w)
+
+
+  grid = grid.cuda()
+  guide = guide.cuda()
+  input = input.cuda()
+
+  grid = Variable(grid, requires_grad=True)
+  guide = Variable(guide, requires_grad=True)
+  input = Variable(input, requires_grad=True)
+
+  nbits = 5
+  nits = 10
+
+  for mode in ["pytorch", "manual", "halide"]:
+    op = modules.BilateralSliceApply(mode)
+    op.cuda()
+
+    for i in range(nbits):
+      out = op(grid, guide, input)
+      loss = out.mean()
+      loss.backward()
+    start = time.time()
+    for i in range(nits):
+      out = op(grid, guide, input)
+      loss = out.mean()
+      loss.backward()
+      print(loss.data.cpu()[0], input.grad.data.mean(), grid.grad.data.mean(), guide.grad.data.mean())
+    # th.cuda.synchronize()
+    end = time.time()
+    print("{}: running time {}ms".format(mode, (end-start)*1000/nits))
+

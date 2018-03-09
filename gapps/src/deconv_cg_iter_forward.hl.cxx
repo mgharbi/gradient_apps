@@ -18,11 +18,11 @@ public:
     Output<Buffer<float>> next_xrp{"next_xrp", 4};
 
     void generate() {
-        auto func_map = deconv_cg_iter(xrp, kernel,
+        Func output = deconv_cg_iter(xrp, kernel,
             data_kernel_weights, data_kernels,
             reg_kernel_weights, reg_kernels,
             w_data, w_reg);
-        next_xrp(x, y, c, n) = func_map["next_xrp"](x, y, c, n);
+        next_xrp(x, y, c, n) = output(x, y, c, n);
 
         if (auto_schedule) {
         } else {
@@ -89,34 +89,6 @@ public:
                                  {0, 3}},
                                 options,
                                 {"next_xrp$1"});
-#if 0
-            auto func_map = get_deps(next_xrp);
-            compute_all_root(next_xrp);
-            Func Kp = Func(func_map["Kp"]);
-            Kp.update()
-              .parallel(y)
-              .vectorize(x, 16);
-            Func KTWKp = Func(func_map["K^TWKp"]);
-            KTWKp.update()
-                 .parallel(y)
-                 .vectorize(x, 16);
-            Func rKp = Func(func_map["rKp"]);
-            rKp.update()
-               .parallel(y)
-               .vectorize(x, 16);
-            Func rKTWrKp = Func(func_map["rK^TWrKp"]);
-            rKTWrKp.update()
-                   .parallel(y)
-                   .vectorize(x, 16);
-            Func Pr = Func(func_map["Pr"]);
-            Pr.update()
-              .parallel(y)
-              .vectorize(x, 16);
-            Func next_z = Func(func_map["next_z"]);
-            next_z.update()
-                  .parallel(y)
-                  .vectorize(x, 16);
-#endif
         }
     }
 };

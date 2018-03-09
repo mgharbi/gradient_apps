@@ -14,40 +14,24 @@ public:
     Input<Buffer<float>>  data_kernels{"data_kernels", 3};
     Input<Buffer<float>>  reg_kernel_weights{"reg_kernel_weights", 1};
     Input<Buffer<float>>  reg_kernels{"reg_kernels", 3};
+    Input<Buffer<float>>  reg_powers{"reg_powers", 1};
     Input<Buffer<float>>  reg_targets{"reg_targets", 4};
-    Input<Buffer<float>>  hess_dir{"hess_dir", 3};
-    Output<Buffer<float>> output{"output", 4};
+    Output<Buffer<float>> output{"output", 3};
 
     void generate() {
-        // Boundary condition
-        Func blurred_re, clamped_blurred;
-        std::tie(blurred_re, clamped_blurred) =
-            select_repeat_edge(blurred, blurred.width(), blurred.height());
-        Func xk_re, clamped_xk;
-        std::tie(xk_re, clamped_xk) = select_repeat_edge(xk, xk.width(), xk.height());
-        RDom r_image(0, xk.width(), 0, xk.height(), 0, xk.channels());
-        Func grad = deconv_grad(
+        Func cost = deconv_cost(
             xk, blurred, kernel,
             data_kernel_weights, data_kernels,
-            reg_kernel_weights, reg_kernels, reg_targets);
-
-        // Use forward autodiff to get Hessian-vector product
-        // Generate two versions of the function:
-        // First version uses Hessian-gradient product
-        // Second version uses Hessian-hess_dir product
-#if INIT
-        Func hess = propagate_tangents(grad, {{xk.name(), grad}});
-#else
-        Func hess = propagate_tangents(grad, {{xk.name(), Func(hess_dir)}});
-#endif
-        output(x, y, c, n) = 0.f;
-        output(x, y, c, 0) = grad(x, y, c);
-        output(x, y, c, 1) = hess(x, y, c);
+            reg_kernel_weights, reg_kernels, reg_powers, reg_targets);
+        Derivative d = propagate_adjoints(cost);
+        Func grad = d(xk);
+        output(x, y, c) = grad(x, y, c);
 
         if (auto_schedule) {
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            options.gpu_tile_channel = 1;
             Func output_func = output;
             simple_autoschedule(output_func,
                                 {
@@ -83,6 +67,8 @@ public:
                                  {"reg_kernels.extent.0", 5},
                                  {"reg_kernels.extent.1", 5},
                                  {"reg_kernels.extent.2", 5},
+                                 {"reg_powers.min.0", 0},
+                                 {"reg_powers.extent.0", 5},
                                  {"reg_targets.min.0", 0},
                                  {"reg_targets.min.1", 0},
                                  {"reg_targets.min.2", 0},
@@ -95,8 +81,7 @@ public:
                                 {
                                  {{0, 255},
                                   {0, 255},
-                                  {0, 2},
-                                  {0, 1}},
+                                  {0, 2}},
                                 },
                                 options);
         }
@@ -105,3 +90,6 @@ public:
 
 }  // end namespace gradient_apps
 
+
+HALIDE_REGISTER_GENERATOR(
+    gradient_apps::DeconvGradForwardGenerator, deconv_grad_forward)

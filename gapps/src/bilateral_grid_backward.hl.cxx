@@ -38,6 +38,7 @@ public:
             std::vector<Func> funcs{d_input, d_filter_s, d_filter_r};
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            options.gpu_tile_channel = 3;
             simple_autoschedule(funcs,
                                 {{"input.min.0", 0},
                                  {"input.min.1", 0},

@@ -8,6 +8,7 @@ import time
 import math
 
 import gapps.functions as funcs
+import gapps.resample2d_package.modules.resample2d as nvidia_resample
 
 class NaiveDemosaick(nn.Module):
   def __init__(self):
@@ -16,7 +17,6 @@ class NaiveDemosaick(nn.Module):
   def forward(self, mosaick):
     output = funcs.NaiveDemosaick.apply(mosaick)
     return output
-    # return output[:, 1:2, ...]
 
 class LearnableDemosaick(nn.Module):
   def __init__(self, num_filters=8, fsize=5, sigmoid_param=1.0):
@@ -42,11 +42,103 @@ class LearnableDemosaick(nn.Module):
     self.v_chroma_filter.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)
     self.q_chroma_filter.data.normal_(1.0/(self.fsize*self.fsize), 1e-2)
 
-
   def forward(self, mosaick):
     output = funcs.LearnableDemosaick.apply(
         mosaick, self.sel_filts, self.green_filts,
         self.h_chroma_filter, self.v_chroma_filter, self.q_chroma_filter)
+    return output
+
+class FancyDemosaick(nn.Module):
+  def __init__(self):
+    super(FancyDemosaick, self).__init__()
+
+    self.weights = [
+        ("tmp", nn.Parameter(th.rand(9))),
+        ]
+    self.weights2d = [
+        ("tmp2", nn.Parameter(th.rand(9, 8))),
+        ]
+
+    self.weights3d = [
+        ("g_interp", nn.Parameter(1.0/(7*7)*th.rand(9, 7, 7))),
+        ("cd_interp", nn.Parameter(0.5/(7*7)*th.rand(9, 7, 7))),
+        ("cd_interp_g", nn.Parameter(0.5/(7*7)*th.rand(9, 7, 7))),
+        ("fcd_interp", nn.Parameter(0.5/(7*7)*th.rand(9*2, 7, 7))),
+        ("fcd_interp_g", nn.Parameter(0.5/(7*7)*th.rand(9*2, 7, 7))),
+        ]
+
+    self.weights4d = [
+        ("g_weights", nn.Parameter(th.rand(9, 4, 7, 7))),
+        ("cd_weights", nn.Parameter(th.rand(9, 4, 7, 7))),
+        ("cdg_weights", nn.Parameter(th.rand(9, 4, 7, 7))),
+        ("fcd0_weights", nn.Parameter(th.rand(9*2, 4, 7, 7))),
+        ("fcd1_weights", nn.Parameter(th.rand(9*2, 4, 7, 7))),
+        ("fcdg_weights", nn.Parameter(th.rand(9*2, 4, 7, 7))),
+        ]
+
+    for k, v in self.weights:
+      self.register_parameter(k, v)
+
+    for k, v in self.weights2d:
+      self.register_parameter(k, v)
+
+    for k, v in self.weights3d:
+      self.register_parameter(k, v)
+
+    for k, v in self.weights4d:
+      self.register_parameter(k, v)
+
+  def forward(self, mosaick):
+    weights = [w[1] for w in self.weights]
+    weights += [w[1] for w in self.weights2d]
+    weights += [w[1] for w in self.weights3d]
+    weights += [w[1] for w in self.weights4d]
+    output = funcs.FancyDemosaick.apply(
+        mosaick, *weights)
+    return output
+
+class FancyDemosaick2(nn.Module):
+  def __init__(self):
+    super(FancyDemosaick, self).__init__()
+
+    self.weights = [
+        ("dir_weights_x", nn.Parameter(th.rand(5))),
+        ("dir_weights_y", nn.Parameter(th.rand(5))),
+        ("dir_interp_g", nn.Parameter(th.rand(5))),
+        ("dir_weights_n", nn.Parameter(th.rand(5))),
+        ("dir_weights_p", nn.Parameter(th.rand(5))),
+        ]
+    self.weights2d = [
+        ("neigh_weights_dx", nn.Parameter(th.rand(4, 4))),
+        ("neigh_weights_dy", nn.Parameter(th.rand(4, 4))),
+        ("neigh_weights_dp", nn.Parameter(th.rand(4, 4))),
+        ("neigh_weights_dn", nn.Parameter(th.rand(4, 4))),
+        ("diag_interp_rb", nn.Parameter(th.rand(2, 2))),
+        ("cd_dir_weights_x", nn.Parameter(th.rand(2, 5))),
+        ("cd_dir_weights_y", nn.Parameter(th.rand(2, 5))),
+        ]
+
+    self.weights3d = [
+        ("cd_weights_dx", nn.Parameter(th.rand(2, 4, 4))),
+        ("cd_weights_dy", nn.Parameter(th.rand(2, 4, 4))),
+        ("dir_interp_cd", nn.Parameter(th.randn(2, 4, 5))),
+        ]
+
+    for k, v in self.weights:
+      self.register_parameter(k, v)
+
+    for k, v in self.weights2d:
+      self.register_parameter(k, v)
+
+    for k, v in self.weights3d:
+      self.register_parameter(k, v)
+
+  def forward(self, mosaick):
+    weights = [w[1] for w in self.weights]
+    weights += [w[1] for w in self.weights2d]
+    weights += [w[1] for w in self.weights3d]
+    output = funcs.FancyDemosaick.apply(
+        mosaick, *weights)
     return output
 
 class DeconvCG(nn.Module):
@@ -63,11 +155,12 @@ class DeconvCG(nn.Module):
     self.num_stages = num_stages
     self.ref = ref
 
-    # Use different kernels for first & second phases
+    # Use different kernels for different stages
     self.data_kernels = nn.Parameter(th.zeros(num_stages + 1, num_data_kernels, data_kernel_size, data_kernel_size))
     self.data_kernel_weights = nn.Parameter(th.zeros(num_stages + 1, num_data_kernels))
     self.reg_kernels = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_kernel_weights = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels))
+    self.reg_powers = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels))
     self.filter_s = nn.Parameter(th.zeros(num_stages, filter_s_size))
     self.filter_r = nn.Parameter(th.zeros(num_stages, filter_r_size))
     self.reg_thresholds = nn.Parameter(th.zeros(num_stages, num_reg_kernels))
@@ -117,13 +210,15 @@ class DeconvCG(nn.Module):
     self.reg_thresholds.data[:, 3] = 0.0325
     self.reg_thresholds.data[:, 4] = 0.0325
 
+    self.reg_powers.data[:, :] = 2.0
+
   def train(self, mode=True):
     super(DeconvCG, self).train(mode)
     for p in self.parameters():
       p.requires_grad = mode
     return self
 
-  def forward(self, blurred_batch, kernel_batch, num_irls_iter, num_cg_iter):
+  def forward(self, blurred_batch, kernel_batch, num_irls_iter, num_cg_iter, cg_tol = 1e-4):
     begin = time.time()
     num_batches = blurred_batch.shape[0]
     result = blurred_batch.new(
@@ -131,48 +226,53 @@ class DeconvCG(nn.Module):
     for b in range(num_batches):
       blurred = blurred_batch[b, :, :, :]
       kernel = kernel_batch[b, :, :]
-
-      # Solve the deconvolution using reg_targets == 0 with IRLS first
-      w_data = \
-        blurred.new(self.data_kernels.shape[1], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(1.0)
-      w_reg = \
-        blurred.new(self.reg_kernels.shape[1], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(1.0)
-      reg_targets = \
-        blurred.new(self.reg_kernels.shape[1], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
-      x = blurred
-      for irls_it in range(num_irls_iter):
-        xrp = funcs.DeconvCGInit.apply(
-                blurred,
-                x,
-                kernel,
-                self.data_kernel_weights[0, :],
-                self.data_kernels[0, :, :, :],
-                self.reg_kernel_weights[0, :],
-                self.reg_kernels[0, :, :, :],
-                reg_targets,
-                w_data,
-                w_reg)
-        r = xrp[1, :, :, :].norm()
-        if r.data.cpu() < 1e-5:
-          break
-        for cg_it in range(num_cg_iter):
-          xrp = funcs.DeconvCGIter.apply(
-                  xrp,
+      def deconvolve(x, reg_targets, index):
+        """
+            Solve |\sum_{i} K * dk_i * x - dk_i * b|^2 + \sum_i |rk_i * x - reg_targets|^p_i
+        """
+        w_data = \
+          blurred.new(self.data_kernels.shape[1], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(1.0)
+        w_reg = \
+          blurred.new(self.reg_kernels.shape[1], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(1.0)
+        for irls_it in range(num_irls_iter):
+          xrp = funcs.DeconvCGInit.apply(
+                  blurred,
+                  x,
                   kernel,
-                  self.data_kernel_weights[0, :],
-                  self.data_kernels[0, :, :, :],
-                  self.reg_kernel_weights[0, :],
-                  self.reg_kernels[0, :, :, :],
+                  self.data_kernel_weights[index, :],
+                  self.data_kernels[index, :, :, :],
+                  self.reg_kernel_weights[index, :],
+                  self.reg_kernels[index, :, :, :],
+                  reg_targets,
                   w_data,
                   w_reg)
           r = xrp[1, :, :, :].norm()
-          if r.data.cpu() < 1e-5:
-            break
-  
-        x = xrp[0, :, :, :]
-        #if (irls_it < num_irls_iter - 1):
-        #  w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x,
-        #    self.reg_kernels0, reg_targets, self.reg_powers0)
+          r0 = r
+          for cg_it in range(num_cg_iter):
+            xrp = funcs.DeconvCGIter.apply(
+                    xrp,
+                    kernel,
+                    self.data_kernel_weights[index, :],
+                    self.data_kernels[index, :, :, :],
+                    self.reg_kernel_weights[index, :],
+                    self.reg_kernels[index, :, :, :],
+                    w_data,
+                    w_reg)
+            r = xrp[1, :, :, :].norm()
+            if r < cg_tol * r0:
+              break
+    
+          x = xrp[0, :, :, :]
+          if (irls_it < num_irls_iter - 1):
+            w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x,
+               self.reg_kernels[index, :, :], reg_targets, self.reg_powers[index, :])
+        return x
+
+      # Solve the deconvolution using reg_targets == 0 with IRLS first
+      reg_targets = \
+        blurred.new(self.reg_kernels.shape[1], blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
+      x = blurred
+      x = deconvolve(x, reg_targets, 0)
   
       for stage in range(self.num_stages):
         # Smooth out the resulting image with bilateral grid
@@ -182,48 +282,13 @@ class DeconvCG(nn.Module):
         reg_targets = funcs.DeconvPrior.apply(x,
           self.reg_kernels[stage + 1, :], self.reg_thresholds[stage, :])
 
-        # Solve the deconvolution again using the obtained reg_targets
-        for irls_it in range(num_irls_iter):
-          xrp = funcs.DeconvCGInit.apply(
-                  blurred,
-                  x,
-                  kernel,
-                  self.data_kernel_weights[stage + 1, :],
-                  self.data_kernels[stage + 1, :, :, :],
-                  self.reg_kernel_weights[stage + 1, :],
-                  self.reg_kernels[stage + 1, :, :],
-                  reg_targets,
-                  w_data,
-                  w_reg)
-          r = xrp[1, :, :, :].norm()
-          if r.data.cpu() < 1e-6:
-            break
- 
-          for cg_it in range(num_cg_iter):
-            xrp = funcs.DeconvCGIter.apply(
-                    xrp,
-                    kernel,
-                    self.data_kernel_weights[stage + 1, :],
-                    self.data_kernels[stage + 1, :, :, :],
-                    self.reg_kernel_weights[stage + 1, :],
-                    self.reg_kernels[stage + 1, :],
-                    w_data,
-                    w_reg)
-            r = xrp[1, :, :, :].norm()
-            if r.data.cpu() < 1e-5:
-              break
-  
-          x = xrp[0, :, :, :]
-          #if (irls_it < num_irls_iter):
-          #  w_reg_kernels = funcs.DeconvCGWeight.apply(blurred, x,
-          #    self.reg_kernels1, reg_targets, self.reg_powers1)
-
+        x = deconvolve(x, reg_targets, stage + 1)
       result[b, :, :, :] = x
    
     assert(not np.isnan(result.data.cpu()).any())
     return result
 
-class DeconvCGAuto(nn.Module):
+class DeconvNonlinearCG(nn.Module):
   def __init__(self,
                data_kernel_size=5,
                num_data_kernels=6,
@@ -233,7 +298,7 @@ class DeconvCGAuto(nn.Module):
                filter_r_size=5,
                num_stages=1,
                ref=False):
-    super(DeconvCGAuto, self).__init__()
+    super(DeconvNonlinearCG, self).__init__()
     self.num_stages = num_stages
     self.ref = ref
 
@@ -242,6 +307,7 @@ class DeconvCGAuto(nn.Module):
     self.data_kernel_weights = nn.Parameter(th.zeros(num_stages + 1, num_data_kernels))
     self.reg_kernels = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels, reg_kernel_size, reg_kernel_size))
     self.reg_kernel_weights = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels))
+    self.reg_powers = nn.Parameter(th.zeros(num_stages + 1, num_reg_kernels))
     self.filter_s = nn.Parameter(th.zeros(num_stages, filter_s_size))
     self.filter_r = nn.Parameter(th.zeros(num_stages, filter_r_size))
     self.reg_thresholds = nn.Parameter(th.zeros(num_stages, num_reg_kernels))
@@ -291,16 +357,15 @@ class DeconvCGAuto(nn.Module):
     self.reg_thresholds.data[:, 3] = 0.0325
     self.reg_thresholds.data[:, 4] = 0.0325
 
+    self.reg_powers.data[:, :] = 2.0
+
   def train(self, mode=True):
-    super(DeconvCGAuto, self).train(mode)
+    super(DeconvNonlinearCG, self).train(mode)
     for p in self.parameters():
       p.requires_grad = mode
     return self
 
-  def forward(self, blurred_batch, kernel_batch, num_cg_iter):
-    assert(not np.isnan(self.data_kernel_weights.data.cpu()).any())
-    assert(not np.isnan(self.data_kernels.data.cpu()).any())
-    begin = time.time()
+  def forward(self, blurred_batch, kernel_batch, num_cg_iter, cg_tol = 1e-4):
     num_batches = blurred_batch.shape[0]
     result = blurred_batch.new(
       blurred_batch.shape[0], blurred_batch.shape[1], blurred_batch.shape[2], blurred_batch.shape[3])
@@ -314,40 +379,35 @@ class DeconvCGAuto(nn.Module):
                 blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
       x = blurred.clone()
       def conjugate_gradient(x, index, reg_targets):
-        hess_dir = blurred.new(blurred.shape[0], blurred.shape[1], blurred.shape[2]).fill_(0.0)
-        grad_hess = funcs.DeconvGrad.apply(blurred, x, kernel,
+        grad = funcs.DeconvGrad.apply(blurred, x, kernel,
           self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
           self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
-          reg_targets, hess_dir, True)
-        grad = grad_hess[0, :, :, :]
-        hess_p = grad_hess[1, :, :, :]
-        assert(not np.isnan(grad.data.cpu()).any())
-        assert(not np.isnan(hess_p.data.cpu()).any())
+          self.reg_powers[index, :], reg_targets)
         r = -grad
         r_norm = th.dot(r, r)
+        r0 = r_norm
         p = r
         for cg_it in range(num_cg_iter):
-          # One step line search
-          alpha = -th.dot(grad, p) / (th.dot(hess_p, p))
-          x = x + alpha * p
-          grad_hess = funcs.DeconvGrad.apply(blurred, x, kernel,
+          alpha = funcs.DeconvAlpha.apply(blurred, x, kernel,
             self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
             self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
-            reg_targets, p, False)
-          grad = grad_hess[0, :, :, :]
-          hess_p = grad_hess[1, :, :, :]
+            self.reg_powers[index, :], reg_targets, p)
+          x = x + alpha * p
+          grad = funcs.DeconvGrad.apply(blurred, x, kernel,
+            self.data_kernel_weights[index, :], self.data_kernels[index, :, :],
+            self.reg_kernel_weights[index, :], self.reg_kernels[index, :, :],
+            self.reg_powers[index, :], reg_targets)
           r = -grad
           new_r_norm = th.dot(r, r)
           # Fletcher-Reeves update rule
           beta = new_r_norm / r_norm
           r_norm = new_r_norm
-          if (r_norm < 1e-5):
+          if (r_norm < cg_tol * r0):
               break
           p = r + beta * p
         return x
       x = conjugate_gradient(x, 0, reg_targets)
 
-      self.num_stages = 0
       for stage in range(self.num_stages):
         # Smooth out the resulting image with bilateral grid
         x = funcs.BilateralGrid.apply(x, self.filter_s[stage, :], self.filter_r[stage, :])
@@ -430,9 +490,16 @@ class BilateralLayerTorch(BilateralLayerBase):
 
     self.reset_params()
 
+    self.is_cuda = False
+
   def reset_params(self):
     if self.use_bias:
       self.conv.bias.data.zero_()
+
+  def cuda(self, device=None):
+    super(BilateralLayerTorch, self).cuda(device=device)
+    self.is_cuda = True
+    return self
 
   def apply(self, input, guide):
     bs, ci, h, w = input.shape
@@ -462,6 +529,12 @@ class BilateralLayerTorch(BilateralLayerBase):
     c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
     h_idx = th.from_numpy(np.arange(h)).view(1, 1, h, 1) / sigma_s
     w_idx = th.from_numpy(np.arange(w)).view(1, 1, 1, w) / sigma_s
+    if self.is_cuda:
+      batch_idx = batch_idx.cuda()
+      c_idx = c_idx.cuda()
+      h_idx = h_idx.cuda()
+      w_idx = w_idx.cuda()
+
     grid[batch_idx, c_idx, h_idx, w_idx, lower_bin] += (1-weight)*norm*input
     grid[batch_idx, c_idx, h_idx, w_idx, upper_bin] += weight*norm*input
 
@@ -470,31 +543,39 @@ class BilateralLayerTorch(BilateralLayerBase):
 
     # Slice
     xx, yy = np.meshgrid(np.arange(0, w), np.arange(0, h))
-    gx = ((xx+0.5)/w) * gw
-    gy = ((yy+0.5)/h) * gh
+    xx = xx.astype(np.float32)
+    yy = yy.astype(np.float32)
+    gx = th.from_numpy(((xx+0.5)/w) * gw)
+    gy = th.from_numpy(((yy+0.5)/h) * gh)
     gz = guide*sigma_r
 
+    if self.is_cuda:
+      gx = gx.cuda()
+      gy = gy.cuda()
+
     # Enclosing cell
-    fx = np.floor(gx - 0.5).astype(np.int64);
-    fy = np.floor(gy - 0.5).astype(np.int64);
+    fx = th.floor(gx - 0.5);
+    fy = th.floor(gy - 0.5);
     fz = th.clamp(th.floor(gz-0.5), min=0)
-    cx = np.minimum(fx+1, gw-1);
-    cy = np.minimum(fy+1, gh-1);
-    cz = th.clamp(fz+1, max=sigma_r-1)
 
     # Trilerp weights
-    wx = Variable(th.from_numpy((gx - 0.5 - fx).astype(np.float32)));
-    wy = Variable(th.from_numpy((gy - 0.5 - fy).astype(np.float32)));
+    wx = Variable(gx - 0.5 - fx);
+    wy = Variable(gy - 0.5 - fy);
     wz = th.abs(gz-0.5 - fz)
 
-    # Make indices broadcastable
-    # fx = np.expand_dims(fx, 0)
-    # fy = np.expand_dims(fy, 0)
-    fz = fz.long()[:, 0].view(bs, 1, h, w)
-    cz = cz.long()[:, 0].view(bs, 1, h, w)
+    fx = fx.long()
+    fy = fy.long()
+    fz = fz.long()
 
-    batch_idx = th.from_numpy(np.arange(bs)).view(bs, 1, 1, 1)
-    c_idx = th.from_numpy(np.arange(ci)).view(1, ci, 1, 1)
+    cx = th.clamp(fx+1, max=gw-1);
+    cy = th.clamp(fy+1, max=gh-1);
+    cz = th.clamp(fz+1, max=sigma_r-1)
+
+
+    # Make indices broadcastable
+    fz = fz[:, 0].view(bs, 1, h, w)
+    cz = cz[:, 0].view(bs, 1, h, w)
+
 
     out = grid[batch_idx, c_idx, fy, fx, fz]*(1-wx)*(1-wy)*(1-wz) + \
           grid[batch_idx, c_idx, fy, fx, cz]*(1-wx)*(1-wy)*(  wz) + \
@@ -543,21 +624,374 @@ class SpatialTransformer(nn.Module):
     return out
 
 class BilinearResampling(nn.Module):
-  def __init__(self, pytorch=False):
+  def __init__(self, mode="halide"):
     super(BilinearResampling, self).__init__()
-    self.pytorch = pytorch
+    assert mode in ["halide", "nvidia", "pytorch"]
+    self.mode = mode
+
+    if self.mode == "nvidia":
+      self.op = nvidia_resample.Resample2d(1)
 
   def forward(self, x, warp):
     bs = x.shape[0]
 
-    assert warp.shape[0] == bs
-    assert warp.shape[1] == 2
-    assert warp.shape[2] == x.shape[2]
-    assert warp.shape[3] == x.shape[3]
-
-    if self.pytorch:
-      raise NotImplemented
-    else:
+    if self.mode == "pytorch":
+      assert warp.shape[0] == bs
+      assert warp.shape[1] == x.shape[2]
+      assert warp.shape[2] == x.shape[3]
+      assert warp.shape[3] == 2
+      out = nn.functional.grid_sample(x, warp, 'bilinear', 'zeros')
+    elif self.mode == "halide":
+      assert warp.shape[0] == bs
+      assert warp.shape[1] == 2
+      assert warp.shape[2] == x.shape[2]
+      assert warp.shape[3] == x.shape[3]
       out = funcs.BilinearResampling.apply(x, warp)
+    else: # nvidia
+      assert warp.shape[0] == bs
+      assert warp.shape[1] == 2
+      assert warp.shape[2] == x.shape[2]
+      assert warp.shape[3] == x.shape[3]
+      out = self.op(x, warp)
 
     return out
+
+
+class BurstDemosaicking(nn.Module):
+  def __init__(self):
+    super(BurstDemosaicking, self).__init__()
+
+  def forward(self, inputs, homographies, reconstructed, gradient_weight):
+    out, reproj_error = funcs.BurstDemosaicking.apply(
+        inputs, homographies, reconstructed, gradient_weight)
+    return out, reproj_error
+
+class VGG(nn.Module):
+  def __init__(self, pytorch=False):
+    super(VGG, self).__init__()
+    self.pytorch = pytorch
+
+    self.wscale = 1e-3
+
+    if self.pytorch:
+      self.conv = nn.Sequential(
+          nn.Conv2d(3, 64, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(64, 64, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          nn.Conv2d(64, 128, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(128, 128, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          nn.Conv2d(128, 256, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(256, 256, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(256, 256, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          nn.Conv2d(256, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.Conv2d(512, 512, kernel_size=3, padding=1),
+          nn.ReLU(inplace=True),
+          nn.MaxPool2d(2, stride=2),
+          )
+      self.fc = nn.Sequential(
+          nn.Linear(512 * 7 * 7, 4096),
+          nn.ReLU(inplace=True),
+          nn.Linear(4096, 4096),
+          nn.ReLU(inplace=True),
+          nn.Linear(4096, 1000),
+          nn.ReLU(inplace=True),
+          )
+
+      for n, p in self.named_parameters():
+        if "weight" in n:
+          p.data.fill_(self.wscale)
+        elif "bias" in n:
+          p.data.zero_()
+    else:
+      self.conv_weights = [
+          # co, ci, ky, kx
+          self.wscale*th.ones(64, 3, 3, 3),   # conv1_1
+          self.wscale*th.ones(64, 64, 3, 3),  # conv1_2
+
+          self.wscale*th.ones(128, 64, 3, 3),   # conv2_1
+          self.wscale*th.ones(128, 128, 3, 3),  # conv2_2
+
+          self.wscale*th.ones(256, 128, 3, 3),   # conv3_1
+          self.wscale*th.ones(256, 256, 3, 3),   # conv3_2
+          self.wscale*th.ones(256, 256, 3, 3),   # conv3_3
+
+          self.wscale*th.ones(512, 256, 3, 3),   # conv4_1
+          self.wscale*th.ones(512, 512, 3, 3),   # conv4_2
+          self.wscale*th.ones(512, 512, 3, 3),   # conv4_3
+
+          self.wscale*th.ones(512, 512, 3, 3),   # conv5_1
+          self.wscale*th.ones(512, 512, 3, 3),   # conv5_2
+          self.wscale*th.ones(512, 512, 3, 3),   # conv5_3
+          ]
+
+      self.fc_weights = [
+          # co, ci
+          self.wscale*th.ones(4096, 512*7*7),  # fc6
+          self.wscale*th.ones(4096, 4096), # fc7
+          self.wscale*th.ones(1000, 4096), # fc8
+          ]
+
+      self.biases = [
+          th.zeros(64),
+          th.zeros(64),
+
+          th.zeros(128),
+          th.zeros(128),
+
+          th.zeros(256),
+          th.zeros(256),
+          th.zeros(256),
+
+          th.zeros(512),
+          th.zeros(512),
+          th.zeros(512),
+
+          th.zeros(512),
+          th.zeros(512),
+          th.zeros(512),
+
+          th.zeros(4096),
+          th.zeros(4096),
+          th.zeros(1000),
+          ]
+
+  def cuda(self, device=None):
+    super(VGG, self).cuda(device=device)
+    if not self.pytorch:
+      for i, p in enumerate(self.conv_weights):
+        self.conv_weights[i] = p.cuda()
+
+      for i, p in enumerate(self.fc_weights):
+        self.fc_weights[i] = p.cuda()
+
+      for i, p in enumerate(self.biases):
+        self.biases[i] = p.cuda()
+
+    return self
+
+  def forward(self, input):
+    if self.pytorch:
+      conv = self.conv(input)
+      bs, c, h, w = conv.shape
+      conv = conv.view(bs, c*h*w)
+      out = self.fc(conv)
+    else:
+      out = funcs.VGG.apply(
+          input, self.conv_weights, self.fc_weights, self.biases)
+    return out
+
+
+class VGGours(nn.Module):
+  def __init__(self, pytorch=False):
+    super(VGGours, self).__init__()
+    self.pytorch = pytorch
+
+    self.wscale = 1e-3
+
+    self.conv_weights = [
+        # co, ci, ky, kx
+        self.wscale*th.ones(64, 3, 3, 3),   # conv1_1
+        self.wscale*th.ones(64, 64, 3, 3),  # conv1_2
+
+        self.wscale*th.ones(128, 64, 3, 3),   # conv2_1
+        self.wscale*th.ones(128, 128, 3, 3),  # conv2_2
+
+        self.wscale*th.ones(256, 128, 3, 3),   # conv3_1
+        self.wscale*th.ones(256, 256, 3, 3),   # conv3_2
+        self.wscale*th.ones(256, 256, 3, 3),   # conv3_3
+
+        self.wscale*th.ones(512, 256, 3, 3),   # conv4_1
+        self.wscale*th.ones(512, 512, 3, 3),   # conv4_2
+        self.wscale*th.ones(512, 512, 3, 3),   # conv4_3
+
+        self.wscale*th.ones(512, 512, 3, 3),   # conv5_1
+        self.wscale*th.ones(512, 512, 3, 3),   # conv5_2
+        self.wscale*th.ones(512, 512, 3, 3),   # conv5_3
+        ]
+
+    self.fc_weights = [
+        # co, ci
+        self.wscale*th.ones(4096, 512*7*7),  # fc6
+        self.wscale*th.ones(4096, 4096), # fc7
+        self.wscale*th.ones(1000, 4096), # fc8
+        ]
+
+    self.biases = [
+        th.zeros(64),
+        th.zeros(64),
+
+        th.zeros(128),
+        th.zeros(128),
+
+        th.zeros(256),
+        th.zeros(256),
+        th.zeros(256),
+
+        th.zeros(512),
+        th.zeros(512),
+        th.zeros(512),
+
+        th.zeros(512),
+        th.zeros(512),
+        th.zeros(512),
+
+        th.zeros(4096),
+        th.zeros(4096),
+        th.zeros(1000),
+        ]
+
+  def cuda(self, device=None):
+    super(VGGours, self).cuda(device=device)
+    if not self.pytorch:
+      for i, p in enumerate(self.conv_weights):
+        self.conv_weights[i] = p.cuda()
+
+      for i, p in enumerate(self.fc_weights):
+        self.fc_weights[i] = p.cuda()
+
+      for i, p in enumerate(self.biases):
+        self.biases[i] = p.cuda()
+
+    return self
+
+  def forward(self, input):
+    outs = funcs.VGGfwd_bwd.apply(
+        input, self.conv_weights, self.fc_weights, self.biases)
+    out = outs[0]
+    grads = outs[1:]
+    print("out: ", out.abs().max().data[0])
+    for i, g in enumerate(grads):
+      if i < len(self.conv_weights):
+        name = "conv"
+      elif i < len(self.conv_weights) + len(self.fc_weights) :
+        name = "fc"
+      else:
+        name = "bias"
+      print("-", name, g.abs().max().data[0])
+    return out
+
+class Conv2d(nn.Module):
+  def __init__(self, n_in, n_out, ksize):
+    super(Conv2d, self).__init__()
+    self.weight = nn.Parameter(th.zeros(n_out, n_in, ksize, ksize))
+
+  def forward(self, x):
+    return funcs.Conv2d.apply(x, self.weight)
+    
+
+class BackwardConv2dGeneralScatter(nn.Module):
+  def __init__(self, n_in, n_out, ksize):
+    super(BackwardConv2dGeneralScatter, self).__init__()
+    self.weight = nn.Parameter(th.zeros(n_out, n_in, ksize, ksize))
+
+  def forward(self, x):
+    return funcs.BackwardConv2dGeneralScatter.apply(x, self.weight)
+
+
+class BilateralSliceApply(nn.Module):
+  def __init__(self, mode="halide"):
+    super(BilateralSliceApply, self).__init__()
+    assert mode in ["halide", "manual", "pytorch"]
+    self.mode = mode
+
+    self.w = None
+    self.h = None
+
+    self.gw = None
+    self.gh = None
+
+  def forward(self, grid, guide, input):
+    if self.mode == "manual":
+      return funcs.BilateralSliceApplyManual.apply(grid, guide, input)
+    elif self.mode == "halide":
+      return funcs.BilateralSliceApply.apply(grid, guide, input)
+    else: # pytorch
+      # Get input dimensions
+      bs, ci, h, w = input.shape
+      _, c, gd, gh, gw = grid.shape
+
+      # Coordinates in the fullres image
+      xx = Variable(th.arange(0, w).view(1, -1).repeat(h, 1))
+      yy = Variable(th.arange(0, h).view(-1, 1).repeat(1, w))
+
+      if input.is_cuda:
+        xx = xx.cuda()
+        yy = yy.cuda()
+      # Spatial coordinates in the bilateral grid 
+      gx = ((xx+0.5)/w) * gw
+      gy = ((yy+0.5)/h) * gh
+      gz = th.clamp(guide, 0.0, 1.0)*gd
+
+      # Coordinates of the neighboring grid voxels
+      fx = th.clamp(th.floor(gx - 0.5), min=0)
+      fy = th.clamp(th.floor(gy - 0.5), min=0)
+      fz = th.clamp(th.floor(gz-0.5), min=0)
+
+      # Interpolation weights
+      wx = gx - 0.5 - fx
+      wy = gy - 0.5 - fy
+      wx = wx.unsqueeze(0).unsqueeze(0)
+      wy = wy.unsqueeze(0).unsqueeze(0)
+      wz = th.abs(gz-0.5 - fz)
+      wz = wz.unsqueeze(1)
+
+      # Make the voxel coordinates integers to be use in slicing
+      fx = fx.long().unsqueeze(0).unsqueeze(0)
+      fy = fy.long().unsqueeze(0).unsqueeze(0)
+      fz = fz.long()
+      cx = th.clamp(fx+1, max=gw-1);
+      cy = th.clamp(fy+1, max=gh-1);
+      cz = th.clamp(fz+1, max=gd-1)
+
+      # Make indices broadcastable
+      fz = fz.view(bs, 1, h, w)
+      cz = cz.view(bs, 1, h, w)
+
+      # Indices to slice along the batch axis
+      batch_idx = th.arange(bs).view(bs, 1, 1, 1).long()
+      if gz.is_cuda:
+        batch_idx = batch_idx.cuda()
+      out = []
+      # Number of output channels
+      co = c // (ci+1)
+      # Construct the output channels, one at a time
+      for c_ in range(co):
+        # Select the relevant affine coefficients in the grid
+        c_idx = th.arange((ci+1)*c_, (ci+1)*(c_+1)).view(1, ci+1, 1, 1).long()
+        if gz.is_cuda:
+          c_idx = c_idx.cuda()
+        # Slice to upsample them to full-res
+        a = grid[batch_idx, c_idx, fz, fy, fx]*(1-wx)*(1-wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, fy, fx]*(1-wx)*(1-wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, cy, fx]*(1-wx)*(  wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, cy, fx]*(1-wx)*(  wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, fy, cx]*(  wx)*(1-wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, fy, cx]*(  wx)*(1-wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, cy, cx]*(  wx)*(  wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, cy, cx]*(  wx)*(  wy)*(  wz)
+
+        # Construct the output channel as an affine combination of input channels
+        o = th.sum(a[:, :-1, ...]*input, 1) + a[:, -1, ...]
+        out.append(o.unsqueeze(1))
+      # Assemble all the output channels in a single tensor
+      out = th.cat(out, 1)
+      return out

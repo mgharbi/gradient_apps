@@ -92,6 +92,13 @@ void print_adjoints(std::map<FuncKey, Func> adjoints) {
 }
 
 template <typename Input, typename Output>
+void assign_gradient(const Derivative &d,
+                     const Input &func,
+                     Output &output) {
+    output(_) = d(func)(_);
+}
+
+template <typename Input, typename Output>
 void assign_gradient(std::map<FuncKey, Func> &adjoints,
                      const Input &func,
                      Output &output) {

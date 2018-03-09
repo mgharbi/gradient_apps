@@ -20,19 +20,18 @@ public:
     Output<Buffer<float>> xrp{"xrp", 4};
 
     void generate() {
-        auto func_map = deconv_cg_init(blurred, x0, kernel,
+        Func output = deconv_cg_init(blurred, x0, kernel,
             data_kernel_weights, data_kernels,
             reg_kernel_weights, reg_kernels, reg_targets,
             w_data, w_reg);
-        assert(func_map.find("xrp") != func_map.end());
-        xrp(x, y, c, n) = func_map["xrp"](x, y, c, n);
+        xrp(x, y, c, n) = output(x, y, c, n);
 
         if (auto_schedule) {
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
-            Func xrp_func = xrp;
-            simple_autoschedule(xrp_func,
+            Func output_func = output;
+            simple_autoschedule(output_func,
                                 {
                                  {"blurred.min.0", 0},
                                  {"blurred.min.1", 0},
@@ -95,40 +94,7 @@ public:
                                  {0, 255},
                                  {0, 2},
                                  {0, 2}},
-                                options,
-                                {"xrp$1"});
-#if 0
-            auto func_map = get_deps(xrp);
-            compute_all_root(xrp);
-            Func Kx0 = Func(func_map["Kx0"]);
-            Kx0.update()
-               .parallel(y)
-               .vectorize(x, 16);
-            Func KTWKx0 = Func(func_map["K^TWKx0"]);
-            KTWKx0.update()
-                  .parallel(y)
-                  .vectorize(x, 16);
-            Func rKx0 = Func(func_map["rKx0"]);
-            rKx0.update()
-                .parallel(y)
-                .vectorize(x, 16);
-            Func rKTWrKx0 = Func(func_map["rK^TWrKx0"]);
-            rKTWrKx0.update()
-                    .parallel(y)
-                    .vectorize(x, 16);
-            Func KTWb = Func(func_map["K^TWb"]);
-            KTWb.update()
-                .parallel(y)
-                .vectorize(x, 16);
-            Func Pr0 = Func(func_map["Pr0"]);
-            Pr0.update()
-               .parallel(y)
-               .vectorize(x, 16);
-            Func z0 = Func(func_map["z0$0"]);
-            z0.update()
-              .parallel(y)
-              .vectorize(x, 16);
-#endif
+                                options);
         }
     }
 };

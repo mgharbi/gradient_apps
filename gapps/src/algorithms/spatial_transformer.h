@@ -8,62 +8,41 @@
 
 using namespace Halide;
 
-Var x("x"), y("y"), c("c"), n("n");
+Var x("x"), y("y"), z("z"), c("c"), n("n");
 
 template <typename Input>
-std::map<std::string, Func> spatial_transformer(
-        const Input &input,
-        const Input &affine_mtx
-        ) {
-    Func f_input("f_input");
-    f_input(x, y, c, n) = Halide::BoundaryConditions::constant_exterior(
-        input, 0)(x, y, c, n);
-    Func f_affine_mtx("f_affine_mtx");
-    f_affine_mtx(x, y, n) = affine_mtx(x, y, n);
-
+Func spatial_transformer(const Input &input,
+                         const Input &affine_mtx) {
     Expr width = input.dim(0).extent();
     Expr height = input.dim(1).extent();
 
     // Normalize image coordinates to [-1, 1]^2
     Expr nrm_x = 2.0f*(x * 1.0f / width) - 1.0f;
     Expr nrm_y = 2.0f*(y * 1.0f / height) - 1.0f;
-
-    // Normalized sampling location
-    Expr xformed_x = 
-          f_affine_mtx(0, 0, n)*nrm_x 
-        + f_affine_mtx(1, 0, n)*nrm_y 
-        + f_affine_mtx(2, 0, n);
-
-    Expr xformed_y = 
-          f_affine_mtx(0, 1, n)*nrm_x 
-        + f_affine_mtx(1, 1, n)*nrm_y 
-        + f_affine_mtx(2, 1, n);
+    Func nrm_coords;
+    nrm_coords(x, y, z) = undef<float>();
+    nrm_coords(x, y, 0) = 2.f * (x * 1.f / width) - 1.f;
+    nrm_coords(x, y, 1) = 2.f * (y * 1.f / height) - 1.f;
+    nrm_coords(x, y, 2) = 1.f;
 
     // Convert back to image space
-    Expr new_x = clamp(
-        width*0.5f*(xformed_x + 1.0f),
-        -1.0f, cast<float>(width));
-    Expr new_y = clamp(
-        height*0.5f*(xformed_y + 1.0f),
-        -1.0f, cast<float>(height));
+    RDom rm(0, 3);
+    Func xformed("xformed");
+    xformed(x, y, z, n) += affine_mtx(rm, z, n) * nrm_coords(x, y, rm);
+    xformed(x, y, z, n) = 0.5f * (xformed(x, y, z, n) + 1.f);
 
     // Bilinear interpolation
-    Expr fx = cast<int>(floor(new_x));
-    Expr fy = cast<int>(floor(new_y));
-    Expr wx = (new_x - fx);
-    Expr wy = (new_y - fy);
+    Expr new_x = xformed(x, y, 0, n), new_y = xformed(x, y, 1, n);
+    Expr fx = clamp(cast<int>(floor(width * new_x)), 0, width-2);
+    Expr fy = clamp(cast<int>(floor(height * new_y)), 0, height-2);
+    Expr wx = new_x - fx;
+    Expr wy = new_y - fy;
+    Func output("output");
+    output(x, y, c, n) = 
+        input(fx,   fy,   c, n)*(1.0f-wx)*(1.0f-wy)
+        + input(fx,   fy+1, c, n)*(1.0f-wx)*(     wy)
+        + input(fx+1, fy,   c, n)*(     wx)*(1.0f-wy)
+        + input(fx+1, fy+1, c, n)*(     wx)*(     wy);
 
-    Func f_output("f_output");
-    f_output(x, y, c, n) = 
-        f_input(fx,   fy,   c, n)*(1.0f-wx)*(1.0f-wy)
-      + f_input(fx,   fy+1, c, n)*(1.0f-wx)*(     wy)
-      + f_input(fx+1, fy,   c, n)*(     wx)*(1.0f-wy)
-      + f_input(fx+1, fy+1, c, n)*(     wx)*(     wy);
-
-    std::map<std::string, Func> func_map;
-    func_map["input"]  = input;
-    func_map["affine_mtx"]  = f_affine_mtx;
-    func_map["output"]  = f_output;
-
-    return func_map;
+    return output;
 }

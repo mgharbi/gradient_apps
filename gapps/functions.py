@@ -1,5 +1,6 @@
 import inspect
 import re
+import time
 
 import numpy as np
 import torch
@@ -25,9 +26,12 @@ def wrap_op(op, cuda_op):
   return _func
 
 
+ignores = ["bilateral_slice_manual_forward", "bilateral_slice_manual_backward"]
 th_re = re.compile(r"((?!cuda).)*_th_$")
 ops_funcs = [f for f in inspect.getmembers(ops, inspect.isfunction) if th_re.match(f[0])]
 for op_name, op in ops_funcs:
+  if op_name in ignores:
+    continue
   wrapper_name = op_name[:-4]  # remove th suffix
   cuda_name = wrapper_name + "_cuda_th_"
   try:
@@ -312,6 +316,40 @@ class LearnableDemosaick(Function):
     d_q_chroma = Variable(d_q_chroma)
 
     return d_mosaick, d_sel_filts, d_green_filts, d_h_chroma, d_v_chroma, d_q_chroma
+
+class FancyDemosaick(Function):
+  """"""
+  @staticmethod
+  def forward(ctx, cfa, *weights):
+    ctx.save_for_backward(cfa, *weights)
+
+    bs, _, h, w = cfa.shape
+    output = cfa.new()
+    output.resize_(bs, 3, h, w)
+
+    args = [cfa.view(bs, h, w)] + list(weights) + [output]
+
+    ops.fancy_demosaick_forward(*args)
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    saved = ctx.saved_variables
+    cfa = saved[0]
+    weights = list(saved[1:])
+
+    grads = []
+    for c in weights:
+      c_g = c.data.new()
+      c_g.resize_as_(c.data)
+      grads.append(c_g)
+
+    args = [cfa.data] + [w.data for w in weights] + [d_output.data] \
+        + grads
+    ops.fancy_demosaick_backward(*args)
+    v_grads = [Variable(g) for g in grads]
+
+    return (None, ) + tuple(v_grads)
 
 class DeconvCGInit(Function):
   """"""
@@ -636,38 +674,28 @@ class DeconvGrad(Function):
 
   @staticmethod
   def forward(ctx, blurred, xk, kernel,
-          data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels,
-          reg_targets, hess_dir, init):
+          data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_powers,
+          reg_targets):
     if any(ctx.needs_input_grad):
       ctx.save_for_backward(blurred, xk, kernel,
-              data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_targets, hess_dir)
-      ctx.init = init
+        data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_powers, reg_targets)
 
     output = blurred.new()
     ci, h, w = blurred.shape
     assert ci == 3
 
-    output.resize_(2, ci, h, w)
-    if init:
-      ops.deconv_grad_init_forward(
+    output.resize_(ci, h, w)
+    ops.deconv_grad_forward(
         blurred, xk, kernel,
         data_kernel_weights, data_kernels,
-        reg_kernel_weights, reg_kernels, reg_targets, hess_dir, output)
-    else:
-      ops.deconv_grad_iter_forward(
-        blurred, xk, kernel,
-        data_kernel_weights, data_kernels,
-        reg_kernel_weights, reg_kernels, reg_targets, hess_dir, output)
+        reg_kernel_weights, reg_kernels, reg_powers, reg_targets, output)
 
     return output
 
   @staticmethod
   def backward(ctx, d_output):
     blurred, xk, kernel, data_kernel_weights, data_kernels, \
-        reg_kernel_weights, reg_kernels, reg_targets, hess_dir = ctx.saved_variables
-    init = ctx.init
-
-    assert(not np.isnan(d_output.data.cpu()).any())
+        reg_kernel_weights, reg_kernels, reg_powers, reg_targets = ctx.saved_variables
 
     d_xk = xk.data.new()
     d_xk.resize_as_(xk.data)
@@ -679,39 +707,89 @@ class DeconvGrad(Function):
     d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
     d_reg_kernels = reg_kernels.data.new()
     d_reg_kernels.resize_as_(reg_kernels.data)
+    d_reg_powers = reg_powers.data.new()
+    d_reg_powers.resize_as_(reg_powers.data)
     d_reg_targets = reg_targets.data.new()
     d_reg_targets.resize_as_(reg_targets.data)
-    d_hess_dir = hess_dir.data.new()
-    d_hess_dir.resize_as_(hess_dir.data)
 
-    d_xk.zero_()
-
-    if init:
-      ops.deconv_grad_init_backward(
-        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data, hess_dir.data,
+    ops.deconv_grad_backward(
+        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_powers.data, reg_targets.data,
         d_output.data,
-        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir)
-    else:
-      ops.deconv_grad_iter_backward(
-        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_targets.data, hess_dir.data,
-        d_output.data,
-        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir)
-
-    print(d_xk)
+        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets)
 
     d_xk = Variable(d_xk)
     d_data_kernel_weights = Variable(d_data_kernel_weights)
     d_data_kernels = Variable(d_data_kernels)
     d_reg_kernel_weights = Variable(d_reg_kernel_weights)
     d_reg_kernels = Variable(d_reg_kernels)
+    d_reg_powers = Variable(d_reg_powers)
     d_reg_targets = Variable(d_reg_targets)
-    d_hess_dir = Variable(d_hess_dir)
-    assert(not np.isnan(d_xk.data.cpu()).any())
 
     return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
-           d_reg_kernel_weights, d_reg_kernels, d_reg_targets, d_hess_dir, None
+           d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets
 
+class DeconvAlpha(Function):
+  """"""
 
+  @staticmethod
+  def forward(ctx, blurred, xk, kernel,
+          data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_powers,
+          reg_targets, direction):
+    if any(ctx.needs_input_grad):
+      ctx.save_for_backward(blurred, xk, kernel,
+              data_kernel_weights, data_kernels, reg_kernel_weights, reg_kernels, reg_powers,
+              reg_targets, direction)
+
+    output = blurred.new()
+    ci, h, w = blurred.shape
+    assert ci == 3
+
+    output.resize_(1)
+    ops.deconv_alpha_forward(
+        blurred, xk, kernel,
+        data_kernel_weights, data_kernels,
+        reg_kernel_weights, reg_kernels, reg_powers, reg_targets, direction, output)
+
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    blurred, xk, kernel, data_kernel_weights, data_kernels, \
+        reg_kernel_weights, reg_kernels, reg_powers, reg_targets, direction = ctx.saved_variables
+
+    d_xk = xk.data.new()
+    d_xk.resize_as_(xk.data)
+    d_data_kernel_weights = data_kernel_weights.data.new()
+    d_data_kernel_weights.resize_as_(data_kernel_weights.data)
+    d_data_kernels = data_kernels.data.new()
+    d_data_kernels.resize_as_(data_kernels.data)
+    d_reg_kernel_weights = reg_kernel_weights.data.new()
+    d_reg_kernel_weights.resize_as_(reg_kernel_weights.data)
+    d_reg_kernels = reg_kernels.data.new()
+    d_reg_kernels.resize_as_(reg_kernels.data)
+    d_reg_powers = reg_powers.data.new()
+    d_reg_powers.resize_as_(reg_powers.data)
+    d_reg_targets = reg_targets.data.new()
+    d_reg_targets.resize_as_(reg_targets.data)
+    d_direction = direction.data.new()
+    d_direction.resize_as_(direction.data)
+
+    ops.deconv_alpha_backward(
+        blurred.data, xk.data, kernel.data, data_kernel_weights.data, data_kernels.data, reg_kernel_weights.data, reg_kernels.data, reg_powers.data, reg_targets.data, direction.data,
+        d_output.data,
+        d_xk, d_data_kernel_weights, d_data_kernels, d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets, d_direction)
+
+    d_xk = Variable(d_xk)
+    d_data_kernel_weights = Variable(d_data_kernel_weights)
+    d_data_kernels = Variable(d_data_kernels)
+    d_reg_kernel_weights = Variable(d_reg_kernel_weights)
+    d_reg_kernels = Variable(d_reg_kernels)
+    d_reg_powers = Variable(d_reg_powers)
+    d_reg_targets = Variable(d_reg_targets)
+    d_direction = Variable(d_direction)
+
+    return None, d_xk, None, d_data_kernel_weights, d_data_kernels, \
+           d_reg_kernel_weights, d_reg_kernels, d_reg_powers, d_reg_targets, d_direction
 
 class SpatialTransformer(Function):
   """"""
@@ -790,3 +868,191 @@ class BilinearResampling(Function):
     d_warp = Variable(d_warp)
 
     return d_input, d_warp
+
+
+class BurstDemosaicking(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, inputs, homographies, reconstructed, gradient_weight):
+    ctx.save_for_backward(inputs, homographies, reconstructed, gradient_weight)
+
+    loss = inputs.new()
+    bs, h, w = inputs.shape
+
+    reproj_error = inputs.new()
+
+    assert homographies.shape[0] == bs
+    assert homographies.shape[1] == 8
+
+    assert reconstructed.shape[0] == 3
+    # assert reconstructed.shape[1] == h
+    # assert reconstructed.shape[2] == w
+
+    loss.resize_(1)
+    reproj_error.resize_(bs, h, w)
+    ops.burst_demosaicking_forward(
+        inputs, homographies, reconstructed, 
+        gradient_weight, loss, reproj_error)
+
+    return loss, reproj_error 
+
+  @staticmethod
+  def backward(ctx, d_loss, d_reproj_error):
+    inputs, homographies, reconstructed, gradient_weight = ctx.saved_variables
+
+    # d_confidence = confidence.data.new()
+    # d_confidence.resize_as_(confidence.data)
+    d_homographies = homographies.data.new()
+    d_homographies.resize_as_(homographies.data)
+    d_reconstructed = reconstructed.data.new()
+    d_reconstructed.resize_as_(reconstructed.data)
+
+    ops.burst_demosaicking_backward(
+        inputs.data, homographies.data, reconstructed.data,
+        gradient_weight.data, d_loss.data,
+        d_homographies, d_reconstructed)
+
+    # d_confidence = Variable(d_confidence)
+    d_homographies = Variable(d_homographies)
+    d_reconstructed = Variable(d_reconstructed)
+
+    return None, d_homographies, d_reconstructed, None
+
+
+class VGG(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, conv_weights, fc_weights, biases):
+    ctx.save_for_backward(input, conv_weights, fc_weights, biases)
+
+    bs, ci, h, w = input.shape
+
+    n_out = fc_weights[-1].shape[0]
+
+    output = input.new()
+    output.resize_(bs, n_out)
+    args = [input] + conv_weights + fc_weights + biases + [output]
+    ops.vgg_forward(*args)
+
+    return output
+
+class VGGfwd_bwd(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, conv_weights, fc_weights, biases):
+    ctx.save_for_backward(input, conv_weights, fc_weights, biases)
+
+    bs, ci, h, w = input.shape
+
+    n_out = fc_weights[-1].shape[0]
+
+    output = input.new()
+    output.resize_(bs, n_out)
+    grads = []
+    for c in conv_weights + fc_weights + biases:
+      c_g = c.new()
+      c_g.resize_as_(c)
+      grads.append(c_g)
+
+    args = [input] + conv_weights + fc_weights + biases + [output] + grads
+    ops.vgg_forward_backward(*args)
+
+    return (output, ) + tuple(grads)
+
+
+class Conv2d(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, input, weights):
+    bs, ci, h, w = input.shape
+    n_out = weights.shape[0]
+
+    assert weights.shape[1] == ci
+
+    output = input.new()
+    output.resize_(bs, n_out, h, w)
+    ops.conv2d_forward(input, weights, output)
+
+    return output
+
+
+class BackwardConv2dGeneralScatter(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, d_output, weights):
+    bs, co, h, w = d_output.shape
+    n_in = weights.shape[1]
+
+    assert weights.shape[0] == co
+
+    d_input = d_output.new()
+    d_input.resize_(bs, n_in, h, w)
+    ops.conv2d_general_scatter_forward(d_output, weights, d_input)
+
+    return d_input
+
+class BilateralSliceApplyManual(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, grid, guide, input):
+    ctx.save_for_backward(grid, guide, input)
+    output = input.new()
+    ops.bilateral_slice_manual_forward(grid, guide, input, output)
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    grid, guide, input = ctx.saved_variables
+    d_grid = grid.data.new()
+    d_guide = guide.data.new()
+    d_input = input.data.new()
+
+    ops.bilateral_slice_manual_backward(
+        grid.data, guide.data, input.data, d_output.data,
+        d_grid, d_guide, d_input)
+    
+    d_grid = Variable(d_grid)
+    d_guide = Variable(d_guide)
+    d_input = Variable(d_input)
+
+    return d_grid, d_guide, d_input
+
+class BilateralSliceApply(Function):
+  """"""
+
+  @staticmethod
+  def forward(ctx, grid, guide, input):
+    ctx.save_for_backward(grid, guide, input)
+    bs, ci, h, w = input.shape
+    c = grid.shape[1]
+    output = input.new()
+    output.resize_(bs, c//(ci+1), h, w)
+    ops.bilateral_slice_apply_forward(grid, guide, input, output)
+    return output
+
+  @staticmethod
+  def backward(ctx, d_output):
+    grid, guide, input = ctx.saved_variables
+    d_grid = grid.data.new()
+    d_guide = guide.data.new()
+    d_input = input.data.new()
+
+    d_grid.resize_as_(grid.data)
+    d_guide.resize_as_(guide.data)
+    d_input.resize_as_(input.data)
+
+    ops.bilateral_slice_apply_backward(
+        grid.data, guide.data, input.data, d_output.data,
+        d_grid, d_guide, d_input)
+    
+    d_grid = Variable(d_grid)
+    d_guide = Variable(d_guide)
+    d_input = Variable(d_input)
+
+    return d_grid, d_guide, d_input

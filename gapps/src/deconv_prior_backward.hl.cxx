@@ -16,11 +16,7 @@ public:
     Output<Buffer<float>> d_thresholds{"d_thresholds", 1};
 
     void generate() {
-        auto func_map = deconv_prior(f, reg_kernels, thresholds);
-        Func weights = func_map["weights"];
-        Func f_func = func_map["f_func"];
-        Func reg_kernels_func = func_map["reg_kernels_func"];
-        Func thresholds_func = func_map["thresholds_func"];
+        Func weights = deconv_prior(f, reg_kernels, thresholds);
         Derivative d = propagate_adjoints(
             weights,
             d_weights,
@@ -29,15 +25,15 @@ public:
              {d_weights.dim(2).min(), d_weights.dim(2).max()},
              {d_weights.dim(3).min(), d_weights.dim(3).max()}}
         );
-        std::map<FuncKey, Func> adjoints = d.adjoints;
-        assign_gradient(adjoints, f_func, d_f);
-        assign_gradient(adjoints, reg_kernels_func, d_reg_kernels);
-        assign_gradient(adjoints, thresholds_func, d_thresholds);
+        assign_gradient(d, f, d_f);
+        assign_gradient(d, reg_kernels, d_reg_kernels);
+        assign_gradient(d, thresholds, d_thresholds);
 
         if (auto_schedule) {
         } else {
             SimpleAutoscheduleOptions options;
             options.gpu = get_target().has_gpu_feature();
+            options.gpu_tile_channel = 3;
             std::vector<Func> funcs{d_f, d_reg_kernels, d_thresholds};
             simple_autoschedule(funcs,
                                 {{"f.min.0", 0},

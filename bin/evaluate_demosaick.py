@@ -13,6 +13,8 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from tqdm import tqdm
 
+import skimage.io
+
 import torchlib.viz as viz
 import torchlib.utils as utils
 
@@ -46,7 +48,7 @@ def main(args):
   crop = args.fsize // 2
   psnr_fn = metrics.PSNR(crop=args.fsize//2)
 
-  env = os.path.basename(args.chkpt)
+  env = os.path.basename(args.chkpt)+"_eval"
   checkpointer = utils.Checkpointer(
       args.chkpt, model, None, verbose=False)
   chkpt_name, _ = checkpointer.load_latest()
@@ -55,7 +57,7 @@ def main(args):
   callback = demosaick.DemosaickCallback(
       model, reference_model, len(loader), loader, env=env)
 
-  # Validation
+  idx = 0
   with tqdm(total=len(loader), unit=' batches') as pbar:
     pbar.set_description("Validation")
     avg = utils.Averager(["loss", "psnr", "ssim", "l1"])
@@ -69,6 +71,20 @@ def main(args):
         reference = reference.cuda()
 
       output = model(mosaick)
+
+      if args.save is not None:
+        if not os.path.exists(args.save):
+          os.makedirs(args.save)
+        for i in range(output.shape[0]):
+          im = output[i].cpu().data.numpy()
+          im = np.transpose(im, [1, 2, 0])
+          im = np.clip(im, 0, 1)
+          fname = os.path.join(args.save, "{:04d}.png".format(idx))
+          idx += 1
+          skimage.io.imsave(fname, im)
+
+        
+
       if crop > 0:
         output = output[:, :, crop:-crop, crop:-crop]
         reference = reference[:, :, crop:-crop, crop:-crop]
@@ -93,6 +109,7 @@ def main(args):
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("--chkpt", default="output/demosaick")
+  parser.add_argument("--save", default="output/demosaick_render")
   parser.add_argument("--dataset", default="data/demosaick/val/filelist.txt")
   parser.add_argument("--nfilters", type=int, default=9)
   parser.add_argument("--fsize", type=int, default=5)
