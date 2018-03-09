@@ -51,12 +51,84 @@ def fwd(guide, grid, sigma_s, sigma_r):
 
   return out
 
+def fwd_ref(input, guide, grid, sigma_s, sigma_r):
+      # Get input dimensions
+      bs, ci, h, w = input.shape
+      _, c, gd, gh, gw = grid.shape
+
+      # Coordinates in the fullres image
+      xx = Variable(th.arange(0, w).view(1, -1).repeat(h, 1))
+      yy = Variable(th.arange(0, h).view(-1, 1).repeat(1, w))
+
+      if input.is_cuda:
+        xx = xx.cuda()
+        yy = yy.cuda()
+      # Spatial coordinates in the bilateral grid 
+      gx = ((xx+0.5)/w) * gw
+      gy = ((yy+0.5)/h) * gh
+      gz = th.clamp(guide, 0.0, 1.0)*gd
+
+      # Coordinates of the neighboring grid voxels
+      fx = th.clamp(th.floor(gx - 0.5), min=0)
+      fy = th.clamp(th.floor(gy - 0.5), min=0)
+      fz = th.clamp(th.floor(gz-0.5), min=0)
+
+      # Interpolation weights
+      wx = gx - 0.5 - fx
+      wy = gy - 0.5 - fy
+      wx = wx.unsqueeze(0).unsqueeze(0)
+      wy = wy.unsqueeze(0).unsqueeze(0)
+      wz = th.abs(gz-0.5 - fz)
+      wz = wz.unsqueeze(1)
+
+      # Make the voxel coordinates integers to be use in slicing
+      fx = fx.long().unsqueeze(0).unsqueeze(0)
+      fy = fy.long().unsqueeze(0).unsqueeze(0)
+      fz = fz.long()
+      cx = th.clamp(fx+1, max=gw-1);
+      cy = th.clamp(fy+1, max=gh-1);
+      cz = th.clamp(fz+1, max=gd-1)
+
+      # Make indices broadcastable
+      fz = fz.view(bs, 1, h, w)
+      cz = cz.view(bs, 1, h, w)
+
+      # Indices to slice along the batch axis
+      batch_idx = th.arange(bs).view(bs, 1, 1, 1).long()
+      if gz.is_cuda:
+        batch_idx = batch_idx.cuda()
+      out = []
+      # Number of output channels
+      co = c // (ci+1)
+      # Construct the output channels, one at a time
+      for c_ in range(co):
+        # Select the relevant affine coefficients in the grid
+        c_idx = th.arange((ci+1)*c_, (ci+1)*(c_+1)).view(1, ci+1, 1, 1).long()
+        if gz.is_cuda:
+          c_idx = c_idx.cuda()
+        # Slice to upsample them to full-res
+        a = grid[batch_idx, c_idx, fz, fy, fx]*(1-wx)*(1-wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, fy, fx]*(1-wx)*(1-wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, cy, fx]*(1-wx)*(  wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, cy, fx]*(1-wx)*(  wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, fy, cx]*(  wx)*(1-wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, fy, cx]*(  wx)*(1-wy)*(  wz) + \
+                 grid[batch_idx, c_idx, fz, cy, cx]*(  wx)*(  wy)*(1-wz) + \
+                 grid[batch_idx, c_idx, cz, cy, cx]*(  wx)*(  wy)*(  wz)
+
+        # Construct the output channel as an affine combination of input channels
+        o = th.sum(a[:, :-1, ...]*input, 1) + a[:, -1, ...]
+        out.append(o.unsqueeze(1))
+      out = th.cat(out, 1)
+      # Assemble all the output channels in a single tensor
+      return out
+
 def main():
   bs = 4
-  n_chans = 4
+  n_chans = 3
 
   sigma_s = 16
-  sigma_r = 12
+  sigma_r = 8
 
   # 4x4x1024x1024
   # 4x12x64x64
@@ -65,12 +137,15 @@ def main():
   # sz = 1024
   small_sz = sz // sigma_s
 
+  input = th.rand(bs, n_chans, sz, sz)
   guide = th.rand(bs, sz, sz)
-  grid = th.rand(bs, n_chans, small_sz, small_sz, sigma_r)
+  grid = th.rand(bs, n_chans*(n_chans+1), sigma_r, small_sz, small_sz)
 
+  input = Variable(input, requires_grad=True)
   guide = Variable(guide, requires_grad=True)
   grid = Variable(grid, requires_grad=True)
 
+  input = input.cuda()
   guide = guide.cuda()
   grid = grid.cuda()
 
@@ -79,7 +154,7 @@ def main():
     if i == 1:
       start = time.time()
 
-    out = fwd(guide, grid, sigma_s, sigma_r)
+    out = fwd_ref(input, guide, grid, sigma_s, sigma_r)
     loss = out.sum()
     loss.backward()
 

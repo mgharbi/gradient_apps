@@ -7,4 +7,4 @@ export LD_LIBRARY_PATH="$HOME/anaconda3/envs/cntk-py35/lib/python3.5/site-packag
 echo Library path $LD_LIBRARY_PATH
 
 # cntk configFile=bilateral_layer.cntk
-python bilateral.py
+nvprof --csv -f --log-file /output/nvprof.log python bilateral.py
