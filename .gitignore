@@ -1,7 +1,5 @@
 *.pyc
-data/
 output/
-data
 .cache
 pretrained
 semantic-segmentation-pytorch
