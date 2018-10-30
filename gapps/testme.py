@@ -1,36 +1,35 @@
 import torch  as th
 import testop
 
-def test_conv2d():
-  print(dir(testop))
+print(dir(testop))
 
-  # TODO:
-  # test all types
-  # test CPU/GPU
-  # test correct computation
-  # test memory usage and release on GPU
-  # test correct GPU id
-  # test correct GPU stream
+# TODO:
+# test all types
+# test CPU/GPU
+# test correct computation
+# test memory usage and release on GPU
+# test correct GPU id
+# test correct GPU stream
 
-  n = 1
-  c = 3
-  h = 5
-  w = 5
+n = 1
+c = 3
+h = 5
+w = 5
 
-  k = 3
-  co = 3
+k = 3
+co = 3
 
-  im = th.zeros(n, c, h, w)
-  im[:, :, h//2, w//2] = 0
+im = th.zeros(n, c, h, w)
+im[:, :, h//2, w//2] = 0
 
-  kernel = th.zeros(co, c, k, k)
-  kernel[1, 0, 1, 1] = 1
+kernel = th.zeros(co, c, k, k)
+kernel[1, 0, 1, 1] = 1
 
-  out = th.zeros(n, co, h, w).double()
+out = th.zeros(n, co, h, w).double()
 
-  ret = testop.conv2d_forward(im, kernel, out)
+ret = testop.conv2d_forward(im, kernel, out)
 
-  print(out)
+print(out)
 
   # import os
   # import re
