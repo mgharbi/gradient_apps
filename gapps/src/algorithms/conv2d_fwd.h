@@ -27,7 +27,7 @@ std::map<std::string, Func> conv2d_fwd(
     Expr in_chans = filter.dim(1).extent();
     RDom r(0, kw, 0, kh, 0, in_chans);
     Func f_output("f_output");
-    f_output(x, y, co, n)  = 0.f;
+    f_output(x, y, co, n)  = Expr(0.0);
     f_output(x, y, co, n) += 
       f_filter(r[0], r[1], r[2], co)
       * f_input(x + r[0] - kw/2, y + r[1] - kh/2, r[2], n);

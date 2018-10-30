@@ -1,4 +1,5 @@
 #include "algorithms/conv2d_fwd.h"
+#include "Halide.h"
 
 namespace gradient_apps {
 
@@ -6,7 +7,7 @@ class Conv2dForwardGenerator : public Generator<Conv2dForwardGenerator> {
 public:
     Input<Buffer<float>>  input{"input", 4};
     Input<Buffer<float>>  filter{"filter", 4};
-    Output<Buffer<float>> output{"output", 4};
+    Output<Buffer<double>> output{"output", 4};
 
     void generate() {
       std::map<std::string, Func> func_map = conv2d_fwd(

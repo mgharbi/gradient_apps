@@ -26,7 +26,6 @@ sources.append(os.path.join(src_dir, "cuda_kernels.cxx"))
 
 exts = []
 
-
 ffi = create_extension(
   name='_ext.operators',
   package=False,

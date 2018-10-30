@@ -1,3 +1,6 @@
 [submodule "torchlib"]
 	path = torchlib
 	url = https://github.com/mgharbi/torchlib.git
+[submodule "gradient-halide"]
+	path = gradient-halide
+	url = https://github.com/jrk/gradient-halide.git
