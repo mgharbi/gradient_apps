@@ -86,7 +86,7 @@ def BilateralSlice(sz, i_chans, o_chans, grid_sz=64, sigma_r=8):
   return bilateral_slice
 
 def main():
-  show_image = True
+  show_image = False
   sigma_r = 8
   grid_sz = 64
   if show_image:
@@ -113,7 +113,6 @@ def main():
   model = BilateralSlice(sz, n_chans, n_chans, sigma_r=sigma_r, grid_sz=grid_sz)
   out = model(im, guide, guide_no_grad)
 
-
   svg = C.logging.graph.plot(out, "/output/graph.svg")
 
   if show_image:
@@ -129,9 +128,13 @@ def main():
     C.debugging.profiler.enable_profiler()
     learner = C.sgd(model.parameters, C.learning_parameter_schedule(lr))
     progress_writer = C.logging.ProgressPrinter(0)
+    begin = time.time()
     summary = loss.train((imdata, data, data), parameter_learners=[learner],
                          callbacks=[progress_writer], max_epochs=n_epochs,
                          minibatch_size=bs)
+    end = time.time()
+    runtime = (end-begin)*1000.0/n_epochs
+    print('Runtime:',runtime)
     C.debugging.profiler.stop_profiler()
   # ---------------------------------------------------------------------------
 

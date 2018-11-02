@@ -235,7 +235,7 @@ class BilateralSliceApply(Benchmark):
     x = guide.grad.sum().cpu().data[0]
 
   def reset(self):
-    bs = 4
+    bs = 1
     ci = 3
     co = 3
     gd = 8
