@@ -13,8 +13,8 @@ print(dir(testop))
 
 n = 1
 c = 3
-h = 5
-w = 5
+h = 32
+w = 32
 
 k = 3
 co = 3
