@@ -1,7 +1,7 @@
 import os
 import re
 from setuptools import setup
-from torch.utils.cpp_extension import CppExtension, BuildExtension
+from torch.utils.cpp_extension import CppExtension, BuildExtension, CUDAExtension
 
 abs_path = os.path.dirname(os.path.realpath(__file__))
 build_dir = os.path.join(abs_path, "build")
@@ -26,13 +26,16 @@ extra_objects = [os.path.join(build_dir, o) for o in extra_objects]
 
 include_dirs = [os.path.join(abs_path, "build"), os.path.join(halide_dir, "include")]
 
+compile_args = ["-std=c++11"] 
+# compile_args = ["-std=c++11", "-stdlib=libc++"]  # on osx
+
+# TODO(mgharbi): build individual modules
 setup(name="testop",
       verbose=True,
       ext_modules=[
-        CppExtension("testop", sources, 
-                     extra_objects=extra_objects,
-                     extra_compile_args=["-std=c++11", "-stdlib=libc++"]
-                     )],
+        CUDAExtension("testop", sources, 
+                      extra_objects=extra_objects,
+                      extra_compile_args=compile_args)],
       include_dirs=include_dirs,
       cmdclass={"build_ext": BuildExtension}
       )

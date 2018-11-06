@@ -2,7 +2,7 @@ PYTHON=python3
 TORCH_INC ?= `$(PYTHON) -c 'import torch.utils.ffi as ffi; print("-I"+" -I".join(ffi._setup_wrapper(True)[1]))'`
 
 # Halide utilities
-HALIDE_DIR ?= ../gradient-halide
+HALIDE_DIR = ../gradient-halide
 HALIDE_GEN = $(HALIDE_DIR)/tools/GenGen.cpp
 
 # C++ compile options
@@ -31,6 +31,7 @@ endif
 ifeq ($(BUILD_TYPE), debug)
 CXXFLAGS += -g -rdynamic
 NVFLAGS += -g -G -lineinfo
+# TARGET_FEATURES += -debug
 else
 CXXFLAGS += -O3
 endif
@@ -77,13 +78,22 @@ OPS = \
 			# histogram_forward histogram_backward \
 			# soft_histogram_forward soft_histogram_backward
 
+OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
+ifeq ($(shell which nvcc),)
+CUDA_OPS_LIBS = 
+CUDA_SRC =
+CUDA_OBJ =
+else
+CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
 # CUDA_SRC = bilateral_slice
 # CUDA_OBJ = $(addsuffix _cuda.so, $(addprefix $(BUILD_DIR)/, $(CUDA_SRC)))
-OPS_LIBS = $(addsuffix .a, $(addprefix $(BUILD_DIR)/, $(OPS)))
-CUDA_OPS_LIBS = $(addsuffix _cuda.a, $(addprefix $(BUILD_DIR)/, $(OPS)))
+endif
+OPS_LIBS=
+
+# TODO: check has cuda?
 
 # Assemble all the custom operators in a single shared library to be loaded by Python
-_ext/operators/_operators.so: $(OPS_LIBS) #$(CUDA_OPS_LIBS) $(CUDA_OBJ)
+_ext/operators/_operators.so: $(CUDA_OPS_LIBS) $(CUDA_OBJ) $(OPS_LIBS) 
 	@echo Python CFFI wrapper
 # 	@$(PYTHON) build.py
 
@@ -96,7 +106,7 @@ $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 	@cd $(BUILD_DIR); \
 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=0 \
 										./$(basename $(@F)) -g $(basename $(@F)) \
-										-e static_library,h,pytorch_wrapper,html\
+										-e static_library,h,pytorch_wrapper\
 										-o . target=host$(TARGET_FEATURES) \
 										auto_schedule=$(AUTO_SCHEDULE)
 
@@ -105,19 +115,19 @@ $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 # 	@cd $(BUILD_DIR); \
 # 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=1 \
 # 										./$(basename $(@F)) -g $(basename $(@F)) \
-# 										-e static_library,h,pytorch_wrapper,html\
+# 										-e static_library,h,pytorch_wrapper\
 # 										-o . target=host$(TARGET_FEATURES) \
 # 										auto_schedule=$(AUTO_SCHEDULE)
 
-# $(BUILD_DIR)/%_forward_cuda.a: $(BUILD_DIR)/%_forward
-# 	@$(eval name = $(subst _cuda,,$(basename $(@F))))
-# 	@echo "Op (CUDA) $(name)"
-# 	@cd $(BUILD_DIR); \
-# 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=0 \
-# 										./$(name) -g $(name) -f $(name)_cuda \
-# 										-e static_library,pytorch_wrapper,h,html \
-# 										-o . target=host-cuda-cuda_capability_61-user_context$(TARGET_FEATURES) \
-# 										auto_schedule=$(AUTO_SCHEDULE)
+$(BUILD_DIR)/%_forward_cuda.a: $(BUILD_DIR)/%_forward
+	@$(eval name = $(subst _cuda,,$(basename $(@F))))
+	@echo "Op (CUDA) $(name)"
+	@cd $(BUILD_DIR); \
+	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=0 \
+										./$(name) -g $(name) -f $(name)_cuda \
+										-e static_library,pytorch_wrapper,h\
+										-o . target=host-cuda-cuda_capability_61-user_context$(TARGET_FEATURES) \
+										auto_schedule=$(AUTO_SCHEDULE)
 
 # $(BUILD_DIR)/%_backward_cuda.a: $(BUILD_DIR)/%_backward
 # 	@$(eval name = $(subst _cuda,,$(basename $(@F))))
@@ -125,7 +135,7 @@ $(BUILD_DIR)/%.a: $(BUILD_DIR)/%
 # 	@cd $(BUILD_DIR); \
 # 	DYLD_LIBRARY_PATH=$(HALIDE_DIR)/bin LD_LIBRARY_PATH=$(HALIDE_DIR)/bin FLUSH_MEMOIZE_CACHE=1 \
 # 										./$(name) -g $(name) -f $(name)_cuda \
-# 										-e static_library,pytorch_wrapper,h,html \
+# 										-e static_library,pytorch_wrapper,h\
 # 										-o . target=host-cuda-cuda_capability_61-user_context$(TARGET_FEATURES) \
 # 										auto_schedule=$(AUTO_SCHEDULE)
 

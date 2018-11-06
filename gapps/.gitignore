@@ -2,3 +2,5 @@ _ext
 compile_commands.json
 build/
 bin/
+dist
+testop.egg-info
